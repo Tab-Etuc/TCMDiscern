@@ -8,14 +8,14 @@
 
 研究依序分為：
 
-1. 查核 TCM-SD 官方來源、標籤、切分與重複病例，避免跨資料分割洩漏。
+1. 查核 TCM-SD 官方來源、標籤、切分與重複病例；依定稿保留官方全部病例，不執行去重或重新切分。
 2. 在訓練資料中建立檢索索引，產生 **互異證型** 的候選；訓練樣本使用分組 Out-of-Fold 檢索。
 3. 比較 Recall@5/7/10/15/20/25，分別報告 BM25、Embedding、Hybrid。
 4. 進行 Gemma Zero-shot 與 148 類直接分類基準實驗。
 5. 比較隨機、困難、混合負例 LoRA；驗證集選擇模型，測試集僅作最終評估。
 6. 比較固定 K 與 Adaptive K，報告 Top-1、Macro-F1、延遲、顯存與統計不確定性。
 
-> 此儲存庫目前是研究骨架。尚未宣稱完成資料清理、檢索重現、模型訓練或取得任何實驗結果。
+> 已完成 TCM-SD 原始資料稽核及 BM25 + 自動 K 的完整 Dev 基準；Embedding／Hybrid／Gemma LoRA 尚待實驗。正式採用**原始切分、零刪除**，詳見 [研究定稿](docs/research_protocol.md)。
 
 ## 開發環境
 
@@ -50,7 +50,7 @@ uv run python scripts/audit_datasets.py       # 核對筆數、標籤、重複�
 uv run python scripts/auto_k_bm25.py --max-k 50 --targets 0.80 0.85 0.90 0.95 0.98
 ```
 
-驗證結果：Micro Recall ≥95% 最小 K=5、Macro Recall ≥90% 最小 K=17、Macro Recall ≥95% 最小 K=34（部分去重子集為 35）。本輪尚未包含 Gemma LoRA 與 Hybrid。詳細方法及原始／部分去重對照見 [自動 K 實驗報告](docs/auto_k_experiment.md)。
+完整官方 Dev 5,486 筆：Micro Recall ≥95% 最小 K=5、Macro Recall ≥90% 最小 K=17、Macro Recall ≥95% 最小 K=34。**Gemma 第一輪主 K=17，對照 K=5、35**；未做任何病例排除。本輪尚未包含 Gemma LoRA 與 Hybrid。完整方法、數字與限制見 [實驗報告](docs/auto_k_experiment.md)，1～50 全 K 曲線及 148 類統計見 [機器可讀結果](experiments/bm25_dev_official_2026-11-11.json)。
 
 ## 專案結構
 
@@ -84,7 +84,7 @@ uv run python -m tcmdiscern.evaluation data/predictions.jsonl --ks 5 7 10 15 20 
 ## 研究規範
 
 - 正式 Test 不用於參數選擇、訓練或 hard-negative mining。
-- 排除跨 Train/Validation/Test 的相同或近重複病例洩漏，原始與清理後評估各自保留。
+- **研究定稿：不刪除重複病例、不因相同文字或 user_id 排除樣本、不重新切分。** 跨切分重複及標籤衝突如實記錄，論文揭露可能偏差。
 - 正規化同義證型，避免把同義或其他正確標籤當作負例。
 - 不提交病例原文、模型權重、API 金鑰與大型實驗輸出。
 - 顯式區分「候選生成召回率」與「候選命中條件下的決策準確率」。

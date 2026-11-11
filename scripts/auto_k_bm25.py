@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 from time import perf_counter
 
-from tcmdiscern.datasets import clinical_text, load_records, normalized_input
+from tcmdiscern.datasets import clinical_text, load_records
 from tcmdiscern.k_search import first_hit_rank, minimum_k, minimum_k_by_metric, recall_at_k
 from tcmdiscern.retrieval import CaseBM25
 
@@ -48,7 +48,7 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=root / "data/tcm-sd")
     parser.add_argument("--max-k", type=int, default=50)
     parser.add_argument("--targets", nargs="+", type=float, default=[0.80, 0.85, 0.90, 0.95])
-    parser.add_argument("--limit-dev", type=int, default=None)
+    parser.add_argument("--limit-dev", type=int, default=None, help="Smoke test only")
     parser.add_argument("--batch-size", type=int, default=24)
     parser.add_argument(
         "--output",
@@ -61,6 +61,8 @@ def main() -> None:
         parser.error("--limit-dev must be positive")
     if len(set(args.targets)) != len(args.targets):
         parser.error("--targets must not contain duplicates")
+    if args.limit_dev is not None and args.output == root / "data/reports/bm25_binary_k_dev.json":
+        parser.error("Smoke test requires a distinct --output; official Dev must remain whole")
 
     train = load_records(args.data / "train.json")
     dev = load_records(args.data / "dev.json")
@@ -85,20 +87,9 @@ def main() -> None:
         for row, options in zip(dev, ranked_labels, strict=True)
     ]
 
-    train_text = {normalized_input(row, full=True) for row in train}
-    train_patient_ids = {str(row["user_id"]) for row in train}
-    exact_clean_mask = [
-        normalized_input(row, full=True) not in train_text
-        and str(row["user_id"]) not in train_patient_ids
-        for row in dev
-    ]
-    exact_clean_ranks = [
-        rank for rank, allowed in zip(ranks, exact_clean_mask, strict=True) if allowed
-    ]
+    # Frozen official benchmark: every original Dev case is evaluated.
+    # Duplicate/overlap counts are documented separately by scripts/audit_datasets.py.
     gold_labels = [str(row["norm_syndrome"]) for row in dev]
-    exact_clean_labels = [
-        label for label, allowed in zip(gold_labels, exact_clean_mask, strict=True) if allowed
-    ]
     report = {
         "dataset": "TCM-SD",
         "evaluated_split": "dev",
@@ -109,16 +100,17 @@ def main() -> None:
         "dev_subset": args.limit_dev,
         "max_k": args.max_k,
         "retrieval_seconds": round(elapsed, 2),
+        "duplicate_handling": "retain_all_original_train_and_dev_rows",
+        "selection_policy": {
+            "primary_gemma_k": 17,
+            "comparison_k": [5, 35],
+            "final_gemma_k_to_be_selected_on_dev": True,
+        },
         "original_split": summarize_ranks(ranks, gold_labels, args.max_k, args.targets),
-        "exact_text_and_user_disjoint_subset": (
-            summarize_ranks(exact_clean_ranks, exact_clean_labels, args.max_k, args.targets)
-            if exact_clean_ranks
-            else None
-        ),
         "evaluation_notes": [
             "Dev gold labels are used only for evaluation after retrieval, never in the index.",
             "This is a case-level BM25 baseline, NOT Hybrid or an Embedding result.",
-            "Exact-text/user disjointness is partial leakage control, not semantic near-duplicate removal.",
+            "All original Train and Dev cases are retained; duplication is audit-only.",
             "Recall@K is monotone. Binary search minimizes K subject to a target, not Top-1 accuracy.",
             "The best Gemma reranking K cannot be inferred from retrieval Recall@K alone.",
         ],
@@ -128,7 +120,11 @@ def main() -> None:
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
-    candidate_path = root / "data/candidates/bm25_dev.jsonl"
+    candidate_path = root / (
+        "data/candidates/bm25_dev.jsonl"
+        if args.limit_dev is None
+        else "data/candidates/bm25_dev_smoke.jsonl"
+    )
     candidate_path.parent.mkdir(parents=True, exist_ok=True)
     with candidate_path.open("w", encoding="utf-8") as output:
         for i, (row, candidates) in enumerate(zip(dev, ranked_labels, strict=True)):
@@ -146,7 +142,6 @@ def main() -> None:
     summary = {
         "index_size": len(train),
         "dev_cases": len(dev),
-        "exact_disjoint_dev_cases": len(exact_clean_ranks),
         "recall_at_1": report["original_split"]["recall_curve"]["1"],
         "macro_recall_at_5": report["original_split"]["macro_recall_curve"].get("5"),
         "recall_at_10": report["original_split"]["recall_curve"].get("10"),

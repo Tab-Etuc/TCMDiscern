@@ -19,7 +19,7 @@ TCMDiscern 的研究資料僅放在本機 `data/`；這個目錄整體不進 Git
 
 - 輸入：`chief_complaint`（主訴）、`description`（病情描述）、`detection`（四診資訊）
 - 證型金標：`norm_syndrome`；原始標籤：`syndrome`
-- 其他欄位：`user_id`、`lcd_id`、`lcd_name`。疾病代碼與病名不能未經確認就當作西醫 ICD/診斷；患者 ID 僅用於切分與去重稽核。
+- 其他欄位：`user_id`、`lcd_id`、`lcd_name`。疾病代碼與病名不能未經確認就當作西醫 ICD/診斷；患者 ID 僅用於重複情況的記錄，不做資料排除或重新切分。
 
 **輸入建構一律只選擇診斷前欄位。** 檢索資料、LoRA prompt 不帶入 `norm_syndrome`、`syndrome`、`lcd_id`、`lcd_name` 或 `user_id`。
 
@@ -58,7 +58,7 @@ uv run python scripts/audit_datasets.py
 - 54,152 筆，Train／Dev／Test：43,180／5,486／5,486，148 類，證型知識 1,027 條。
 - 完整四診文字在 Train 與 Test 之間重複 **553 筆**，其中 **23 筆**的標準證型與 Train 不一致。
 - Train 與 Dev 之間完整四診文字重複 **529 筆**，其中 **20 筆**標籤衝突。
-- `user_id` 對照 Train 在 Dev 有 19 筆、Test 有 20 筆重複患者代碼所屬的病例；病例與患者層級都需檢查。
+- `user_id` 對照 Train 在 Dev 有 19 筆、Test 有 20 筆重複患者代碼所屬的病例；僅記錄，**不排除任何病例**。
 - 長尾明顯：Train 最多類別 7,380 筆，最少 7 筆。應報告 Macro-F1 與長尾分層成績。
 
-先保存官方原始切分作論文基準，再另建病例／患者群組隔離的實驗切分。不能因去重而悄悄變更測試分母，也不能在看到 Test 成績後挑選資料清理策略。
+**定稿（2026-11-11）：唯一正式基準為官方原始切分，Train 43,180／Dev 5,486／Test 5,486。零刪除、零排除、零重新切分，標籤衝突照官方標註保留。** 上述重複情況只作描述性稽核，論文如實揭露可能的樂觀偏差；不另建去重 benchmark。正式 Test 保留到模型定案後一次性評估。詳見 [研究定稿](research_protocol.md)。

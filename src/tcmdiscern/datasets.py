@@ -139,7 +139,7 @@ def audit_tcmsd(data_dir: Path) -> dict[str, Any]:
         "test_used_for_training": False,
         "notes": [
             "The train/dev/test files are authoritative original publisher splits.",
-            "Report original-split and leakage-controlled performance separately.",
+            "Frozen protocol retains all original Train/Dev/Test rows; overlap is audit-only.",
             "No test gold or test records may enter retrieval indexes, hard-negative mining, or training.",
             "This audit does not certify absence of semantic near-duplicates.",
         ],
