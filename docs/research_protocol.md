@@ -1,12 +1,12 @@
 # TCMDiscern 研究定稿與實驗規範
 
-**初次定稿：2026-11-11｜模型決策更新：2026-11-11（以 Jeff-1.1-Large 領域微調為主）｜狀態：方法確定、訓練未開始**
+**初次定稿：2026-11-11｜最新決策：2026-11-12（Jeff-1.1-Large／K=16／標註歧義 Set Loss）｜狀態：方法已預先固定、模型訓練尚未開始。最新多正解實驗規格以 [標註歧義方法定稿](jeff_ambiguity_final_protocol_2026-11-12.md) 為準。**
 
 本文件是實作、後續模型訓練及 IEEE 論文撰寫的共同依據。若後續要更改研究設計，應新增明確的決策紀錄，保留本次結果的完整可追溯性。
 
 ## 1. 核心研究問題
 
-> 在固定的 TCM-SD 官方資料切分下，BM25 可召回多少正確候選證型？以 **Jeff-1.1-Large（Gemma 4 31B backbone）的中醫 LoRA + Decision Head** 從相似候選中選出答案，能否改善最終 Top-1、Macro-F1，以及 K=1～35 的效果與成本？
+> 在固定的 TCM-SD 官方資料切分下，BM25 可召回多少正確候選證型？以 **Jeff-1.1-Large（Gemma 4 31B backbone）的中醫 LoRA + Decision Head** 從 16 個相似候選中做單次決策，能否改善 Top-1／Macro-F1？對 Train 同文異標的歧義採部分標籤集合學習（Set Loss）是否優於安全單正解與 Masked CE？同時驗證 K 的效益、延遲及泛化限制。
 
 優先研究 **TCM-SD 的 148 類單標籤證型分類**。西醫病名、中醫病名及其他診斷任務可做後續擴展，不將其混入這次主基準。現有 819／78 類多標籤研究集為另一個任務，單獨報告、不得與 TCM-SD 分數混算。
 
@@ -77,17 +77,23 @@
 | --- | --- |
 | 主模型 | **`jgeuter/Jeff-1.1-Large`**，以其發布權重與既有 Decision Head 為訓練起點；底層為 Gemma 4 31B-it |
 | 微調 | 在 Jeff 已發布的合併權重上另加 LoRA，並適應既有 Decision Head；凍結主模型權重 |
-| 訓練題目 | 每筆 Train 病例 1 個正確證型 + BM25 OOF 產生的 K−1 個困難負例；選項順序隨機打亂 |
+| 訓練題目 | **安全單正解 CE 已完成資料建構；Set Loss 主假設尚待實作。** Set Loss 將同一完整 Train 臨床文字所有觀察金標（1～3）一併放入 16 個選項，其餘由 Group-aware OOF BM25 補足；每個 epoch 打亂位置並同步更新多正解 mask。訓練與測試 Prompt 均使用 Jeff 官方 SemIf 格式 |
 | 資料來源 | 全部官方 Train 43,180 筆；訓練候選僅使用 Train 內部 OOF，不改官方 Train/Dev/Test 切分 |
 | K 設定 | **主要 K=16**（Jeff 原生 A～P 16 個選項，一次 Forward Pass）；**完整 Dev 仍評估 K=1～35**，K=5／17／35 為消融對照，最後最佳 K 依 Dev Top-1／Macro-F1 與耗時決定 |
 | 選項限制 | Jeff 原生 16 個 A～P slot；K=17～35 沿用原作者多組先選優勝者、再總決選的分組推論 |
 | Baseline | BM25 Top-1 79.58%、Macro-F1 54.85%，以及 Jeff-1.1-Large 未再微調版本 |
-| 消融 | Jeff 微調前後；必要時比較 BM25 困難負例、隨機負例與混合負例，控制相同預算 |
+| 消融 | **預定：S1 安全單正解 CE、S2 Masked CE、S3 Multi-positive Set Loss（主要假說）、S4 均勻 Soft-target CE（次要消融）**。S2/S3/S4 必須用相同的 16 個候選，隔離 Loss 影響；其餘候選來源與硬體預算一致。完整定義見 [方法定稿](jeff_ambiguity_final_protocol_2026-11-12.md) |
 | 選模依據 | **完整 Dev Top-1、Macro-F1**，搭配條件準確率、推論時間與峰值顯存；不得用 Test 選模 |
 | 正式 Test | 完整 5,486 筆；待方法固定後一次性評分並揭露已知重複情況 |
 | 統計報告 | Micro/Macro Recall@K、Jeff Top-1、Macro-F1、類別 support、信賴區間、耗時、顯存、訓練超參數 |
 
 **2026-11-11 決策更新：Jeff 主要訓練與推論設定採 K=16。** 官方 Dev BM25 Recall@16：Micro **98.60%**（5,409/5,486）、Macro **89.91%**；K=17：Micro 98.65%（5,412/5,486）、Macro 90.49%。犧牲 3 筆候選命中與 0.58 個百分點 Macro Recall，換取 Jeff 原生一次決策（K=17 需分組 3 次）。**K=16 尚未達 Dev Macro Recall ≥90%**，因此此選擇以決策效率優先，並非符合舊門檻或已證明最佳。後續依 Dev 的真正 Jeff Top-1、Macro-F1 與耗時比較 K=1～35；目前尚無 Jeff 微調成績。詳見 [Jeff 微調計畫](jeff_finetune_plan.md)。
+
+### 5.1 多答案／弱標註研究規範（2026-11-12 定稿）
+
+**以 [Jeff 多標註與完整領域微調定稿](jeff_training_final_protocol_2026-11-12.md) 為後續實作唯一方法依據。** 全部 43,180 Train 中有 252 組、820 筆相同臨床全文卻出現 2～3 個不同官方金標。這是已觀察標註歧義，**不能自動宣稱全部證型同時具有臨床正確性**。S1 單金標基準保持；M1 以 Train-only 的正解集合做 1～3 個正解的均勻 Soft-target Cross-Entropy；M2 以完全相同候選做 Set Loss 消融。三者均保留原始全部病例、真實 Dev K=16 候選和官方單金標 Accuracy／Macro-F1，不能依 Test 成績決定方法。M1／M2 訓練題與 H200 LoRA 尚未執行。
+
+[多標註與單答案理論上界稽核](../experiments/jeff_multi_annotation_bounds_2026-11-12.json)指出，固定真實 BM25 Top-16 的 Dev **5,409/5,486** 包含金標；若相同病例與相同候選只能產生相同的確定性答案，另外 **24 筆**因同輸入不同官方金標無法同時答對，故單答案的**條件性理論上界為 5,385/5,486（98.16%）**。此為資料一致性上界，**不是 Jeff 實測準確率**。正式官方成績仍使用原始 5,486 筆，不刪除或改寫標註。
 
 ## 6. 結果管理
 

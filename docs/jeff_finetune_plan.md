@@ -1,6 +1,8 @@
 # Jeff-1.1-Large 中醫辨證微調實作決策
 
-**決策日：2026-11-11｜資料準備已完成（43,180 Train 五折 OOF／129,540 Jeff 監督題）；模型 LoRA 訓練尚未啟動。**
+**決策日：2026-11-11｜多正解方法修訂：2026-11-12｜原先安全單正解資料準備已完成；新增 Set Loss／Masked CE／Soft CE 資料與訓練器尚未完成。**
+
+> **最新優先規範：** [Jeff 多答案與標註歧義方法定稿](jeff_ambiguity_final_protocol_2026-11-12.md)。本文件部分段落保留原始單正解資料生成細節，作為 S1 baseline 的重現紀錄。
 
 ## 結論與優先順序
 
@@ -9,7 +11,7 @@
 - **第一優先：** 從公開的 `jgeuter/Jeff-1.1-Large` 權重繼續做中醫領域適應，凍結已存在的合併 backbone 權重，在其上新增可訓練 LoRA，並微調既有 Decision Head。
 - **對照基準：** BM25 Top-1、未額外微調的 Jeff-1.1-Large。若資源允許，再對照原始 Gemma 4 31B-it 的同規模 LoRA 微調；此對照非本階段必要條件。
 - **唯一正式資料：** TCM-SD 官方 Train 43,180／Dev 5,486／Test 5,486，148 類。**全部原始病例保留，不去重、不排除、不重新切分、不改標籤**。不混用 819 筆研究集。
-- **主要 K=16：** 一題 1 個正確證型＋15 個 BM25 OOF 困難負例，Jeff 原生 A～P Decision Head 可單次決策。正式 Dev 仍**完整比較 K=1～35**，保留 K=5、17、35 的候選對照；K=1 直接使用 BM25 第一名作基準。
+- **主要 K=16：** Jeff 原生 A～P Decision Head 可單次決策。**S1 安全單正解 CE**為 1 個觀察金標＋15 個非衝突困難負例；預定 **S3 Set Loss** 將同一 Train 臨床文字的 1～3 個觀察金標一併放入候選，負例補足總共 16 個，使用位置 mask 計算 Loss。完整 Dev 仍比較 K=1～35（K=5／17／35 為選項數對照）；K=1 直接使用 BM25 第一名。
 - **已完成／未完成：** BM25 K=1～35、Train 5-fold OOF BM25、主要 K=16 的 Jeff 訓練題目與 K=5／混合 K=2～16 消融資料、逐筆完整性檢查**已完成**。Jeff LoRA、Decision Head 領域適應及端到端 Dev/Test 尚未執行；不得將候選 Recall@K 宣稱為 Jeff 的 Top-1。
 
 ## 原作者可驗證的架構與技術限制
@@ -95,6 +97,8 @@ uv run python scripts/export_jeff_dev.py --k 17   # 分組決策對照
 這些檔案只有病例查詢與 BM25 候選，不含 Dev `gold_labels` 或 `target_index`，並受 `.gitignore` 的 `data/` 規則保護。直接用從 GitHub 下載的**官方 `prompting.py`**比對了 20 筆真實 Dev 的 K=2、5、16：System Message、User JSON 及 chat-template 參數**完全一致**；K=17 的 Row 也通過官方 `validate_row(max_options=256)`。
 
 **Train 全量 43,180 筆的五折 OOF 已實際完成。** 原有三套題目（K=16、K=5、混合 2～16）合計 129,540 筆均通過 QA；**改定主設定 K=16 後，另產出 epoch 1 的 43,180 筆純 K=16 訓練題，並與 K=16 Dev 5,486 筆逐筆驗證完成**。[K=16 主設定品質報告](../experiments/jeff_primary_k16_2026-11-11.json)。 詳見 [完整資料產生、OOF 分數及驗證報告](jeff_train_data.md)。OOF 只排除相同原始資料列；跨折 6,054 筆文字完全相同的病例依定稿保留並揭露。
+
+**重要更新（2026-11-12）：以下本列單金標訓練題僅是 S1 基準。新增的 M1 將同文字已觀察的 1～3 個不同官方標籤都納入 16 選項、以均勻 Soft-target CE 學習；M2 在同候選上使用 Set Loss。不可把已存在的 S1 JSONL 或單一 `target_index` 視為 M1 的訓練資料。詳細唯一依據：[2026-11-12 完整方法定稿](jeff_training_final_protocol_2026-11-12.md)。M1／M2 尚未實作。**
 
 ## 訓練題目如何建立
 

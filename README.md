@@ -12,10 +12,10 @@
 2. 在訓練資料中建立檢索索引，產生 **互異證型** 的候選；訓練樣本使用分組 Out-of-Fold 檢索。
 3. 完整評估 BM25 Recall@K（K=1～35），後續才進行 Embedding、Hybrid 比較。
 4. 進行 Jeff-1.1-Large 未微調基準，再以 TCM-SD Train 訓練 Jeff LoRA + Decision Head；原始 Gemma 直接微調僅為備選對照。
-5. 以 1 個正確證型 + BM25 困難負例建立訓練多選題，依資源比較隨機／混合負例；驗證集選擇模型，測試集僅作最終評估。
+5. 多答案／標註歧義採預先固定的對照：安全單正解 CE、Masked CE、Multi-positive Set Loss，均勻 Soft-target CE 為次要消融。保持 K=16、相同 Train OOF 候選設定與完整官方評估。
 6. 使用官方完整 Dev 比較 **K=1～35** 的真實 Jeff Top-1、Macro-F1、延遲、顯存與統計不確定性，選擇最佳 K。
 
-> 已完成 TCM-SD 原始資料稽核、BM25 K=1～35 全量 Dev 基準、Train 五折 OOF 與 129,540 筆歷史 Jeff 格式訓練題，**另完成 43,180 筆 Group-aware OOF＋矛盾負例修正的 K=16 訓練題**；Jeff 模型 LoRA 尚未執行。原始切分、金標與全部病例保持不變。詳見 [訓練前完整審查](docs/jeff_pretraining_review_2026-11-11.md)、[研究規範](docs/research_protocol.md)及 [Jeff 微調手冊](docs/jeff_finetune_plan.md)。
+> **2026-11-12 方法定稿：** Jeff 1.1 + BM25 K=16；主研究假設採 **Multi-positive Set Loss** 處理 Train 同文異標的標註歧義，安全單正解 CE 與 Masked CE 作對照，均勻 Soft CE 作次要消融。完整規格請先讀 [標註歧義與 Jeff 多正解方法定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md)。已完成原始 BM25 Dev 基準、Train Group-aware OOF 與安全單正解 K=16 43,180 筆資料 QA；**Set Loss 訓練資料與 GPU LoRA 尚未實作，沒有 Jeff 診斷成績。** 原始官方病例、標籤與切分完全保留。
 
 ## 開發環境
 
@@ -96,6 +96,10 @@ uv run python -m scripts.summarize_jeff_oof                    # OOF 全 K 統�
 # 另行產生消融資料（須選擇未使用的 epoch）：
 uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 3
 ```
+
+### 最新研究定稿：多答案與單答案公平比較
+
+**S1 單金標／M1 多觀察金標 Soft-target CE／M2 相同候選 Set Loss**，全部使用 Jeff-1.1-Large、Train 43,180、Group-aware OOF、主要 K=16，正式 Dev／Test 不補金標。**已定稿方法，M1／M2 尚未實作與訓練。** 詳見 [完整研究定稿](docs/jeff_training_final_protocol_2026-11-12.md) 與 [多標註上界彙總](experiments/jeff_multi_annotation_bounds_2026-11-12.json)。
 
 ### 已完成：訓練前完整審查與矛盾負例過濾
 
