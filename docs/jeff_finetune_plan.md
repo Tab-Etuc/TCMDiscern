@@ -32,6 +32,68 @@ Jeff 使用最後提示詞位置的 hidden state `h`，將 Gemma 的 A～P 答�
 
 公開權重已包含合併後的 Jeff 調整效果。**本次新增 LoRA 應附加在該發布權重上**，而非假設仍能取得可分離的原作者 LoRA；微調後需要與 Decision Head 一同保存並重新評估機率校準。作者的原始 `serving_rule.json` 溫度是原任務驗證集所調，不應直接當成中醫病例上的最佳校準。
 
+## Jeff/SemIf 病例格式（已實作、已驗證）
+
+Jeff 原作者使用的每道題目格式是 `{"id","state","question","options"}`。正式模型會透過官方 `jeff.prompting.messages` 將其轉成固定 System Message 與一個 JSON User Message，欄位依序為 `evidence`（病例）、`criterion`（判斷問題）、`options`（A～P 選項）。最後必須呼叫模型自己的 `tokenizer.apply_chat_template(..., tokenize=False, add_generation_prompt=True, enable_thinking=False)`。**格式和 Prompt 一致，才可直接沿用 Jeff 已學會的多選題決策習慣。**
+
+| TCM-SD 原始欄位 | Jeff 的 `state/evidence` |
+|---|---|
+| `chief_complaint` | 保留主訴文字 |
+| `description` | 保留病情描述 |
+| `detection` | 保留四診文字 |
+| `norm_syndrome` | **只當 Train 監督標籤，不能進入病例 evidence** |
+| `syndrome`、`lcd_id`、`lcd_name`、`user_id` | **不進入 evidence** |
+
+**來源程式：** [Jeff prompting.py](https://github.com/j-geuter/Jeff/blob/main/src/jeff/prompting.py)，[Jeff model.py](https://github.com/j-geuter/Jeff/blob/main/src/jeff/model.py)。
+
+TCMDiscern 已新增無 GPU 依賴的轉換器 [`src/tcmdiscern/jeff_format.py`](../src/tcmdiscern/jeff_format.py)，含 `decision_row`、`train_example`、`semif_messages` 與 `render_jeff_prompt`。
+
+### 訓練示意
+
+以下僅為**虛構病例與示意選項**，不代表實際 TCM-SD 標註：
+
+```json
+{
+  "row": {
+    "id": "train-000001",
+    "state": {
+      "chief_complaint": "咳嗽",
+      "description": "痰多胸悶",
+      "detection": "苔白膩、脈滑"
+    },
+    "question": "根據患者主訴、病情與四診資訊，選出最符合的中醫證型。",
+    "options": [
+      {"id": "風寒襲肺", "description": "風寒襲肺"},
+      {"id": "痰濕蘊肺", "description": "痰濕蘊肺"},
+      {"id": "肺氣虛", "description": "肺氣虛"}
+    ],
+    "qtype": "choice"
+  },
+  "target_index": 1,
+  "target_letter": "B"
+}
+```
+
+`row` 才是輸入 Jeff 的物件；`target_index/target_letter` 是**TCMDiscern 自訂的訓練資料標籤封裝**，只交給 Cross-Entropy Loss 使用，不能序列化進 Prompt。Jeff 上游公開 main 提供推論格式與 Head，未釋出原作者完整訓練資料輸出檔案規格，因此不能把這個外層封裝宣稱為上游官方訓練檔格式。
+
+原作者的選項按照 A～P 依序編號；每個訓練 epoch 都要重新打亂選項，**同時重新計算正確答案的位置**。目前轉換器支援直接決策的 K=2～16；K=17～35 輸出完整 Jeff Row，再交給作者 `Decider.decide_wide` 分組決策，**不可直接以 17/35 個選項呼叫 `prompting.messages`**。K=1 直接採 BM25 第一名。
+
+### 真實 Dev 格式已產生並核對
+
+```bash
+uv run python scripts/export_jeff_dev.py --k 5
+uv run python scripts/export_jeff_dev.py --k 17
+```
+
+已完整產出本機：
+
+- `data/jeff/dev_k05.jsonl`：官方 Dev **5,486** 筆，K=5。
+- `data/jeff/dev_k17.jsonl`：官方 Dev **5,486** 筆，K=17；後續必須由官方 Jeff 作分組推論。
+
+兩份檔案只有病例查詢與 BM25 候選，不含 Dev `gold_labels` 或 `target_index`，並受 `.gitignore` 的 `data/` 規則保護。直接用從 GitHub 下載的**官方 `prompting.py`**比對了 20 筆真實 Dev 的 K=2、5、16：System Message、User JSON 及 chat-template 參數**完全一致**；K=17 的 Row 也通過官方 `validate_row(max_options=256)`。
+
+**Train 43,180 筆的完整多選題尚未匯出**，因為必須先完成 Train 內部 BM25 Out-of-Fold 候選，才可以從真正的困難負例建立 1 正確＋K−1 錯誤的訓練樣本；目前不以 Dev 候選或任意臨時負例冒充正式訓練資料。
+
 ## 訓練題目如何建立
 
 針對每筆官方 Train 病例的真實標籤 `y`：

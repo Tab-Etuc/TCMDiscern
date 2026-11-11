@@ -68,7 +68,14 @@ K=1～35 的結果由已完成的 BM25 Dev 排名逐一核算，對照 [原始 B
 
 ## Jeff LoRA 研究主線
 
-主模型：`jgeuter/Jeff-1.1-Large`。使用官方 Train 產生 OOF BM25 困難負例，訓練 1 個正解＋多個相似錯誤證型的選擇題；正式 Dev 不補正解。Jeff 原生 Decision Head 限 16 個選項，K=17～35 沿用作者的分組決策方法。完整訓練架構與原作者程式依據請見 [Jeff 中醫微調計畫](docs/jeff_finetune_plan.md)。
+主模型：`jgeuter/Jeff-1.1-Large`。已依原作者的 **SemIf `state/question/options` → `evidence/criterion/A～P`** 格式實作病例轉換器，並和官方 `prompting.py` 交叉驗證。使用 Train OOF BM25 困難負例，訓練 1 個正解＋多個相似錯誤證型的選擇題；正式 Dev 不補正解。Jeff 原生 Decision Head 限 16 個選項，K=17～35 沿用作者的分組決策。完整說明見 [Jeff 中醫微調計畫](docs/jeff_finetune_plan.md)。
+
+```bash
+uv run python scripts/export_jeff_dev.py --k 5
+uv run python scripts/export_jeff_dev.py --k 17
+```
+
+轉換後每組 Dev 有 5,486 筆實際病例，存放在 Git 忽略的 `data/jeff/`。模型 LoRA 訓練仍待 Train OOF 候選與 H200 環境完成。
 
 ## 專案結構
 
