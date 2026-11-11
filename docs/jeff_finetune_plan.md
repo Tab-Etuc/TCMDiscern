@@ -98,7 +98,7 @@ uv run python scripts/export_jeff_dev.py --k 17   # 分組決策對照
 
 **Train 全量 43,180 筆的五折 OOF 已實際完成。** 原有三套題目（K=16、K=5、混合 2～16）合計 129,540 筆均通過 QA；**改定主設定 K=16 後，另產出 epoch 1 的 43,180 筆純 K=16 訓練題，並與 K=16 Dev 5,486 筆逐筆驗證完成**。[K=16 主設定品質報告](../experiments/jeff_primary_k16_2026-11-11.json)。 詳見 [完整資料產生、OOF 分數及驗證報告](jeff_train_data.md)。OOF 只排除相同原始資料列；跨折 6,054 筆文字完全相同的病例依定稿保留並揭露。
 
-**重要更新（2026-11-12）：以下本列單金標訓練題僅是 S1 基準。新增的 M1 將同文字已觀察的 1～3 個不同官方標籤都納入 16 選項、以均勻 Soft-target CE 學習；M2 在同候選上使用 Set Loss。不可把已存在的 S1 JSONL 或單一 `target_index` 視為 M1 的訓練資料。詳細唯一依據：[2026-11-12 完整方法定稿](jeff_training_final_protocol_2026-11-12.md)。M1／M2 尚未實作。**
+**重要更新（2026-11-12）：以下本列單金標訓練題僅是 S1 基準。S2（Masked CE）、S3（首要多答案 Set Loss）、S4（均勻 Soft-target CE）將相同臨床文字已觀察的 1～3 個不同官方標籤都納入 16 選項，補入 BM25 難負例。不可把既有 S1 JSONL 或單一 `target_index` 視為 S2/S3/S4 訓練資料。唯一依據：[2026-11-12 方法定稿](jeff_ambiguity_final_protocol_2026-11-12.md)。新增資料與 LoRA 尚未實作。**
 
 ## 訓練題目如何建立
 

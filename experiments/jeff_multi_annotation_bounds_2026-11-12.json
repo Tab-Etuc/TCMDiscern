@@ -1,0 +1,56 @@
+{
+  "study": "TCMDiscern",
+  "date": "2026-11-12",
+  "status": "MULTI_ANNOTATION_AND_K16_DETERMINISTIC_BOUND_AUDITED",
+  "data_source": "TCM-SD official Train/Dev and frozen BM25 Dev",
+  "model_predictions_measured": false,
+  "test_data_loaded": false,
+  "original_rows_removed": 0,
+  "train": {
+    "rows": 43180,
+    "distinct_clinical_inputs": 38599,
+    "groups_by_distinct_observed_gold_count": {
+      "1": 38347,
+      "2": 251,
+      "3": 1
+    },
+    "ambiguous_groups": 252,
+    "rows_in_ambiguous_groups": 820,
+    "max_distinct_observed_labels_per_input": 3,
+    "single_answer_deterministic_same_input_upper_bound_n": 42912,
+    "same_input_different_gold_unavoidable_errors_n": 268
+  },
+  "dev": {
+    "rows": 5486,
+    "distinct_clinical_inputs": 5139,
+    "groups_by_distinct_observed_gold_count": {
+      "1": 5110,
+      "2": 29
+    },
+    "ambiguous_groups": 29,
+    "rows_in_ambiguous_groups": 64,
+    "max_distinct_observed_labels_per_input": 2,
+    "single_answer_deterministic_same_input_upper_bound_n": 5457,
+    "same_input_different_gold_unavoidable_errors_n": 29
+  },
+  "dev_k16": {
+    "dev_rows": 5486,
+    "k": 16,
+    "bm25_top1_correct": 4366,
+    "bm25_top1_accuracy": 0.7958439664600802,
+    "gold_in_top_k_n": 5409,
+    "gold_in_top_k_rate": 0.9859642726941306,
+    "gold_absent_from_top_k_n": 77,
+    "single_answer_deterministic_same_prompt_upper_bound_n": 5385,
+    "single_answer_deterministic_same_prompt_upper_bound_rate": 0.9815895005468466,
+    "additional_inevitable_errors_from_conflicting_identical_inputs_n": 24,
+    "bound_assumptions": "Deterministic argmax, prompt depends solely on exactly equal clinical_text and identical K candidate order; model receives no case identifier or unobserved clinical fields. This is a test-label consistency bound, not a measured Jeff result."
+  },
+  "dev_shared_input_with_train": {
+    "dev_rows_same_clinical_input_in_train": 529,
+    "dev_rows_gold_not_among_observed_train_same_text_labels": 20,
+    "dev_rows_matching_ambiguous_train_input": 54
+  },
+  "clinical_status": "Multiple observed labels for identical clinical input; no physician adjudication of simultaneous validity",
+  "safe_conclusion": "Observed multi-annotation is not automatically validated multi-label truth. Deterministic single-choice official accuracy can be limited by inconsistent gold labels for identical model-visible inputs."
+}

@@ -99,7 +99,7 @@ uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 3
 
 ### 最新研究定稿：多答案與單答案公平比較
 
-**S1 單金標／M1 多觀察金標 Soft-target CE／M2 相同候選 Set Loss**，全部使用 Jeff-1.1-Large、Train 43,180、Group-aware OOF、主要 K=16，正式 Dev／Test 不補金標。**已定稿方法，M1／M2 尚未實作與訓練。** 詳見 [完整研究定稿](docs/jeff_training_final_protocol_2026-11-12.md) 與 [多標註上界彙總](experiments/jeff_multi_annotation_bounds_2026-11-12.json)。
+**S1 安全單金標 CE／S2 Masked CE／S3 多觀察正解 Set Loss／S4 均勻 Soft-target CE**，使用相同 Jeff-1.1-Large、Train 43,180、Group-aware OOF、主要 K=16；正式 Dev／Test 不補金標。**優先驗證 S3，S2/S3/S4 使用相同候選以隔離 Loss 影響。** 已定稿方法，新增多正解訓練題及 LoRA 尚未實作。詳見 [唯一完整研究定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md) 與 [多標註上界彙總](experiments/jeff_multi_annotation_bounds_2026-11-12.json)。
 
 ### 已完成：訓練前完整審查與矛盾負例過濾
 
