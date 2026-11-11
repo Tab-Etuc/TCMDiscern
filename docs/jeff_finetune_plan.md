@@ -1,0 +1,70 @@
+# Jeff-1.1-Large 中醫辨證微調實作決策
+
+**決策日：2026-11-11｜狀態：方法已定稿；訓練尚未啟動。**
+
+## 結論與優先順序
+
+主要方法：**TCM-SD → BM25 互異證型候選 → Jeff-1.1-Large（Gemma 4 31B-it backbone）→ 中醫 LoRA + Decision Head → 證型選擇**。
+
+- **第一優先：** 從公開的 `jgeuter/Jeff-1.1-Large` 權重繼續做中醫領域適應，凍結已存在的合併 backbone 權重，在其上新增可訓練 LoRA，並微調既有 Decision Head。
+- **對照基準：** BM25 Top-1、未額外微調的 Jeff-1.1-Large。若資源允許，再對照原始 Gemma 4 31B-it 的同規模 LoRA 微調；此對照非本階段必要條件。
+- **唯一正式資料：** TCM-SD 官方 Train 43,180／Dev 5,486／Test 5,486，148 類。**全部原始病例保留，不去重、不排除、不重新切分、不改標籤**。不混用 819 筆研究集。
+- **K 比較：** 全部 **K=1～35**，每 K 使用相同完整 Dev、相同 BM25 候選排名及同一 Jeff checkpoint。K=1 直接使用 BM25 第一名，作為基準；只有 K≥2 需要真正的選項決策。
+- **已完成／未完成：** BM25 K=1～35 已實測；Jeff LoRA、Decision Head 領域適應及端到端 Dev/Test 尚未執行。不得將候選 Recall@K 宣稱為 Jeff 的 Top-1。
+
+## 原作者可驗證的架構與技術限制
+
+資料來源：
+- [Jeff 官方 README](https://github.com/j-geuter/Jeff/blob/main/README.md)
+- [Decision Head 實作](https://github.com/j-geuter/Jeff/blob/main/src/jeff/head.py)
+- [Prompt 格式](https://github.com/j-geuter/Jeff/blob/main/src/jeff/prompting.py)
+- [模型推論與 >16 選項分組](https://github.com/j-geuter/Jeff/blob/main/src/jeff/model.py)
+- [Jeff-1.1-Large 公開權重](https://huggingface.co/jgeuter/Jeff-1.1-Large)
+- [研究報告](https://arxiv.org/abs/2610.17205)
+
+Jeff 使用最後提示詞位置的 hidden state `h`，將 Gemma 的 A～P 答案字母讀出與可訓練修正層合併：
+
+`logits = softcap(h @ W0.T) + A @ ((h - mu) / sigma) + b`
+
+其中 `W0` 為語言模型原字母 logits 對應權重，`mu/sigma` 是已發布 head 內的特徵標準化統計，`A/b` 是修正層。**本次從已發布 Jeff 繼續訓練時應載入作者的既有 Decision Head、起始權重及 Prompt 模板，不將其重新隨機初始化。**
+
+已發布的 Jeff 程式庫主要提供**服務／推論與 Head 載入程式**；在公開 main 樹中未見完整訓練腳本，因此以下微調流程屬於 **依原作者架構實作的 TCM 領域適應**，不能聲稱已直接重現作者私有的訓練流程。
+
+公開權重已包含合併後的 Jeff 調整效果。**本次新增 LoRA 應附加在該發布權重上**，而非假設仍能取得可分離的原作者 LoRA；微調後需要與 Decision Head 一同保存並重新評估機率校準。作者的原始 `serving_rule.json` 溫度是原任務驗證集所調，不應直接當成中醫病例上的最佳校準。
+
+## 訓練題目如何建立
+
+針對每筆官方 Train 病例的真實標籤 `y`：
+
+1. 僅用 `chief_complaint`、`description`、`detection` 建立病例描述，絕不在 Prompt 輸入原始證型答案、`lcd_id/lcd_name` 或 `user_id`。
+2. 在 **Train 內部 5-fold Out-of-Fold** 建 BM25 候選。每次只用其他四折生成候選，避免同一列當自己的檢索結果；原始官方 Train/Dev/Test 切分完全不變。
+3. 從 OOF BM25 候選中排除正解標籤及正規化後的等義標籤，再取高分錯誤標籤作 **Hard Negatives**；必要時對照隨機負例或混合負例，記錄不足數量。
+4. **訓練階段**刻意放入 1 個正解 `y`，並搭配 K−1 個錯誤標籤（例如 K=5 為 1+4）。每個 epoch 隨機打亂 A～P 選項位置，避免答案位置捷徑；負例採樣種子、候選清單和正確位置留本機紀錄。
+5. 以 **Cross-Entropy** 訓練：正確候選的 Head logit 應最高。以可回溯的 LoRA + Head optimizer/scheduler、warmup、梯度累積、有效 batch、序列長度、訓練步數、checkpoint 和隨機種子記錄完整設定；先小規模實際測 GPU 記憶體與 loss 下降，再定具體參數。
+
+訓練時的「正解強制放入選項」是多選題監督資料建立方式；**正式 Dev/Test 的真實候選保持 BM25 輸出原樣**，絕不把金標補進候選，也不從 Dev/Test 取得訓練負例。
+
+### K=17～35：原作者的 16 選項上限
+
+Jeff 原生 Head 只有 A～P **16 個選項 slot**。公開推論程式對更多候選採 **balanced grouping + final winners**：
+
+- K=2～16：1 次候選決策 forward pass。
+- K=17：分組 9、8；先各選一位優勝者，再選最後一位，約 **3 次 forward passes**。
+- K=35：分 12、11、12 三組；各選一位優勝者，再在三位中選最後一位，約 **4 次 forward passes**。
+
+**不能只把 17／35 選項塞進 16 個 slot 然後取錯誤的結果。** 首輪微調先用 2～16 的多種 K 訓練 Head；K=17～35 使用與原作者相同的分組推論做完整 Dev 評估。若要訓練跨組決策或改成 35-slot Head，必須明確標為另一項方法消融，另外驗證選項校準與訓練策略。
+
+## 最小可審核實驗流程
+
+1. 確認模型版本／授權、可存取 H200 的 bf16 訓練環境與顯存，從 Jeff-1.1-Large 的固定 revision 載入模型、Tokenizer、Head；先跑一次純 Jeff Zero-shot Dev 以檢查建模管線。
+2. Train OOF BM25 建立 Hard Negative 候選並做資料驗證：**43,180 筆 Train 全部有訓練樣本**；不得發生相同病例列索引直接命中自己。若查詢本身可能已含標準標籤文字，只記錄；維持原始病例文字不修改。
+3. 第一輪：Jeff 已發布權重 + 新增 LoRA + 既有 Decision Head，負例採 BM25 硬負例、訓練 K 在 2～16 混合抽樣；訓練時隨機打亂選項位置。
+4. Dev 比較全部 K=1～35，儲存每 K 的 **Top-1、Macro-F1、候選 Recall@K、條件準確率、輸入 tokens、推論耗時、峰值顯存**，以及選項數量 >16 時的實際 forward 次數。
+5. 消融：未額外微調 Jeff vs Jeff LoRA；Hard Negatives vs Random Negatives（同一訓練預算）；可補充混合負例。決定最佳 K 與 checkpoint 時只看 Dev；官方 Test 5,486 筆最後一次性評估。
+6. 確認相較 BM25 Top-1 **79.58%**、Macro-F1 **54.85%** 的差異；除了模型準確率，也比較端到端效能、長尾類別。模型和數據未跑出之前不得宣稱提升。
+
+## 發表與授權
+
+Jeff 專案程式碼標為 Apache-2.0，公開**模型權重**標為 CC BY-NC 4.0；TCM-SD 上游 README 標為 CC BY-NC-SA 4.0。研究使用、公開 checkpoint、商用部署或散布衍生權重之前，需依各自授權、引用與使用條款審查。
+
+**現階段只定稿方法與訓練規則；本文件不代表模型已下載、微調完成或取得 Jeff 的中醫分數。**

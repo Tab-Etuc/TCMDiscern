@@ -1,21 +1,21 @@
 # TCMDiscern
 
-中醫證型辨別研究：檢索候選生成、難負例訓練、Gemma LoRA 重排序與自適應候選數量。
+中醫證型辨別研究：BM25 候選檢索、Jeff-1.1-Large 中醫 LoRA + Decision Head、困難負例與 K=1～35 比較。
 
 ## 研究目標
 
-使用 TCM-SD 病例，比較 BM25、Embedding、Hybrid 的候選覆蓋率，以及 Gemma 4 31B 在不同候選數量下的端到端證型辨別表現。
+使用 TCM-SD 病例，以 **BM25 + Jeff-1.1-Large（Gemma 4 31B-it backbone）領域微調**為主要方法。BM25 提供候選，Jeff 透過 LoRA 與 Decision Head 在 K 個候選中選出正確證型。原始 Gemma 直接微調為備選對照。
 
 研究依序分為：
 
 1. 查核 TCM-SD 官方來源、標籤、切分與重複病例；依定稿保留官方全部病例，不執行去重或重新切分。
 2. 在訓練資料中建立檢索索引，產生 **互異證型** 的候選；訓練樣本使用分組 Out-of-Fold 檢索。
 3. 完整評估 BM25 Recall@K（K=1～35），後續才進行 Embedding、Hybrid 比較。
-4. 進行 Gemma Zero-shot 與 148 類直接分類基準實驗。
-5. 比較隨機、困難、混合負例 LoRA；驗證集選擇模型，測試集僅作最終評估。
-6. 比較固定 K 與 Adaptive K，報告 Top-1、Macro-F1、延遲、顯存與統計不確定性。
+4. 進行 Jeff-1.1-Large 未微調基準，再以 TCM-SD Train 訓練 Jeff LoRA + Decision Head；原始 Gemma 直接微調僅為備選對照。
+5. 以 1 個正確證型 + BM25 困難負例建立訓練多選題，依資源比較隨機／混合負例；驗證集選擇模型，測試集僅作最終評估。
+6. 使用官方完整 Dev 比較 **K=1～35** 的真實 Jeff Top-1、Macro-F1、延遲、顯存與統計不確定性，選擇最佳 K。
 
-> 已完成 TCM-SD 原始資料稽核及 BM25 + 自動 K 的完整 Dev 基準；Embedding／Hybrid／Gemma LoRA 尚待實驗。正式採用**原始切分、零刪除**，詳見 [研究定稿](docs/research_protocol.md)。
+> 已完成 TCM-SD 原始資料稽核及 BM25 K=1～35 全量 Dev 基準；**Jeff 領域微調尚未執行**。正式採用原始切分、零刪除。方法已定稿，詳見 [研究規範](docs/research_protocol.md)與 [Jeff 微調手冊](docs/jeff_finetune_plan.md)。
 
 ## 開發環境
 
@@ -28,7 +28,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-一般 CPU 環境即可進行資料處理與評分測試。GPU／Gemma 訓練依賴待實測 H200 環境後獨立加入，避免本地安裝大型套件。
+一般 CPU 環境可進行資料處理與評分；Jeff-1.1-Large 微調需另外在 H200 驗證 GPU、PyTorch／Transformers 與顯存需求。本機暫不安裝大型訓練依賴。
 
 ## 研究資料
 
@@ -64,7 +64,11 @@ uv run python scripts/auto_k_bm25.py --max-k 50 --targets 0.80 0.85 0.90 0.95 0.
 uv run python scripts/export_bm25_k_grid.py
 ```
 
-K=1～35 的結果由已完成的 BM25 Dev 排名逐一核算，對照 [原始 BM25 K=1～50 快照](experiments/bm25_dev_official_2026-11-11.json) 驗證一致性。Gemma 4 31B 尚無實測成績。
+K=1～35 的結果由已完成的 BM25 Dev 排名逐一核算，對照 [原始 BM25 K=1～50 快照](experiments/bm25_dev_official_2026-11-11.json) 驗證一致性。**Jeff Zero-shot 與 LoRA 尚無實測成績。**
+
+## Jeff LoRA 研究主線
+
+主模型：`jgeuter/Jeff-1.1-Large`。使用官方 Train 產生 OOF BM25 困難負例，訓練 1 個正解＋多個相似錯誤證型的選擇題；正式 Dev 不補正解。Jeff 原生 Decision Head 限 16 個選項，K=17～35 沿用作者的分組決策方法。完整訓練架構與原作者程式依據請見 [Jeff 中醫微調計畫](docs/jeff_finetune_plan.md)。
 
 ## 專案結構
 
