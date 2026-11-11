@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 from tcmdiscern.datasets import clinical_text, load_records
+from tcmdiscern.jeff_config import PRIMARY_JEFF_K
 from tcmdiscern.oof import rank_statistics, rank_train_oof
 
 EXPECTED_TRAIN_ROWS = 43180
@@ -116,7 +117,8 @@ def main() -> None:
                 texts, labels, oof.fold_by_row
             ),
             "excluded_records": 0,
-            "target_training_ks": [5, 16],
+            "primary_training_k": PRIMARY_JEFF_K,
+            "optional_ablation_ks": [5],
             "later_eval_ks": list(range(1, 36)),
             "training_checkpoint": "NOT_RUN",
         }

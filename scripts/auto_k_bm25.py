@@ -13,6 +13,7 @@ from pathlib import Path
 from time import perf_counter
 
 from tcmdiscern.datasets import clinical_text, load_records
+from tcmdiscern.jeff_config import PRIMARY_JEFF_K
 from tcmdiscern.k_search import first_hit_rank, minimum_k, minimum_k_by_metric, recall_at_k
 from tcmdiscern.retrieval import CaseBM25
 
@@ -102,9 +103,9 @@ def main() -> None:
         "retrieval_seconds": round(elapsed, 2),
         "duplicate_handling": "retain_all_original_train_and_dev_rows",
         "selection_policy": {
-            "primary_gemma_k": 17,
-            "comparison_k": [5, 35],
-            "final_gemma_k_to_be_selected_on_dev": True,
+            "primary_jeff_k": PRIMARY_JEFF_K,
+            "comparison_k": [5, 17, 35],
+            "final_jeff_k_to_be_selected_on_dev": True,
         },
         "original_split": summarize_ranks(ranks, gold_labels, args.max_k, args.targets),
         "evaluation_notes": [

@@ -101,7 +101,7 @@
 - `row` 必須包含 `id/state/question/options`，並使用官方固定 System Message。
 - 模型讀到的 User JSON 僅包含 `evidence/criterion/options`，選項用 **A～P** 標示。
 - 透過官方模型 tokenizer 執行 Chat Template，設定 `add_generation_prompt=True`、`enable_thinking=False`。
-- Jeff 原生 Decision Head 只能一次訓練／判斷 **2～16 個選項**；故監督資料先使用 K=5、16 與混合 2～16。
+- **2026-11-11 決策更新：主要訓練 K=16（1 正解＋15 困難負例），採一次 Forward Pass。** K=5、混合 2～16 保留為已有的消融資料。Jeff 原生 Decision Head 一次能處理 2～16 個選項。
 - 正式 Dev **K=17～35** 使用作者原生的 **balanced grouping + winners 決選**推論；K=1 直接採用 BM25 第一名。
 
 ## 4. 完整資料 QA 已通過
@@ -131,8 +131,12 @@ uv sync --python 3.12 --dev
 # 完整官方 Train 上執行五折 OOF（約 132 秒，需原始資料存在）
 uv run python scripts/mine_jeff_train_oof.py
 
-# 以 OOF 候選產生 K=5、K=16、混合 K=2～16 的 Jeff 訓練題目
+# 主要 K=16（首次產生新 epoch，僅輸出 K16）
 uv run python scripts/export_jeff_train.py
+
+# 如需重現原本三套 K=5／16／混合 2～16 的消融資料：
+# 在對應 epoch 尚未有輸出的情況下執行
+uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 2
 
 # 逐筆驗證全部訓練題目並輸出只有彙總統計的 QA 報表
 uv run python -m scripts.verify_jeff_train
@@ -147,7 +151,7 @@ uv run ruff check .
 每個輸出腳本採**不覆寫既有資料**的政策。要在**同一份 OOF 候選**上產生新 epoch 的不同選項順序與 K 分布，只執行：
 
 ```bash
-uv run python scripts/export_jeff_train.py --epoch 1
+uv run python scripts/export_jeff_train.py --epoch 3
 ```
 
 如果 H200 訓練器會執行多個 epoch，**不能重複讀取同一個 `epoch00` 檔案並宣稱每個 epoch 都重新打亂**；需由 DataLoader 在每個 epoch 直接呼叫 `make_train_example`，或預先輸出每個 epoch 對應的資料檔。

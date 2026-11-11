@@ -1,6 +1,6 @@
 # TCMDiscern
 
-中醫證型辨別研究：BM25 候選檢索、Jeff-1.1-Large 中醫 LoRA + Decision Head、困難負例與 K=1～35 比較。
+中醫證型辨別研究：BM25 候選檢索、Jeff-1.1-Large 中醫 LoRA + Decision Head，**主要 K=16**、全 K=1～35 評估。
 
 ## 研究目標
 
@@ -68,14 +68,15 @@ K=1～35 的結果由已完成的 BM25 Dev 排名逐一核算，對照 [原始 B
 
 ## Jeff LoRA 研究主線
 
-主模型：`jgeuter/Jeff-1.1-Large`。已依原作者的 **SemIf `state/question/options` → `evidence/criterion/A～P`** 格式實作病例轉換器，並和官方 `prompting.py` 交叉驗證。使用 Train OOF BM25 困難負例，訓練 1 個正解＋多個相似錯誤證型的選擇題；正式 Dev 不補正解。Jeff 原生 Decision Head 限 16 個選項，K=17～35 沿用作者的分組決策。完整說明見 [Jeff 中醫微調計畫](docs/jeff_finetune_plan.md)。
+主模型：`jgeuter/Jeff-1.1-Large`。**主要 K=16（1 正解＋15 個 BM25 OOF 困難負例）**，對應原生 A～P Decision Head，**一次 Forward Pass** 即可決策。官方 Dev BM25 Recall@16：Micro **98.60%**（5,409/5,486）、Macro **89.91%**；比 K=17 少 3 筆候選命中。保留 K=1～35 的端到端評估，K=17～35 才採作者分組決策。已依原作者的 **SemIf `state/question/options` → `evidence/criterion/A～P`** 格式實作病例轉換器，訓練選項 1 正解＋15 困難負例，正式 Dev 不補入正解。詳見 [Jeff 微調計畫](docs/jeff_finetune_plan.md)。
 
 ```bash
-uv run python scripts/export_jeff_dev.py --k 5
-uv run python scripts/export_jeff_dev.py --k 17
+uv run python scripts/export_jeff_dev.py          # 預設主要 K=16
+uv run python scripts/export_jeff_dev.py --k 5    # 低 K 對照
+uv run python scripts/export_jeff_dev.py --k 17   # 分組決策對照
 ```
 
-轉換後每組 Dev 有 5,486 筆實際病例，存放在 Git 忽略的 `data/jeff/`。Train OOF 已全部完成；Jeff LoRA 尚待 H200 環境實際訓練。
+已產生主要 Dev `data/jeff/dev_k16.jsonl`（5,486 筆），並保留舊 K=5、17 候選作對照，全部存放在 Git 忽略的 `data/jeff/`。Train OOF 已全部完成；Jeff LoRA 尚未實際訓練。
 
 ### 已完成：Train OOF BM25 與 Jeff 監督資料
 
@@ -85,15 +86,15 @@ uv run python scripts/export_jeff_dev.py --k 17
 - `train_oof_k16_epoch00.jsonl`：1 正確＋15 個困難負例。
 - `train_oof_mixed_k02_16_epoch00.jsonl`：混合 2～16 個選項。
 
-**129,540 筆題目全部逐筆通過驗證**；保留所有重複病例，也記錄跨折完全重複文字共 6,054 筆查詢。已封存 **Train OOF K=1～50 全曲線與五折、148 類分項統計**。完整方法、時間、召回率、限制與輸出請見 [Jeff Train OOF 完整實驗紀錄](docs/jeff_train_data.md)、[全 K 統計](experiments/bm25_train_oof_all_k_2026-11-11.json) 與 [K=1～35 CSV](experiments/bm25_train_oof_k1_35_2026-11-11.csv)。
+原先 **129,540 筆題目全部逐筆通過驗證**，保留重複病例、記錄跨折 6,054 筆完全相同臨床文字查詢。**改為 K=16 後，已另用預設設定重建 Train 43,180 筆（epoch 1）與 Dev 5,486 筆，逐筆驗證全數通過**；結果見 [K=16 主設定驗證](experiments/jeff_primary_k16_2026-11-11.json)。Train OOF K=1～50、五折及 148 類分項統計也已封存。詳見 [Train OOF 研究報告](docs/jeff_train_data.md)、[全 K 統計](experiments/bm25_train_oof_all_k_2026-11-11.json)。
 
 ```bash
 uv run python scripts/mine_jeff_train_oof.py
-uv run python scripts/export_jeff_train.py
-uv run python -m scripts.verify_jeff_train
-uv run python -m scripts.summarize_jeff_oof
-# 如需下一個 epoch 的全新選項排列與混合 K：
-uv run python scripts/export_jeff_train.py --epoch 1
+uv run python scripts/export_jeff_train.py                     # 預設只產生主要 K=16
+uv run python -m scripts.verify_jeff_train                     # QA 封存資料
+uv run python -m scripts.summarize_jeff_oof                    # OOF 全 K 統計
+# 另行產生消融資料（須選擇未使用的 epoch）：
+uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 2
 ```
 
 上述輸出不會覆寫既有資料。原始病例與逐筆訓練題目一律存於本機 Git 忽略的 `data/`，公開儲存庫僅提交彙總統計。

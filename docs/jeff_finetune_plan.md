@@ -9,8 +9,8 @@
 - **第一優先：** 從公開的 `jgeuter/Jeff-1.1-Large` 權重繼續做中醫領域適應，凍結已存在的合併 backbone 權重，在其上新增可訓練 LoRA，並微調既有 Decision Head。
 - **對照基準：** BM25 Top-1、未額外微調的 Jeff-1.1-Large。若資源允許，再對照原始 Gemma 4 31B-it 的同規模 LoRA 微調；此對照非本階段必要條件。
 - **唯一正式資料：** TCM-SD 官方 Train 43,180／Dev 5,486／Test 5,486，148 類。**全部原始病例保留，不去重、不排除、不重新切分、不改標籤**。不混用 819 筆研究集。
-- **K 比較：** 全部 **K=1～35**，每 K 使用相同完整 Dev、相同 BM25 候選排名及同一 Jeff checkpoint。K=1 直接使用 BM25 第一名，作為基準；只有 K≥2 需要真正的選項決策。
-- **已完成／未完成：** BM25 K=1～35、Train 5-fold OOF BM25、Jeff 格式監督題目（K=5／16／混合 2～16）與逐筆完整性檢查**已完成**。Jeff LoRA、Decision Head 領域適應及端到端 Dev/Test 尚未執行；不得將候選 Recall@K 宣稱為 Jeff 的 Top-1。
+- **主要 K=16：** 一題 1 個正確證型＋15 個 BM25 OOF 困難負例，Jeff 原生 A～P Decision Head 可單次決策。正式 Dev 仍**完整比較 K=1～35**，保留 K=5、17、35 的候選對照；K=1 直接使用 BM25 第一名作基準。
+- **已完成／未完成：** BM25 K=1～35、Train 5-fold OOF BM25、主要 K=16 的 Jeff 訓練題目與 K=5／混合 K=2～16 消融資料、逐筆完整性檢查**已完成**。Jeff LoRA、Decision Head 領域適應及端到端 Dev/Test 尚未執行；不得將候選 Recall@K 宣稱為 Jeff 的 Top-1。
 
 ## 原作者可驗證的架構與技術限制
 
@@ -81,18 +81,20 @@ TCMDiscern 已新增無 GPU 依賴的轉換器 [`src/tcmdiscern/jeff_format.py`]
 ### 真實 Dev 格式已產生並核對
 
 ```bash
-uv run python scripts/export_jeff_dev.py --k 5
-uv run python scripts/export_jeff_dev.py --k 17
+uv run python scripts/export_jeff_dev.py          # 主要設定 K=16
+uv run python scripts/export_jeff_dev.py --k 5    # 低 K 對照
+uv run python scripts/export_jeff_dev.py --k 17   # 分組決策對照
 ```
 
 已完整產出本機：
 
-- `data/jeff/dev_k05.jsonl`：官方 Dev **5,486** 筆，K=5。
-- `data/jeff/dev_k17.jsonl`：官方 Dev **5,486** 筆，K=17；後續必須由官方 Jeff 作分組推論。
+- `data/jeff/dev_k16.jsonl`：**主要設定**，官方 Dev **5,486** 筆，K=16，可一次 Jeff Forward Pass。
+- `data/jeff/dev_k05.jsonl`：低 K 對照，官方 Dev 5,486 筆。
+- `data/jeff/dev_k17.jsonl`：分組決策對照，官方 Dev 5,486 筆，需分組處理。
 
-兩份檔案只有病例查詢與 BM25 候選，不含 Dev `gold_labels` 或 `target_index`，並受 `.gitignore` 的 `data/` 規則保護。直接用從 GitHub 下載的**官方 `prompting.py`**比對了 20 筆真實 Dev 的 K=2、5、16：System Message、User JSON 及 chat-template 參數**完全一致**；K=17 的 Row 也通過官方 `validate_row(max_options=256)`。
+這些檔案只有病例查詢與 BM25 候選，不含 Dev `gold_labels` 或 `target_index`，並受 `.gitignore` 的 `data/` 規則保護。直接用從 GitHub 下載的**官方 `prompting.py`**比對了 20 筆真實 Dev 的 K=2、5、16：System Message、User JSON 及 chat-template 參數**完全一致**；K=17 的 Row 也通過官方 `validate_row(max_options=256)`。
 
-**Train 全量 43,180 筆的五折 OOF 已實際完成，且已匯出三套 Jeff 訓練題目（K=5／16／混合 2～16），共 129,540 筆，逐筆 QA 全部通過。** 詳見 [完整資料產生、OOF 分數及驗證報告](jeff_train_data.md)。OOF 只排除相同原始資料列；跨折 6,054 筆文字完全相同的病例依定稿保留並揭露。
+**Train 全量 43,180 筆的五折 OOF 已實際完成。** 原有三套題目（K=16、K=5、混合 2～16）合計 129,540 筆均通過 QA；**改定主設定 K=16 後，另產出 epoch 1 的 43,180 筆純 K=16 訓練題，並與 K=16 Dev 5,486 筆逐筆驗證完成**。[K=16 主設定品質報告](../experiments/jeff_primary_k16_2026-11-11.json)。 詳見 [完整資料產生、OOF 分數及驗證報告](jeff_train_data.md)。OOF 只排除相同原始資料列；跨折 6,054 筆文字完全相同的病例依定稿保留並揭露。
 
 ## 訓練題目如何建立
 
@@ -114,13 +116,13 @@ Jeff 原生 Head 只有 A～P **16 個選項 slot**。公開推論程式對更�
 - K=17：分組 9、8；先各選一位優勝者，再選最後一位，約 **3 次 forward passes**。
 - K=35：分 12、11、12 三組；各選一位優勝者，再在三位中選最後一位，約 **4 次 forward passes**。
 
-**不能只把 17／35 選項塞進 16 個 slot 然後取錯誤的結果。** 首輪微調先用 2～16 的多種 K 訓練 Head；K=17～35 使用與原作者相同的分組推論做完整 Dev 評估。若要訓練跨組決策或改成 35-slot Head，必須明確標為另一項方法消融，另外驗證選項校準與訓練策略。
+**目前主要訓練採 K=16，直接對應 16-slot Head，單次決策。** K=5、混合 K=2～16 保留為可選消融；K=17～35 使用與原作者相同的分組推論做完整 Dev 評估，不能把超過 16 個選項直接塞入 Head。若要另訓跨組決策或改成 35-slot Head，需標為另一項消融並重新驗證校準。
 
 ## 最小可審核實驗流程
 
 1. 確認模型版本／授權、可存取 H200 的 bf16 訓練環境與顯存，從 Jeff-1.1-Large 的固定 revision 載入模型、Tokenizer、Head；先跑一次純 Jeff Zero-shot Dev 以檢查建模管線。
 2. **已完成：** Train 5-fold OOF BM25 候選生成、43,180 筆全部覆蓋與候選資料檢核；三套 Jeff 監督資料共 129,540 筆全部完成逐筆 QA。原始病例有 1 筆臨床文字包含金標字串，跨折完全重複文字 6,054 筆查詢，均保留並揭露。詳見 [訓練資料紀錄](jeff_train_data.md)。
-3. 第一輪：Jeff 已發布權重 + 新增 LoRA + 既有 Decision Head，負例採 BM25 硬負例、訓練 K 在 2～16 混合抽樣；訓練時隨機打亂選項位置。
+3. 第一輪：Jeff 已發布權重 + 新增 LoRA + 既有 Decision Head，**主要使用 K=16 的 BM25 困難負例訓練資料**；每個 epoch 重新隨機打亂選項。混合 K=2～16／K=5 為可選消融，不與主要 K=16 的成績混寫。
 4. Dev 比較全部 K=1～35，儲存每 K 的 **Top-1、Macro-F1、候選 Recall@K、條件準確率、輸入 tokens、推論耗時、峰值顯存**，以及選項數量 >16 時的實際 forward 次數。
 5. 消融：未額外微調 Jeff vs Jeff LoRA；Hard Negatives vs Random Negatives（同一訓練預算）；可補充混合負例。決定最佳 K 與 checkpoint 時只看 Dev；官方 Test 5,486 筆最後一次性評估。
 6. 確認相較 BM25 Top-1 **79.58%**、Macro-F1 **54.85%** 的差異；除了模型準確率，也比較端到端效能、長尾類別。模型和數據未跑出之前不得宣稱提升。

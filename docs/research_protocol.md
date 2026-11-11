@@ -79,7 +79,7 @@
 | 微調 | 在 Jeff 已發布的合併權重上另加 LoRA，並適應既有 Decision Head；凍結主模型權重 |
 | 訓練題目 | 每筆 Train 病例 1 個正確證型 + BM25 OOF 產生的 K−1 個困難負例；選項順序隨機打亂 |
 | 資料來源 | 全部官方 Train 43,180 筆；訓練候選僅使用 Train 內部 OOF，不改官方 Train/Dev/Test 切分 |
-| K 設定 | **完整 Dev 評估 K=1～35 全部 35 組**，K=5／17／35 僅為報告上的對照刻度，不預先認定最佳值 |
+| K 設定 | **主要 K=16**（Jeff 原生 A～P 16 個選項，一次 Forward Pass）；**完整 Dev 仍評估 K=1～35**，K=5／17／35 為消融對照，最後最佳 K 依 Dev Top-1／Macro-F1 與耗時決定 |
 | 選項限制 | Jeff 原生 16 個 A～P slot；K=17～35 沿用原作者多組先選優勝者、再總決選的分組推論 |
 | Baseline | BM25 Top-1 79.58%、Macro-F1 54.85%，以及 Jeff-1.1-Large 未再微調版本 |
 | 消融 | Jeff 微調前後；必要時比較 BM25 困難負例、隨機負例與混合負例，控制相同預算 |
@@ -87,7 +87,7 @@
 | 正式 Test | 完整 5,486 筆；待方法固定後一次性評分並揭露已知重複情況 |
 | 統計報告 | Micro/Macro Recall@K、Jeff Top-1、Macro-F1、類別 support、信賴區間、耗時、顯存、訓練超參數 |
 
-**已取消預先指定 K=17。** Jeff 微調後正式比較 K=1～35，使用 Dev 決定最佳 K，並記錄所有候選數的真正 Top-1、Macro-F1 與成本。訓練技術細節及原作者來源見 [Jeff 中醫微調計畫](jeff_finetune_plan.md)。目前尚無 Jeff 中醫微調成績。
+**2026-11-11 決策更新：Jeff 主要訓練與推論設定採 K=16。** 官方 Dev BM25 Recall@16：Micro **98.60%**（5,409/5,486）、Macro **89.91%**；K=17：Micro 98.65%（5,412/5,486）、Macro 90.49%。犧牲 3 筆候選命中與 0.58 個百分點 Macro Recall，換取 Jeff 原生一次決策（K=17 需分組 3 次）。**K=16 尚未達 Dev Macro Recall ≥90%**，因此此選擇以決策效率優先，並非符合舊門檻或已證明最佳。後續依 Dev 的真正 Jeff Top-1、Macro-F1 與耗時比較 K=1～35；目前尚無 Jeff 微調成績。詳見 [Jeff 微調計畫](jeff_finetune_plan.md)。
 
 ## 6. 結果管理
 

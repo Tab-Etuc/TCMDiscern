@@ -1,0 +1,43 @@
+{
+  "study": "TCMDiscern",
+  "status": "PRIMARY_JEFF_K16_DATA_VALIDATED_NO_MODEL_TRAINING",
+  "date": "2026-11-11",
+  "model": "jgeuter/Jeff-1.1-Large",
+  "primary_k": 16,
+  "target_slots": 16,
+  "requires_grouped_decision": false,
+  "forward_passes_per_decision": 1,
+  "train_epoch": 1,
+  "train_rows_verified": 43180,
+  "train_k_distribution": {
+    "16": 43180
+  },
+  "train_answer_positions": {
+    "0": 2653,
+    "1": 2647,
+    "2": 2899,
+    "3": 2720,
+    "4": 2766,
+    "5": 2704,
+    "6": 2676,
+    "7": 2671,
+    "8": 2737,
+    "9": 2765,
+    "10": 2593,
+    "11": 2618,
+    "12": 2683,
+    "13": 2662,
+    "14": 2724,
+    "15": 2662
+  },
+  "train_original_source_gold_literal_count": 1,
+  "train_original_rows_removed": 0,
+  "dev_rows_verified": 5486,
+  "dev_candidates_containing_gold_n": 5409,
+  "dev_micro_recall_at_k": 0.9859642726941306,
+  "dev_macro_recall_at_k": 0.8991164877419996,
+  "dev_gold_injected_into_candidates": false,
+  "model_checkpoint_trained": false,
+  "dev_prediction_accuracy_not_measured": true,
+  "other_k_results_preserved": true
+}

@@ -12,13 +12,19 @@ from pathlib import Path
 
 from tcmdiscern.datasets import load_records
 from tcmdiscern.evaluation import read_predictions
+from tcmdiscern.jeff_config import PRIMARY_JEFF_K
 from tcmdiscern.jeff_format import decision_row
 
 
 def main() -> None:
     project_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description="Export TCM-SD Dev decisions in Jeff format")
-    parser.add_argument("--k", type=int, default=5, help="2..35 (K=1 uses BM25 directly)")
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=PRIMARY_JEFF_K,
+        help="2..35; default K=16 uses one Jeff decision pass (K=1 is BM25 only)",
+    )
     parser.add_argument("--limit", type=int, default=None, help="Smoke tests only")
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()

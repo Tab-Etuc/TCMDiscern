@@ -14,6 +14,7 @@ from pathlib import Path
 from random import Random
 
 from tcmdiscern.datasets import load_records
+from tcmdiscern.jeff_config import PRIMARY_JEFF_K
 from tcmdiscern.jeff_format import MAX_DIRECT_OPTIONS, train_example
 from tcmdiscern.oof import assign_stratified_folds
 
@@ -153,10 +154,20 @@ def main() -> None:
         type=Path,
         default=root / "experiments/bm25_train_oof_2026-11-11.json",
     )
-    parser.add_argument("--ks", nargs="+", type=int, default=[5, 16])
+    parser.add_argument(
+        "--ks",
+        nargs="+",
+        type=int,
+        default=[PRIMARY_JEFF_K],
+        help="Direct Jeff training K values (default: primary K=16)",
+    )
     parser.add_argument("--epoch", type=int, default=0)
     parser.add_argument("--seed", type=int, default=20261111)
-    parser.add_argument("--no-mixed", action="store_true")
+    parser.add_argument(
+        "--mixed",
+        action="store_true",
+        help="Also export an optional mixed-K=2..16 ablation set",
+    )
     args = parser.parse_args()
     if args.epoch < 0:
         parser.error("--epoch must be >=0")
@@ -171,7 +182,7 @@ def main() -> None:
     output_dir = root / "data/jeff"
     output_dir.mkdir(parents=True, exist_ok=True)
     names = [f"train_oof_k{k:02d}_epoch{args.epoch:02d}.jsonl" for k in args.ks]
-    if not args.no_mixed:
+    if args.mixed:
         names.append(f"train_oof_mixed_k02_16_epoch{args.epoch:02d}.jsonl")
     report_path = (
         root / "experiments" / f"jeff_train_examples_epoch{args.epoch:02d}_2026-11-11.json"
@@ -184,7 +195,7 @@ def main() -> None:
         summary = write_examples(cases, ranks, path=dest, k=k, epoch=args.epoch, seed=args.seed)
         summaries.append(summary)
         print(f"Exported K={k}: {summary['cases']} Train rows -> {dest}", flush=True)
-    if not args.no_mixed:
+    if args.mixed:
         dest = output_dir / f"train_oof_mixed_k02_16_epoch{args.epoch:02d}.jsonl"
         summary = write_examples(cases, ranks, path=dest, k=None, epoch=args.epoch, seed=args.seed)
         summaries.append(summary)
