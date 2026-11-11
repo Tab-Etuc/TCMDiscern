@@ -1,0 +1,117 @@
+{
+  "study": "TCMDiscern",
+  "date": "2026-11-11",
+  "status": "JEFF_TRAIN_DATA_VALIDATED_ALL_129540_ROWS",
+  "official_train_rows": 43180,
+  "dataset_deleted_rows": 0,
+  "evaluated_training_examples": 129540,
+  "test_dev_loaded": false,
+  "jeff_model_inference": "NOT_RUN",
+  "tokenized_context_length_checked": false,
+  "tokenizer_note": "Only prompt character lengths were measured. Actual Gemma 4 token counts must be measured with the pinned Jeff tokenizer and max length 8192.",
+  "all_checks_passed": true,
+  "files": [
+    {
+      "file": "data/jeff/train_oof_k05_epoch00.jsonl",
+      "cases": 43180,
+      "k_distribution": {
+        "5": 43180
+      },
+      "gold_position_distribution": {
+        "0": 8681,
+        "1": 8676,
+        "2": 8590,
+        "3": 8710,
+        "4": 8523
+      },
+      "original_clinical_text_containing_gold_literal": 1,
+      "jeff_user_json_char_median": 676,
+      "jeff_user_json_char_p99": 1479,
+      "jeff_user_json_char_max": 4053,
+      "all_cases_retained": true,
+      "train_targets_outside_jeff_prompt": true,
+      "gold_excluded_from_hard_negatives": true,
+      "prompt_schema": "Jeff direct-options-v1 / SemIf"
+    },
+    {
+      "file": "data/jeff/train_oof_k16_epoch00.jsonl",
+      "cases": 43180,
+      "k_distribution": {
+        "16": 43180
+      },
+      "gold_position_distribution": {
+        "0": 2694,
+        "1": 2658,
+        "2": 2767,
+        "3": 2643,
+        "4": 2757,
+        "5": 2715,
+        "6": 2783,
+        "7": 2652,
+        "8": 2698,
+        "9": 2660,
+        "10": 2676,
+        "11": 2694,
+        "12": 2746,
+        "13": 2692,
+        "14": 2678,
+        "15": 2667
+      },
+      "original_clinical_text_containing_gold_literal": 1,
+      "jeff_user_json_char_median": 1127,
+      "jeff_user_json_char_p99": 1929,
+      "jeff_user_json_char_max": 4504,
+      "all_cases_retained": true,
+      "train_targets_outside_jeff_prompt": true,
+      "gold_excluded_from_hard_negatives": true,
+      "prompt_schema": "Jeff direct-options-v1 / SemIf"
+    },
+    {
+      "file": "data/jeff/train_oof_mixed_k02_16_epoch00.jsonl",
+      "cases": 43180,
+      "k_distribution": {
+        "2": 2898,
+        "3": 2882,
+        "4": 2833,
+        "5": 2891,
+        "6": 2963,
+        "7": 2900,
+        "8": 2825,
+        "9": 2857,
+        "10": 2854,
+        "11": 2908,
+        "12": 2840,
+        "13": 2897,
+        "14": 2868,
+        "15": 2930,
+        "16": 2834
+      },
+      "gold_position_distribution": {
+        "0": 6887,
+        "1": 6765,
+        "2": 5384,
+        "3": 4500,
+        "4": 3808,
+        "5": 3199,
+        "6": 2643,
+        "7": 2251,
+        "8": 1891,
+        "9": 1541,
+        "10": 1339,
+        "11": 1069,
+        "12": 767,
+        "13": 594,
+        "14": 381,
+        "15": 161
+      },
+      "original_clinical_text_containing_gold_literal": 1,
+      "jeff_user_json_char_median": 877,
+      "jeff_user_json_char_p99": 1694,
+      "jeff_user_json_char_max": 4504,
+      "all_cases_retained": true,
+      "train_targets_outside_jeff_prompt": true,
+      "gold_excluded_from_hard_negatives": true,
+      "prompt_schema": "Jeff direct-options-v1 / SemIf"
+    }
+  ]
+}

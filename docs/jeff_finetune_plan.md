@@ -1,6 +1,6 @@
 # Jeff-1.1-Large 中醫辨證微調實作決策
 
-**決策日：2026-11-11｜狀態：方法已定稿；訓練尚未啟動。**
+**決策日：2026-11-11｜資料準備已完成（43,180 Train 五折 OOF／129,540 Jeff 監督題）；模型 LoRA 訓練尚未啟動。**
 
 ## 結論與優先順序
 
@@ -10,7 +10,7 @@
 - **對照基準：** BM25 Top-1、未額外微調的 Jeff-1.1-Large。若資源允許，再對照原始 Gemma 4 31B-it 的同規模 LoRA 微調；此對照非本階段必要條件。
 - **唯一正式資料：** TCM-SD 官方 Train 43,180／Dev 5,486／Test 5,486，148 類。**全部原始病例保留，不去重、不排除、不重新切分、不改標籤**。不混用 819 筆研究集。
 - **K 比較：** 全部 **K=1～35**，每 K 使用相同完整 Dev、相同 BM25 候選排名及同一 Jeff checkpoint。K=1 直接使用 BM25 第一名，作為基準；只有 K≥2 需要真正的選項決策。
-- **已完成／未完成：** BM25 K=1～35 已實測；Jeff LoRA、Decision Head 領域適應及端到端 Dev/Test 尚未執行。不得將候選 Recall@K 宣稱為 Jeff 的 Top-1。
+- **已完成／未完成：** BM25 K=1～35、Train 5-fold OOF BM25、Jeff 格式監督題目（K=5／16／混合 2～16）與逐筆完整性檢查**已完成**。Jeff LoRA、Decision Head 領域適應及端到端 Dev/Test 尚未執行；不得將候選 Recall@K 宣稱為 Jeff 的 Top-1。
 
 ## 原作者可驗證的架構與技術限制
 
@@ -92,7 +92,7 @@ uv run python scripts/export_jeff_dev.py --k 17
 
 兩份檔案只有病例查詢與 BM25 候選，不含 Dev `gold_labels` 或 `target_index`，並受 `.gitignore` 的 `data/` 規則保護。直接用從 GitHub 下載的**官方 `prompting.py`**比對了 20 筆真實 Dev 的 K=2、5、16：System Message、User JSON 及 chat-template 參數**完全一致**；K=17 的 Row 也通過官方 `validate_row(max_options=256)`。
 
-**Train 43,180 筆的完整多選題尚未匯出**，因為必須先完成 Train 內部 BM25 Out-of-Fold 候選，才可以從真正的困難負例建立 1 正確＋K−1 錯誤的訓練樣本；目前不以 Dev 候選或任意臨時負例冒充正式訓練資料。
+**Train 全量 43,180 筆的五折 OOF 已實際完成，且已匯出三套 Jeff 訓練題目（K=5／16／混合 2～16），共 129,540 筆，逐筆 QA 全部通過。** 詳見 [完整資料產生、OOF 分數及驗證報告](jeff_train_data.md)。OOF 只排除相同原始資料列；跨折 6,054 筆文字完全相同的病例依定稿保留並揭露。
 
 ## 訓練題目如何建立
 
@@ -100,7 +100,7 @@ uv run python scripts/export_jeff_dev.py --k 17
 
 1. 僅用 `chief_complaint`、`description`、`detection` 建立病例描述，絕不在 Prompt 輸入原始證型答案、`lcd_id/lcd_name` 或 `user_id`。
 2. 在 **Train 內部 5-fold Out-of-Fold** 建 BM25 候選。每次只用其他四折生成候選，避免同一列當自己的檢索結果；原始官方 Train/Dev/Test 切分完全不變。
-3. 從 OOF BM25 候選中排除正解標籤及正規化後的等義標籤，再取高分錯誤標籤作 **Hard Negatives**；必要時對照隨機負例或混合負例，記錄不足數量。
+3. 從 OOF BM25 前 50 個互異證型候選中排除與官方 `norm_syndrome` **完全相同**的正解，取排序最前面的 K−1 個標籤作 **Hard Negatives**。148 類使用官方正規化標籤；語意近義但標籤不同者的額外同義性檢核尚未執行，需記入研究限制，後續可再做獨立消融。
 4. **訓練階段**刻意放入 1 個正解 `y`，並搭配 K−1 個錯誤標籤（例如 K=5 為 1+4）。每個 epoch 隨機打亂 A～P 選項位置，避免答案位置捷徑；負例採樣種子、候選清單和正確位置留本機紀錄。
 5. 以 **Cross-Entropy** 訓練：正確候選的 Head logit 應最高。以可回溯的 LoRA + Head optimizer/scheduler、warmup、梯度累積、有效 batch、序列長度、訓練步數、checkpoint 和隨機種子記錄完整設定；先小規模實際測 GPU 記憶體與 loss 下降，再定具體參數。
 
@@ -119,7 +119,7 @@ Jeff 原生 Head 只有 A～P **16 個選項 slot**。公開推論程式對更�
 ## 最小可審核實驗流程
 
 1. 確認模型版本／授權、可存取 H200 的 bf16 訓練環境與顯存，從 Jeff-1.1-Large 的固定 revision 載入模型、Tokenizer、Head；先跑一次純 Jeff Zero-shot Dev 以檢查建模管線。
-2. Train OOF BM25 建立 Hard Negative 候選並做資料驗證：**43,180 筆 Train 全部有訓練樣本**；不得發生相同病例列索引直接命中自己。若查詢本身可能已含標準標籤文字，只記錄；維持原始病例文字不修改。
+2. **已完成：** Train 5-fold OOF BM25 候選生成、43,180 筆全部覆蓋與候選資料檢核；三套 Jeff 監督資料共 129,540 筆全部完成逐筆 QA。原始病例有 1 筆臨床文字包含金標字串，跨折完全重複文字 6,054 筆查詢，均保留並揭露。詳見 [訓練資料紀錄](jeff_train_data.md)。
 3. 第一輪：Jeff 已發布權重 + 新增 LoRA + 既有 Decision Head，負例採 BM25 硬負例、訓練 K 在 2～16 混合抽樣；訓練時隨機打亂選項位置。
 4. Dev 比較全部 K=1～35，儲存每 K 的 **Top-1、Macro-F1、候選 Recall@K、條件準確率、輸入 tokens、推論耗時、峰值顯存**，以及選項數量 >16 時的實際 forward 次數。
 5. 消融：未額外微調 Jeff vs Jeff LoRA；Hard Negatives vs Random Negatives（同一訓練預算）；可補充混合負例。決定最佳 K 與 checkpoint 時只看 Dev；官方 Test 5,486 筆最後一次性評估。

@@ -15,7 +15,7 @@
 5. 以 1 個正確證型 + BM25 困難負例建立訓練多選題，依資源比較隨機／混合負例；驗證集選擇模型，測試集僅作最終評估。
 6. 使用官方完整 Dev 比較 **K=1～35** 的真實 Jeff Top-1、Macro-F1、延遲、顯存與統計不確定性，選擇最佳 K。
 
-> 已完成 TCM-SD 原始資料稽核及 BM25 K=1～35 全量 Dev 基準；**Jeff 領域微調尚未執行**。正式採用原始切分、零刪除。方法已定稿，詳見 [研究規範](docs/research_protocol.md)與 [Jeff 微調手冊](docs/jeff_finetune_plan.md)。
+> 已完成 TCM-SD 原始資料稽核、BM25 K=1～35 全量 Dev 基準、**Train 43,180 筆的五折 OOF 困難負例與 129,540 筆 Jeff 格式訓練題目**；Jeff 模型 LoRA 尚未執行。正式採用原始切分、零刪除。詳見 [研究規範](docs/research_protocol.md)、[Jeff 訓練資料報告](docs/jeff_train_data.md)與 [微調手冊](docs/jeff_finetune_plan.md)。
 
 ## 開發環境
 
@@ -75,7 +75,28 @@ uv run python scripts/export_jeff_dev.py --k 5
 uv run python scripts/export_jeff_dev.py --k 17
 ```
 
-轉換後每組 Dev 有 5,486 筆實際病例，存放在 Git 忽略的 `data/jeff/`。模型 LoRA 訓練仍待 Train OOF 候選與 H200 環境完成。
+轉換後每組 Dev 有 5,486 筆實際病例，存放在 Git 忽略的 `data/jeff/`。Train OOF 已全部完成；Jeff LoRA 尚待 H200 環境實際訓練。
+
+### 已完成：Train OOF BM25 與 Jeff 監督資料
+
+已在完整官方 Train **43,180 筆**上執行 5-fold OOF BM25（每折索引 34,544、查詢 8,636），每筆產生 50 個互異證型候選；再建立以下三套 **每套 43,180 筆**的 Jeff 監督資料：
+
+- `train_oof_k05_epoch00.jsonl`：1 正確＋4 個困難負例。
+- `train_oof_k16_epoch00.jsonl`：1 正確＋15 個困難負例。
+- `train_oof_mixed_k02_16_epoch00.jsonl`：混合 2～16 個選項。
+
+**129,540 筆題目全部逐筆通過驗證**；保留所有重複病例，也記錄跨折完全重複文字共 6,054 筆查詢。已封存 **Train OOF K=1～50 全曲線與五折、148 類分項統計**。完整方法、時間、召回率、限制與輸出請見 [Jeff Train OOF 完整實驗紀錄](docs/jeff_train_data.md)、[全 K 統計](experiments/bm25_train_oof_all_k_2026-11-11.json) 與 [K=1～35 CSV](experiments/bm25_train_oof_k1_35_2026-11-11.csv)。
+
+```bash
+uv run python scripts/mine_jeff_train_oof.py
+uv run python scripts/export_jeff_train.py
+uv run python -m scripts.verify_jeff_train
+uv run python -m scripts.summarize_jeff_oof
+# 如需下一個 epoch 的全新選項排列與混合 K：
+uv run python scripts/export_jeff_train.py --epoch 1
+```
+
+上述輸出不會覆寫既有資料。原始病例與逐筆訓練題目一律存於本機 Git 忽略的 `data/`，公開儲存庫僅提交彙總統計。
 
 ## 專案結構
 

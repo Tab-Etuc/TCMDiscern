@@ -58,7 +58,7 @@
 
 ## 4. 已完成的實驗與固定方法
 
-**狀態：只有 BM25 候選檢索基準完成，尚無 Gemma、LoRA、Embedding／Hybrid 的 TCM-SD 新實驗分數。**
+**狀態：完整官方 Dev 的 BM25 檢索基準、Train 5-fold OOF 困難負例（43,180 筆）及三套 Jeff 監督訓練題（共 129,540 筆）已完成。Jeff 模型 LoRA／Decision Head 微調與 Embedding／Hybrid 的新實驗尚無成績。**
 
 - 43,180 筆完整 Train 作 BM25 病例索引；5,486 筆完整 Dev 作查詢，沒有排除任何樣本。
 - 中文連續文字用 **Bigram 字元詞**，英數文字保留詞元；`CountVectorizer(min_df=2)`。
@@ -69,7 +69,7 @@
 - Macro Recall@K = 148 個證型各自 Recall@K 的**等權平均**；Macro Recall 與 Macro-F1 並非同一指標。
 - Recall 隨 K 增加單調不減，使用二分搜尋找達到特定 Micro／Macro 門檻的**最小** K。二分搜尋不對任何病例作刪除，也不修改候選排名。
 
-詳細數字與搜尋路徑：[BM25 自動 K 實驗報告](auto_k_experiment.md)。全部 1～50 曲線、命中病例數、148 類別統計及完整搜尋步驟：[機器可讀實驗快照](../experiments/bm25_dev_official_2026-11-11.json)。**BM25 K=1～35 每個 K 的完整獨立彙總與 CSV** 見 [BM25 專屬報告](bm25_k_1_35.md)。這輪沒有訓練其他分類器。
+詳細數字與搜尋路徑：[BM25 自動 K 實驗報告](auto_k_experiment.md)。完整 Dev 的 1～50 曲線、命中病例數、148 類別統計及搜尋步驟見 [機器可讀快照](../experiments/bm25_dev_official_2026-11-11.json)，BM25 K=1～35 表格見 [專屬報告](bm25_k_1_35.md)。Train OOF 的另一次 BM25 檢索與 Jeff 訓練題建構詳見 [Jeff Train OOF 實驗報告](jeff_train_data.md)，包含 OOF K=1～50、5 折和 148 類彙總及訓練資料逐筆 QA。**目前尚未訓練 Jeff，也沒有加入其他分類器。**
 
 ## 5. 下一階段 Jeff 微調實驗設定（預先凍結）
 

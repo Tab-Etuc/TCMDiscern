@@ -1,0 +1,125 @@
+{
+  "study": "TCMDiscern",
+  "date": "2026-11-11",
+  "status": "JEFF_TRAIN_ROWS_EXPORTED_NO_MODEL_TRAINING",
+  "official_split": "TCM-SD Train only",
+  "original_train_count": 43180,
+  "removed_train_rows": 0,
+  "oof_folds": 5,
+  "oof_seed": 20261111,
+  "shuffling_epoch": 0,
+  "shuffling_seed": 20261111,
+  "prompt_version": "Jeff direct-options-v1",
+  "training_row_format": "row + target_index + target_letter (target excluded from prompt)",
+  "raw_train_cases_containing_literal_gold_syndrome": 1,
+  "training_options": "1 gold + K-1 ranked Train-OOF BM25 hard negatives",
+  "index_self_leakage": false,
+  "dev_test_loaded": false,
+  "model_training": "NOT_RUN",
+  "files": [
+    {
+      "file": "data/jeff/train_oof_k05_epoch00.jsonl",
+      "cases": 43180,
+      "k_counts": {
+        "5": 43180
+      },
+      "answer_position_counts_zero_based": {
+        "0": 8681,
+        "1": 8676,
+        "2": 8590,
+        "3": 8710,
+        "4": 8523
+      },
+      "epoch": 0,
+      "cases_removed": 0,
+      "training_only": true,
+      "gold_label_field_excluded_from_evidence": true,
+      "source_clinical_text_preserved_unmodified": true,
+      "gold_inserted_as_one_training_option": true
+    },
+    {
+      "file": "data/jeff/train_oof_k16_epoch00.jsonl",
+      "cases": 43180,
+      "k_counts": {
+        "16": 43180
+      },
+      "answer_position_counts_zero_based": {
+        "0": 2694,
+        "1": 2658,
+        "2": 2767,
+        "3": 2643,
+        "4": 2757,
+        "5": 2715,
+        "6": 2783,
+        "7": 2652,
+        "8": 2698,
+        "9": 2660,
+        "10": 2676,
+        "11": 2694,
+        "12": 2746,
+        "13": 2692,
+        "14": 2678,
+        "15": 2667
+      },
+      "epoch": 0,
+      "cases_removed": 0,
+      "training_only": true,
+      "gold_label_field_excluded_from_evidence": true,
+      "source_clinical_text_preserved_unmodified": true,
+      "gold_inserted_as_one_training_option": true
+    },
+    {
+      "file": "data/jeff/train_oof_mixed_k02_16_epoch00.jsonl",
+      "cases": 43180,
+      "k_counts": {
+        "2": 2898,
+        "3": 2882,
+        "4": 2833,
+        "5": 2891,
+        "6": 2963,
+        "7": 2900,
+        "8": 2825,
+        "9": 2857,
+        "10": 2854,
+        "11": 2908,
+        "12": 2840,
+        "13": 2897,
+        "14": 2868,
+        "15": 2930,
+        "16": 2834
+      },
+      "answer_position_counts_zero_based": {
+        "0": 6887,
+        "1": 6765,
+        "2": 5384,
+        "3": 4500,
+        "4": 3808,
+        "5": 3199,
+        "6": 2643,
+        "7": 2251,
+        "8": 1891,
+        "9": 1541,
+        "10": 1339,
+        "11": 1069,
+        "12": 767,
+        "13": 594,
+        "14": 381,
+        "15": 161
+      },
+      "epoch": 0,
+      "cases_removed": 0,
+      "training_only": true,
+      "gold_label_field_excluded_from_evidence": true,
+      "source_clinical_text_preserved_unmodified": true,
+      "gold_inserted_as_one_training_option": true
+    }
+  ],
+  "notes": [
+    "Gold is inserted only for supervised Train multiple-choice examples.",
+    "Model inference on original Dev/Test must never insert gold into candidates.",
+    "Repeated patients/texts from other folds are retained by the frozen data policy.",
+    "A new epoch should regenerate candidate order and vary K for mixed training.",
+    "K 17..35 uses Jeff's published wide-group inference; direct head has 16 slots.",
+    "Published example rows and hard negatives contain clinical data and stay in git-ignored data/."
+  ]
+}
