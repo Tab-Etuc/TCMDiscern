@@ -15,7 +15,7 @@
 5. 以 1 個正確證型 + BM25 困難負例建立訓練多選題，依資源比較隨機／混合負例；驗證集選擇模型，測試集僅作最終評估。
 6. 使用官方完整 Dev 比較 **K=1～35** 的真實 Jeff Top-1、Macro-F1、延遲、顯存與統計不確定性，選擇最佳 K。
 
-> 已完成 TCM-SD 原始資料稽核、BM25 K=1～35 全量 Dev 基準、**Train 43,180 筆的五折 OOF 困難負例與 129,540 筆 Jeff 格式訓練題目**；Jeff 模型 LoRA 尚未執行。正式採用原始切分、零刪除。詳見 [研究規範](docs/research_protocol.md)、[Jeff 訓練資料報告](docs/jeff_train_data.md)與 [微調手冊](docs/jeff_finetune_plan.md)。
+> 已完成 TCM-SD 原始資料稽核、BM25 K=1～35 全量 Dev 基準、Train 五折 OOF 與 129,540 筆歷史 Jeff 格式訓練題，**另完成 43,180 筆 Group-aware OOF＋矛盾負例修正的 K=16 訓練題**；Jeff 模型 LoRA 尚未執行。原始切分、金標與全部病例保持不變。詳見 [訓練前完整審查](docs/jeff_pretraining_review_2026-11-11.md)、[研究規範](docs/research_protocol.md)及 [Jeff 微調手冊](docs/jeff_finetune_plan.md)。
 
 ## 開發環境
 
@@ -94,10 +94,28 @@ uv run python scripts/export_jeff_train.py                     # 預設只產生
 uv run python -m scripts.verify_jeff_train                     # QA 封存資料
 uv run python -m scripts.summarize_jeff_oof                    # OOF 全 K 統計
 # 另行產生消融資料（須選擇未使用的 epoch）：
-uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 2
+uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 3
 ```
 
-上述輸出不會覆寫既有資料。原始病例與逐筆訓練題目一律存於本機 Git 忽略的 `data/`，公開儲存庫僅提交彙總統計。
+### 已完成：訓練前完整審查與矛盾負例過濾
+
+- **全量 Tokenizer 檢查：** Train 43,180、Dev 5,486 筆 K=16 Prompt 都低於 Jeff 8,192 token 限制。
+- **重複病例檢索風險：** 原 OOF 6,054 筆查詢能命中其他折完全相同的文字；新 Exact-text Group-aware OOF 降為 0，官方資料與切分不變。
+- **明確矛盾負例：** 原 OOF 的 817 筆、Group-aware OOF 原本 793 筆，在 K=16 把相同病例的另一個官方金標列為錯誤選項。現在以同文不同金標集合過濾負例，另外產生 `epoch02` **43,180 筆**，共替換 797 個矛盾負例，完整 QA **0 個**已知矛盾負例。
+- **仍阻擋大型微調：** 31B LoRA + Decision Head 訓練器、H200 記憶體實測與 Jeff Zero-shot Dev 分數尚未完成。需先確認 GPU 反向傳播、Head 正確讀取最後有效 Token、Loss／梯度、checkpoint 與原始 Jeff 逐 logit 一致。
+
+```bash
+# 以下為完整的產生步驟，已生成的快照採不覆寫政策
+uv run python scripts/mine_jeff_train_oof.py --fold-policy exact_text_grouped
+uv run python scripts/export_jeff_train.py \
+  --candidates data/candidates/bm25_train_text_grouped.jsonl \
+  --oof-report experiments/bm25_train_text_grouped_2026-11-11.json \
+  --epoch 2
+uv run python -m scripts.verify_jeff_grouped_filtered
+uv run python scripts/preflight_jeff_training.py
+```
+
+新 K=16 訓練題位於 Git 忽略的 `data/jeff/train_oof_k16_epoch02.jsonl`，並由 [修正後的完整 QA 快照](experiments/jeff_grouped_filtered_k16_verification_2026-11-12.json)與 [訓練前完整風險審查](docs/jeff_pretraining_review_2026-11-11.md)記錄。**已有檔案不可直接重複執行輸出；要產生新排列須改用尚未使用的 `--epoch`。** 原始病例與逐筆訓練題目一律存於 Git 忽略的 `data/`，Git 僅存彙總統計。
 
 ## 專案結構
 

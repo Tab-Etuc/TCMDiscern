@@ -9,7 +9,12 @@ import pytest
 
 from scripts.export_jeff_train import make_train_example, write_examples
 from scripts.mine_jeff_train_oof import cross_fold_exact_text_counts
-from tcmdiscern.oof import assign_stratified_folds, rank_statistics, rank_train_oof
+from tcmdiscern.oof import (
+    assign_grouped_folds,
+    assign_stratified_folds,
+    rank_statistics,
+    rank_train_oof,
+)
 
 
 def fake_train(n_per_label: int = 6) -> tuple[list[str], list[str]]:
@@ -143,6 +148,42 @@ def test_recreated_epoch_shuffles_train_options() -> None:
     assert a["row"]["options"] != b["row"]["options"]
     assert len({item["id"] for item in a["row"]["options"]}) == 16
     assert a["row"]["options"][a["target_index"]]["id"] == "正解"
+
+
+def test_exact_text_groups_prevent_crossfold_self_match_without_dedup() -> None:
+    texts, labels = fake_train(n_per_label=10)
+    texts[1] = texts[0]
+    texts[11] = texts[10]
+    folds = assign_grouped_folds(labels, texts, folds=5, seed=7)
+    assert len(folds) == 30
+    assert folds[1] == folds[0]
+    assert folds[11] == folds[10]
+    assert set(folds) == set(range(5))
+    assert sum(Counter(folds).values()) == 30
+    assert cross_fold_exact_text_counts(texts, labels, folds) == {
+        "query_rows_with_identical_text_in_another_fold": 0,
+        "such_rows_without_same_label_in_other_fold": 0,
+    }
+    result = rank_train_oof(
+        texts,
+        labels,
+        folds=5,
+        seed=7,
+        max_k=3,
+        min_df=1,
+        fold_policy="exact_text_grouped",
+    )
+    assert len(result.rankings) == len(texts)
+    assert sum(result.fold_query_sizes) == len(texts)
+    assert all(len(set(rank)) == 3 for rank in result.rankings)
+
+
+def test_grouped_oof_requires_valid_text_and_policy() -> None:
+    texts, labels = fake_train(n_per_label=10)
+    with pytest.raises(ValueError, match="Aligned"):
+        assign_grouped_folds(labels, texts[:-1], folds=5)
+    with pytest.raises(ValueError, match="Unknown OOF"):
+        rank_train_oof(texts, labels, min_df=1, max_k=3, fold_policy="unknown")
 
 
 def test_mixed_epoch_contains_varied_k(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:

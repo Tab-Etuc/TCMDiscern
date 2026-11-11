@@ -10,8 +10,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from scripts.export_jeff_train import TRAIN_ROWS, load_and_validate_oof
-from tcmdiscern.datasets import load_records
+from scripts.export_jeff_train import TRAIN_ROWS, exact_text_label_sets, load_and_validate_oof
+from tcmdiscern.datasets import clinical_text, load_records
 from tcmdiscern.jeff_format import LETTERS, TCM_QUESTION, patient_state, semif_messages
 
 EXPECTED_FILES = {
@@ -27,6 +27,7 @@ def validate_file(
     path: Path,
     *,
     expected_k: int | None,
+    exclude_ambiguous_negatives: bool = False,
 ) -> dict:
     """Validate exact supervision, candidate membership, state and prompt layout."""
     if len(cases) != len(ranked):
@@ -36,6 +37,7 @@ def validate_file(
     by_position: Counter[int] = Counter()
     label_literal_in_source = 0
     prompt_chars: list[int] = []
+    by_text = exact_text_label_sets(cases) if exclude_ambiguous_negatives else {}
     with path.open(encoding="utf-8") as stream:
         for index, raw in enumerate(stream):
             if index >= len(cases):
@@ -70,10 +72,13 @@ def validate_file(
                 raise ValueError(f"{path}: invalid target_index at Train row {index}")
             if ids[target] != gold or item["target_letter"] != LETTERS[target]:
                 raise ValueError(f"{path}: gold label is not at the supervised position")
-            negatives = [name for name in ranked[index] if name != gold]
+            forbidden = by_text.get(clinical_text(case), frozenset()) - {gold}
+            negatives = [name for name in ranked[index] if name != gold and name not in forbidden]
             expected = {gold, *negatives[: k - 1]}
             if set(ids) != expected or ids.count(gold) != 1:
-                raise ValueError(f"{path}: candidates are not the top BM25 hard negatives")
+                raise ValueError(f"{path}: candidates are not the expected BM25 hard negatives")
+            if set(ids).intersection(forbidden):
+                raise ValueError(f"{path}: conflicting gold label was used as a negative")
 
             messages = semif_messages(row)
             if len(messages) != 2:
@@ -108,6 +113,7 @@ def validate_file(
         "all_cases_retained": True,
         "train_targets_outside_jeff_prompt": True,
         "gold_excluded_from_hard_negatives": True,
+        "alternative_gold_excluded_from_hard_negatives": exclude_ambiguous_negatives,
         "prompt_schema": "Jeff direct-options-v1 / SemIf",
     }
 

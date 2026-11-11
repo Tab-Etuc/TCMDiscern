@@ -1,0 +1,66 @@
+{
+  "study": "TCMDiscern",
+  "date": "2026-11-11",
+  "status": "JEFF_TRAIN_ROWS_EXPORTED_NO_MODEL_TRAINING",
+  "official_split": "TCM-SD Train only",
+  "original_train_count": 43180,
+  "removed_train_rows": 0,
+  "oof_folds": 5,
+  "oof_seed": 20261111,
+  "oof_fold_policy": "exact_text_grouped",
+  "oof_candidate_source": "bm25_train_text_grouped.jsonl",
+  "ambiguous_negative_policy": "exclude_alternative_gold_labels_for_identical_clinical_text",
+  "shuffling_epoch": 2,
+  "shuffling_seed": 20261111,
+  "prompt_version": "Jeff direct-options-v1",
+  "training_row_format": "row + target_index + target_letter (target excluded from prompt)",
+  "raw_train_cases_containing_literal_gold_syndrome": 1,
+  "training_options": "1 gold + K-1 ranked Train-OOF BM25 hard negatives",
+  "index_self_leakage": false,
+  "dev_test_loaded": false,
+  "model_training": "NOT_RUN",
+  "files": [
+    {
+      "file": "data/jeff/train_oof_k16_epoch02.jsonl",
+      "cases": 43180,
+      "k_counts": {
+        "16": 43180
+      },
+      "answer_position_counts_zero_based": {
+        "0": 2731,
+        "1": 2680,
+        "2": 2705,
+        "3": 2708,
+        "4": 2673,
+        "5": 2700,
+        "6": 2687,
+        "7": 2724,
+        "8": 2677,
+        "9": 2681,
+        "10": 2658,
+        "11": 2693,
+        "12": 2718,
+        "13": 2722,
+        "14": 2715,
+        "15": 2708
+      },
+      "epoch": 2,
+      "cases_removed": 0,
+      "training_only": true,
+      "gold_label_field_excluded_from_evidence": true,
+      "source_clinical_text_preserved_unmodified": true,
+      "gold_inserted_as_one_training_option": true,
+      "exclude_ambiguous_negatives": true,
+      "cases_with_confirmed_contradiction_prevented": 793,
+      "confirmed_ambiguous_negatives_replaced": 797
+    }
+  ],
+  "notes": [
+    "Gold is inserted only for supervised Train multiple-choice examples.",
+    "Model inference on original Dev/Test must never insert gold into candidates.",
+    "Repeated patients/texts from other folds are retained by the frozen data policy.",
+    "A new epoch should regenerate candidate order and vary K for mixed training.",
+    "K 17..35 uses Jeff's published wide-group inference; direct head has 16 slots.",
+    "Published example rows and hard negatives contain clinical data and stay in git-ignored data/."
+  ]
+}

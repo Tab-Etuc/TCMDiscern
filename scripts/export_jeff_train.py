@@ -9,16 +9,24 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from random import Random
 
-from tcmdiscern.datasets import load_records
+from tcmdiscern.datasets import clinical_text, load_records
 from tcmdiscern.jeff_config import PRIMARY_JEFF_K
 from tcmdiscern.jeff_format import MAX_DIRECT_OPTIONS, train_example
-from tcmdiscern.oof import assign_stratified_folds
+from tcmdiscern.oof import assign_grouped_folds, assign_stratified_folds
 
 TRAIN_ROWS = 43180
+
+
+def exact_text_label_sets(cases: list[dict]) -> dict[str, frozenset[str]]:
+    """Keep every official label but never use another gold for identical evidence as a negative."""
+    grouped: dict[str, set[str]] = defaultdict(set)
+    for case in cases:
+        grouped[clinical_text(case)].add(str(case["norm_syndrome"]))
+    return {text: frozenset(labels) for text, labels in grouped.items()}
 
 
 def make_train_example(
@@ -30,9 +38,14 @@ def make_train_example(
     k: int,
     epoch: int,
     seed: int,
+    forbidden_negatives: frozenset[str] = frozenset(),
 ) -> dict:
-    """Generate a repeatable epoch-specific shuffle without touching global RNG."""
-    negatives = [candidate for candidate in candidates if candidate != gold]
+    """Generate a repeatable shuffle, excluding clinically identical conflicting gold labels."""
+    negatives = [
+        candidate
+        for candidate in candidates
+        if candidate != gold and candidate not in forbidden_negatives
+    ]
     if len(negatives) < k - 1:
         raise ValueError(f"Row {train_index}: insufficient mined negative labels")
     rng = Random(seed + epoch * 1_000_003 + train_index * 131 + k * 10_007)
@@ -58,7 +71,18 @@ def load_and_validate_oof(cases: list[dict], source: Path, report: dict) -> list
         raise ValueError("Expected 5 folds of 50-label BM25 candidates")
 
     labels = [str(row["norm_syndrome"]) for row in cases]
-    assignments = assign_stratified_folds(labels, folds=report["folds"], seed=report["seed"])
+    policy = report.get("fold_policy", "stratified")
+    if policy == "exact_text_grouped":
+        assignments = assign_grouped_folds(
+            labels,
+            [clinical_text(row) for row in cases],
+            folds=report["folds"],
+            seed=report["seed"],
+        )
+    elif policy == "stratified":
+        assignments = assign_stratified_folds(labels, folds=report["folds"], seed=report["seed"])
+    else:
+        raise ValueError(f"Unsupported OOF fold policy: {policy}")
     seen = []
     with source.open(encoding="utf-8") as stream:
         for index, line in enumerate(stream):
@@ -90,12 +114,16 @@ def write_examples(
     k: int | None,
     epoch: int,
     seed: int,
+    exclude_ambiguous_negatives: bool = True,
 ) -> dict:
-    """Write full 43,180-row training output without overwriting older epochs."""
+    """Write every Train row and exclude confirmed contradictory hard negatives by default."""
     if path.exists():
         raise FileExistsError(f"Frozen training epoch output already exists: {path}")
     distribution: Counter[int] = Counter()
     positions: Counter[int] = Counter()
+    gold_by_text = exact_text_label_sets(cases) if exclude_ambiguous_negatives else {}
+    affected_rows = 0
+    excluded_occurrences = 0
     with path.open("x", encoding="utf-8") as stream:
         for index, (case, candidates) in enumerate(zip(cases, ranks, strict=True)):
             if k is None:
@@ -105,6 +133,11 @@ def write_examples(
             else:
                 sample_k = k
             gold = str(case["norm_syndrome"])
+            forbidden = gold_by_text.get(clinical_text(case), frozenset()) - {gold}
+            original_top = [label for label in candidates if label != gold][: sample_k - 1]
+            prevented = sum(label in forbidden for label in original_top)
+            affected_rows += prevented > 0
+            excluded_occurrences += prevented
             example = make_train_example(
                 case,
                 train_index=index,
@@ -113,6 +146,7 @@ def write_examples(
                 k=sample_k,
                 epoch=epoch,
                 seed=seed,
+                forbidden_negatives=forbidden,
             )
             options = example["row"]["options"]
             position = example["target_index"]
@@ -120,6 +154,8 @@ def write_examples(
                 raise ValueError(f"Invalid training target/options at original row {index}")
             if gold in [option["id"] for j, option in enumerate(options) if j != position]:
                 raise ValueError("A gold syndrome appears more than once in candidates")
+            if any(option["id"] in forbidden for option in options):
+                raise ValueError("Contradictory gold label was included as a hard negative")
             stream.write(json.dumps(example, ensure_ascii=False) + "\n")
             distribution[sample_k] += 1
             positions[position] += 1
@@ -136,6 +172,9 @@ def write_examples(
         "gold_label_field_excluded_from_evidence": True,
         "source_clinical_text_preserved_unmodified": True,
         "gold_inserted_as_one_training_option": True,
+        "exclude_ambiguous_negatives": exclude_ambiguous_negatives,
+        "cases_with_confirmed_contradiction_prevented": affected_rows,
+        "confirmed_ambiguous_negatives_replaced": excluded_occurrences,
     }
 
 
@@ -163,6 +202,11 @@ def main() -> None:
     )
     parser.add_argument("--epoch", type=int, default=0)
     parser.add_argument("--seed", type=int, default=20261111)
+    parser.add_argument(
+        "--allow-ambiguous-negatives",
+        action="store_true",
+        help="Explicit historical ablation: permits a label known to be gold for identical evidence as a negative",
+    )
     parser.add_argument(
         "--mixed",
         action="store_true",
@@ -192,12 +236,28 @@ def main() -> None:
     summaries = []
     for k in args.ks:
         dest = output_dir / f"train_oof_k{k:02d}_epoch{args.epoch:02d}.jsonl"
-        summary = write_examples(cases, ranks, path=dest, k=k, epoch=args.epoch, seed=args.seed)
+        summary = write_examples(
+            cases,
+            ranks,
+            path=dest,
+            k=k,
+            epoch=args.epoch,
+            seed=args.seed,
+            exclude_ambiguous_negatives=not args.allow_ambiguous_negatives,
+        )
         summaries.append(summary)
         print(f"Exported K={k}: {summary['cases']} Train rows -> {dest}", flush=True)
     if args.mixed:
         dest = output_dir / f"train_oof_mixed_k02_16_epoch{args.epoch:02d}.jsonl"
-        summary = write_examples(cases, ranks, path=dest, k=None, epoch=args.epoch, seed=args.seed)
+        summary = write_examples(
+            cases,
+            ranks,
+            path=dest,
+            k=None,
+            epoch=args.epoch,
+            seed=args.seed,
+            exclude_ambiguous_negatives=not args.allow_ambiguous_negatives,
+        )
         summaries.append(summary)
         print(f"Exported mixed K=2..16: {summary['cases']} Train rows -> {dest}", flush=True)
 
@@ -210,6 +270,13 @@ def main() -> None:
         "removed_train_rows": 0,
         "oof_folds": report["folds"],
         "oof_seed": report["seed"],
+        "oof_fold_policy": report.get("fold_policy", "stratified"),
+        "oof_candidate_source": args.candidates.name,
+        "ambiguous_negative_policy": (
+            "allow_original_ambiguities_ablation"
+            if args.allow_ambiguous_negatives
+            else "exclude_alternative_gold_labels_for_identical_clinical_text"
+        ),
         "shuffling_epoch": args.epoch,
         "shuffling_seed": args.seed,
         "prompt_version": "Jeff direct-options-v1",

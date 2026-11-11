@@ -1,0 +1,107 @@
+{
+  "date": "2026-11-11",
+  "model": "jgeuter/Jeff-1.1-Large",
+  "status": "CPU_DATA_RISK_AUDIT_COMPLETED_NO_LORA_TRAINING",
+  "scope": "TCM-SD official Train/Dev; Test not opened",
+  "original_splits_retained": true,
+  "deleted_train_or_dev_rows": 0,
+  "train_class_imbalance": {
+    "train_cases": 43180,
+    "label_count": 148,
+    "minimum_support": 7,
+    "median_support": 46.5,
+    "maximum_support": 7380,
+    "most_common_class_fraction": 0.17091245947197778,
+    "max_to_min_class_ratio": 1054.2857142857142,
+    "support_buckets_number_of_classes": {
+      "1_to_10": 14,
+      "11_to_20": 26,
+      "21_to_50": 38,
+      "51_to_100": 27,
+      "101_to_500": 30,
+      "over_500": 13
+    },
+    "dev_minimum_class_support": 2,
+    "dev_classes_with_at_most_5_cases": 70
+  },
+  "oof_train_label_retrieval": {
+    "original_train_cases": 43180,
+    "k": 16,
+    "gold_rank_distribution": {
+      "17_to_50": 459,
+      "1": 34478,
+      "above_50": 136,
+      "2_to_5": 6933,
+      "6_to_16": 1174
+    },
+    "gold_in_bm25_top_16_n": 42585,
+    "gold_in_bm25_top_16_rate": 0.9862204724409449,
+    "gold_not_in_bm25_top_16_n": 595,
+    "gold_always_injected_in_training_examples": true,
+    "training_negative_examples_count": 647700,
+    "hard_negative_exposure_min": 161,
+    "hard_negative_exposure_median": 2605.5,
+    "hard_negative_exposure_max": 27720,
+    "negative_to_positive_exposure_ratio_median": 54.25028768699654,
+    "negative_to_positive_exposure_ratio_max": 860.8888888888889,
+    "classes_with_negative_exposure_over_10_times_positive": 135,
+    "classes_never_used_as_a_hard_negative": 0
+  },
+  "train_exact_text_duplication": {
+    "identical_full_clinical_text_groups_with_two_or_more_rows": 2093,
+    "rows_belonging_to_identical_full_clinical_text_groups": 6678,
+    "identical_clinical_text_groups_with_conflicting_labels": 252,
+    "rows_belonging_to_conflicting_label_groups": 820
+  },
+  "train_dev_full_text_overlap": {
+    "dev_cases_identical_to_one_or_more_train_rows": 529,
+    "dev_overlap_gold_not_among_train_same_text_labels": 20,
+    "overlap_dev_cohort": {
+      "cases": 529,
+      "bm25_top1_correct": 472,
+      "bm25_top1_accuracy": 0.8922495274102079,
+      "bm25_k16_gold_covered": 527,
+      "bm25_recall_at_16": 0.996219281663516
+    },
+    "nonoverlap_dev_cohort": {
+      "cases": 4957,
+      "bm25_top1_correct": 3894,
+      "bm25_top1_accuracy": 0.785555779705467,
+      "bm25_k16_gold_covered": 4882,
+      "bm25_recall_at_16": 0.984869880976397
+    },
+    "unmodified_official_dev": {
+      "cases": 5486,
+      "bm25_top1_correct": 4366,
+      "bm25_top1_accuracy": 0.7958439664600802,
+      "bm25_k16_gold_covered": 5409,
+      "bm25_recall_at_16": 0.9859642726941306
+    },
+    "warning": "This is a descriptive subgroup sensitivity check; no cases removed from official metrics."
+  },
+  "dev_k16_rare_class_coverage": {
+    "dev_cases": 5486,
+    "k16_gold_found": 5409,
+    "number_of_classes_with_recall_0": 3,
+    "number_of_classes_with_recall_below_half": 4,
+    "number_of_classes_with_recall_1": 87,
+    "macro_recall": 0.8991164877419996,
+    "dev_raw_clinical_text_containing_literal_gold_label": 0
+  },
+  "label_lexical_normalization": {
+    "label_count": 148,
+    "colliding_canonical_forms_after_unicode_nfkc_and_punctuation_removal": 0,
+    "semantic_synonym_check": "NOT_PERFORMED; official labels are used unchanged"
+  },
+  "model_training": "NOT_RUN",
+  "critical_unverified_training_conditions": [
+    "Released Jeff 1.1 Large checkpoint and head load at pinned revision",
+    "32-bit DecisionHead gradient + bf16 backbone last hidden state gradient",
+    "LoRA adapter is initialized as a zero-effect update on merged weights",
+    "No full vocabulary [B,L,V] LM output is constructed during training",
+    "Original tokenizer token lengths for all Train and Dev questions <=8192",
+    "One GPU H200 memory and supported PyTorch/CUDA environment",
+    "Checkpoint zero-step parity against Jeff pretrained model on fixed questions",
+    "Held-out Dev classification Top-1, Macro-F1, calibration and latency"
+  ]
+}

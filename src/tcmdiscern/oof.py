@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from time import perf_counter
 
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 
 from .retrieval import CaseBM25
 
@@ -61,6 +61,40 @@ def assign_stratified_folds(
     return tuple(result)
 
 
+def assign_grouped_folds(
+    labels: Sequence[str],
+    clinical_texts: Sequence[str],
+    *,
+    folds: int = 5,
+    seed: int = 20261111,
+) -> tuple[int, ...]:
+    """Keep every original case; assign identical clinical text to one query fold.
+
+    No rows are deleted, and official Train/Dev/Test is untouched.
+    """
+    if not labels or len(labels) != len(clinical_texts):
+        raise ValueError("Aligned nonempty clinical texts and labels required")
+    if folds < 2 or min(Counter(labels).values()) < folds:
+        raise ValueError("Not enough labeled examples for requested folds")
+    splitter = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=seed)
+    ids = np.arange(len(labels))
+    assignments = [-1] * len(labels)
+    for fold, (index_ids, query_ids) in enumerate(splitter.split(ids, labels, clinical_texts)):
+        if {clinical_texts[i] for i in index_ids}.intersection(
+            clinical_texts[i] for i in query_ids
+        ):
+            raise RuntimeError("Exact duplicate clinical texts span the BM25 fold boundary")
+        if len({labels[int(i)] for i in index_ids}) != len(set(labels)):
+            raise RuntimeError("One or more labels absent from group-aware BM25 index")
+        for index in query_ids:
+            if assignments[int(index)] != -1:
+                raise RuntimeError("Original Train row assigned twice")
+            assignments[int(index)] = fold
+    if any(fold < 0 for fold in assignments):
+        raise RuntimeError("Some original Train cases lack a query fold")
+    return tuple(assignments)
+
+
 def rank_train_oof(
     texts: Sequence[str],
     labels: Sequence[str],
@@ -70,6 +104,7 @@ def rank_train_oof(
     max_k: int = 50,
     batch_size: int = 24,
     min_df: int = 2,
+    fold_policy: str = "stratified",
     on_fold_done: Callable[[int, int, int, float], None] | None = None,
 ) -> OOFRankings:
     """Build five independent, four-fold BM25 indexes and query held-out fold.
@@ -84,7 +119,12 @@ def rank_train_oof(
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
 
-    fold_by_row = assign_stratified_folds(labels, folds=folds, seed=seed)
+    if fold_policy == "stratified":
+        fold_by_row = assign_stratified_folds(labels, folds=folds, seed=seed)
+    elif fold_policy == "exact_text_grouped":
+        fold_by_row = assign_grouped_folds(labels, texts, folds=folds, seed=seed)
+    else:
+        raise ValueError("Unknown OOF fold policy")
     ranks: list[tuple[str, ...] | None] = [None] * len(texts)
     seconds: list[float] = []
     train_sizes: list[int] = []

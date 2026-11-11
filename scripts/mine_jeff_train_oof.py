@@ -54,12 +54,20 @@ def main() -> None:
     parser.add_argument("--max-k", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=24)
     parser.add_argument(
-        "--output", type=Path, default=root / "data/candidates/bm25_train_oof.jsonl"
+        "--fold-policy",
+        choices=("stratified", "exact_text_grouped"),
+        default="stratified",
+        help="Only groups identical original Train texts; no rows are removed",
     )
-    parser.add_argument(
-        "--report", type=Path, default=root / "experiments/bm25_train_oof_2026-11-11.json"
-    )
+    parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--report", type=Path, default=None)
     args = parser.parse_args()
+    if args.fold_policy == "exact_text_grouped":
+        args.output = args.output or root / "data/candidates/bm25_train_text_grouped.jsonl"
+        args.report = args.report or root / "experiments/bm25_train_text_grouped_2026-11-11.json"
+    else:
+        args.output = args.output or root / "data/candidates/bm25_train_oof.jsonl"
+        args.report = args.report or root / "experiments/bm25_train_oof_2026-11-11.json"
     if not args.output.resolve().is_relative_to((root / "data").resolve()):
         parser.error("OOF candidate files with clinical labels must stay inside data/")
     if not args.report.resolve().is_relative_to((root / "experiments").resolve()):
@@ -87,6 +95,7 @@ def main() -> None:
         seed=args.seed,
         max_k=args.max_k,
         batch_size=args.batch_size,
+        fold_policy=args.fold_policy,
         on_fold_done=lambda fold, index_n, query_n, elapsed: print(
             f"OOF fold {fold + 1}/{args.folds}: "
             f"indexed {index_n}, queried {query_n}, {elapsed:.3f}s",
@@ -102,6 +111,7 @@ def main() -> None:
             "source_dataset": "official TCM-SD Train",
             "official_splits_unchanged": True,
             "query_fold_count": args.folds,
+            "fold_policy": args.fold_policy,
             "seed": args.seed,
             "max_candidates_per_row": args.max_k,
             "retriever": "CaseBM25 CJK bigram; k1=1.5; b=0.75; min_df=2; per-class max",

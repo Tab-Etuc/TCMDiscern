@@ -1,0 +1,35 @@
+{
+  "status": "VERIFIED_PINNED_JEFF_K16_TOKEN_COUNTS",
+  "model": "jgeuter/Jeff-1.1-Large",
+  "revision": "970c21af246a44c5527f7109fca129ab6015c941",
+  "max_context_tokens": 8192,
+  "model_weights_loaded": false,
+  "lora_training_performed": false,
+  "data_policy": "no dedup; original Train/Dev; Test not read",
+  "results": {
+    "train_k16_epoch01": {
+      "rows": 43180,
+      "min": 495,
+      "median": 658,
+      "p95": 973,
+      "p99": 1343,
+      "max": 3577,
+      "gt_2048": 33,
+      "gt_4096": 0,
+      "gt_8192": 0,
+      "total_input_tokens": 30328836
+    },
+    "dev_k16": {
+      "rows": 5486,
+      "min": 472,
+      "median": 666,
+      "p95": 1054,
+      "p99": 1580,
+      "max": 3578,
+      "gt_2048": 12,
+      "gt_4096": 0,
+      "gt_8192": 0,
+      "total_input_tokens": 3961819
+    }
+  }
+}

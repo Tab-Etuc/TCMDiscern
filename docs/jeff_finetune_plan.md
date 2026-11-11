@@ -102,7 +102,7 @@ uv run python scripts/export_jeff_dev.py --k 17   # 分組決策對照
 
 1. 僅用 `chief_complaint`、`description`、`detection` 建立病例描述，絕不在 Prompt 輸入原始證型答案、`lcd_id/lcd_name` 或 `user_id`。
 2. 在 **Train 內部 5-fold Out-of-Fold** 建 BM25 候選。每次只用其他四折生成候選，避免同一列當自己的檢索結果；原始官方 Train/Dev/Test 切分完全不變。
-3. 從 OOF BM25 前 50 個互異證型候選中排除與官方 `norm_syndrome` **完全相同**的正解，取排序最前面的 K−1 個標籤作 **Hard Negatives**。148 類使用官方正規化標籤；語意近義但標籤不同者的額外同義性檢核尚未執行，需記入研究限制，後續可再做獨立消融。
+3. 從 OOF BM25 前 50 個互異證型候選中排除本列官方 `norm_syndrome` 金標，**以及完整臨床文字相同的其他官方金標**，再依排名取前 K−1 個標籤作 Hard Negatives，維持 K=16。2026-11-12 已產出 Group-aware OOF＋此過濾規則的新資料 43,180 筆，已知的 793 筆矛盾訓練題均修正，替換 797 個負例、餘 0。148 類仍採官方正規化標籤；**臨床同義但不同原文的證型仍未人工確認**，需要在論文限制與後續消融揭露。
 4. **訓練階段**刻意放入 1 個正解 `y`，並搭配 K−1 個錯誤標籤（例如 K=5 為 1+4）。每個 epoch 隨機打亂 A～P 選項位置，避免答案位置捷徑；負例採樣種子、候選清單和正確位置留本機紀錄。
 5. 以 **Cross-Entropy** 訓練：正確候選的 Head logit 應最高。以可回溯的 LoRA + Head optimizer/scheduler、warmup、梯度累積、有效 batch、序列長度、訓練步數、checkpoint 和隨機種子記錄完整設定；先小規模實際測 GPU 記憶體與 loss 下降，再定具體參數。
 
