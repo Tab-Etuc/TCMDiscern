@@ -10,7 +10,7 @@
 
 1. 查核 TCM-SD 官方來源、標籤、切分與重複病例；依定稿保留官方全部病例，不執行去重或重新切分。
 2. 在訓練資料中建立檢索索引，產生 **互異證型** 的候選；訓練樣本使用分組 Out-of-Fold 檢索。
-3. 比較 Recall@5/7/10/15/20/25，分別報告 BM25、Embedding、Hybrid。
+3. 完整評估 BM25 Recall@K（K=1～35），後續才進行 Embedding、Hybrid 比較。
 4. 進行 Gemma Zero-shot 與 148 類直接分類基準實驗。
 5. 比較隨機、困難、混合負例 LoRA；驗證集選擇模型，測試集僅作最終評估。
 6. 比較固定 K 與 Adaptive K，報告 Top-1、Macro-F1、延遲、顯存與統計不確定性。
@@ -50,22 +50,21 @@ uv run python scripts/audit_datasets.py       # 核對筆數、標籤、重複�
 uv run python scripts/auto_k_bm25.py --max-k 50 --targets 0.80 0.85 0.90 0.95 0.98
 ```
 
-完整官方 Dev 5,486 筆：Micro Recall ≥95% 最小 K=5、Macro Recall ≥90% 最小 K=17、Macro Recall ≥95% 最小 K=34。**Gemma 的 K=1～35 改為全數比較**（BM25 與 CPU 重排序基準已完成；Gemma LoRA 待 H200）；未做任何病例排除。本輪尚未包含 Gemma LoRA 與 Hybrid。完整方法、數字與限制見 [實驗報告](docs/auto_k_experiment.md)，1～50 全 K 曲線及 148 類統計見 [機器可讀結果](experiments/bm25_dev_official_2026-11-11.json)。
+完整官方 Dev 5,486 筆：Micro Recall ≥95% 最小 K=5、Macro Recall ≥90% 最小 K=17、Macro Recall ≥95% 最小 K=34。**已完整跑完 BM25 K=1～35，沒有加入其他分類器。** Gemma／Embedding／Hybrid 都尚未測試。完整方法與二分搜尋見 [原 BM25 實驗報告](docs/auto_k_experiment.md)。
 
-## K=1～35 全數比較（最新正式設計）
+## BM25 K=1～35 完整結果
 
-已使用完整官方 Dev 5,486 筆，對 K=1、2、…、35 逐一計算 BM25 候選 Recall，並以同一個 MultinomialNB、ComplementNB CPU 模型逐 K 評估實際 Top-1、Macro-F1；不刪除重複病例。
+**只用 BM25**，對官方 5,486 筆 Dev 評估每個 K 的候選 Micro Recall、Macro Recall、命中病例數、新增命中與漏掉病例數。BM25 第一名的 Top-1 固定為 79.58%，Macro-F1 為 54.85%；候選數增加不會改變第一名，K=17 是 Macro Recall ≥90% 的最小 K。
 
-- [35 組完整實測表格與分析](docs/k_1_35_experiment.md)
-- [CSV：全部 K 比較](experiments/k1_35_cpu_selector_dev_2026-11-11.csv)
-- [JSON：含每個證型的 F1](experiments/k1_35_cpu_selector_dev_2026-11-11.json)
+- [BM25 K=1～35 完整表格與說明](docs/bm25_k_1_35.md)
+- [CSV：全部 35 組 BM25 成績](experiments/bm25_k1_35_dev_2026-11-11.csv)
+- [JSON：全精度數據與 148 類別的逐 K 召回](experiments/bm25_k1_35_dev_2026-11-11.json)
 
 ```bash
-uv run python scripts/evaluate_k_grid.py --max-k 35
-uv run python scripts/export_k_grid_summary.py
+uv run python scripts/export_bm25_k_grid.py
 ```
 
-**CPU 模型只是輕量基準；Gemma 4 31B LoRA 的 35 組比較尚未執行。** 詳見 [研究定稿](docs/research_protocol.md)，舊版 K=17 主設定已由全 K 評估取代。
+K=1～35 的結果由已完成的 BM25 Dev 排名逐一核算，對照 [原始 BM25 K=1～50 快照](experiments/bm25_dev_official_2026-11-11.json) 驗證一致性。Gemma 4 31B 尚無實測成績。
 
 ## 專案結構
 
