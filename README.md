@@ -42,6 +42,16 @@ uv run python scripts/audit_datasets.py       # 核對筆數、標籤、重複�
 
 原始格式為 JSONL（副檔名 `.json`），臨床輸入欄位是 `chief_complaint`、`description`、`detection`；標準證型是 `norm_syndrome`。完整資料來源、授權與已確認的 Train/Test 重複問題，請參閱 [研究資料清冊](docs/data_sources.md)。
 
+## 已完成：BM25 自動選 K
+
+可在 TCM-SD 官方 Dev 上計算 BM25 的互異證型候選排名，並以**二分搜尋**找出達成 Micro / Macro Recall 門檻的最小 K：
+
+```bash
+uv run python scripts/auto_k_bm25.py --max-k 50 --targets 0.80 0.85 0.90 0.95 0.98
+```
+
+驗證結果：Micro Recall ≥95% 最小 K=5、Macro Recall ≥90% 最小 K=17、Macro Recall ≥95% 最小 K=34（部分去重子集為 35）。本輪尚未包含 Gemma LoRA 與 Hybrid。詳細方法及原始／部分去重對照見 [自動 K 實驗報告](docs/auto_k_experiment.md)。
+
 ## 專案結構
 
 ```text
