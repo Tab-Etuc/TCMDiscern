@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tcmdiscern"
+version = "0.1.0"
+description = "Traditional Chinese medicine syndrome candidate retrieval and reranking research"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest>=8,<10",
+  "ruff>=0.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tcmdiscern"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
