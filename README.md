@@ -50,7 +50,22 @@ uv run python scripts/audit_datasets.py       # 核對筆數、標籤、重複�
 uv run python scripts/auto_k_bm25.py --max-k 50 --targets 0.80 0.85 0.90 0.95 0.98
 ```
 
-完整官方 Dev 5,486 筆：Micro Recall ≥95% 最小 K=5、Macro Recall ≥90% 最小 K=17、Macro Recall ≥95% 最小 K=34。**Gemma 第一輪主 K=17，對照 K=5、35**；未做任何病例排除。本輪尚未包含 Gemma LoRA 與 Hybrid。完整方法、數字與限制見 [實驗報告](docs/auto_k_experiment.md)，1～50 全 K 曲線及 148 類統計見 [機器可讀結果](experiments/bm25_dev_official_2026-11-11.json)。
+完整官方 Dev 5,486 筆：Micro Recall ≥95% 最小 K=5、Macro Recall ≥90% 最小 K=17、Macro Recall ≥95% 最小 K=34。**Gemma 的 K=1～35 改為全數比較**（BM25 與 CPU 重排序基準已完成；Gemma LoRA 待 H200）；未做任何病例排除。本輪尚未包含 Gemma LoRA 與 Hybrid。完整方法、數字與限制見 [實驗報告](docs/auto_k_experiment.md)，1～50 全 K 曲線及 148 類統計見 [機器可讀結果](experiments/bm25_dev_official_2026-11-11.json)。
+
+## K=1～35 全數比較（最新正式設計）
+
+已使用完整官方 Dev 5,486 筆，對 K=1、2、…、35 逐一計算 BM25 候選 Recall，並以同一個 MultinomialNB、ComplementNB CPU 模型逐 K 評估實際 Top-1、Macro-F1；不刪除重複病例。
+
+- [35 組完整實測表格與分析](docs/k_1_35_experiment.md)
+- [CSV：全部 K 比較](experiments/k1_35_cpu_selector_dev_2026-11-11.csv)
+- [JSON：含每個證型的 F1](experiments/k1_35_cpu_selector_dev_2026-11-11.json)
+
+```bash
+uv run python scripts/evaluate_k_grid.py --max-k 35
+uv run python scripts/export_k_grid_summary.py
+```
+
+**CPU 模型只是輕量基準；Gemma 4 31B LoRA 的 35 組比較尚未執行。** 詳見 [研究定稿](docs/research_protocol.md)，舊版 K=17 主設定已由全 K 評估取代。
 
 ## 專案結構
 

@@ -1,6 +1,6 @@
 # TCMDiscern 研究定稿與實驗規範
 
-**定稿日：2026-11-11｜狀態：已鎖定｜適用範圍：TCM-SD 148 類證型辨別實驗**
+**初次定稿：2026-11-11｜K 策略更新：2026-11-11｜狀態：官方原始切分與 K=1～35 全數比較**
 
 本文件是實作、後續模型訓練及 IEEE 論文撰寫的共同依據。若後續要更改研究設計，應新增明確的決策紀錄，保留本次結果的完整可追溯性。
 
@@ -58,7 +58,7 @@
 
 ## 4. 已完成的實驗與固定方法
 
-**狀態：只有 BM25 候選檢索基準完成，尚無 Gemma、LoRA、Embedding／Hybrid 的 TCM-SD 新實驗分數。**
+**狀態：BM25 候選檢索與 K=1～35 的 CPU 輕量模型重排序基準已完成；Gemma、LoRA、Embedding／Hybrid 的新實驗尚無成績。**
 
 - 43,180 筆完整 Train 作 BM25 病例索引；5,486 筆完整 Dev 作查詢，沒有排除任何樣本。
 - 中文連續文字用 **Bigram 字元詞**，英數文字保留詞元；`CountVectorizer(min_df=2)`。
@@ -69,7 +69,7 @@
 - Macro Recall@K = 148 個證型各自 Recall@K 的**等權平均**；Macro Recall 與 Macro-F1 並非同一指標。
 - Recall 隨 K 增加單調不減，使用二分搜尋找達到特定 Micro／Macro 門檻的**最小** K。二分搜尋不對任何病例作刪除，也不修改候選排名。
 
-詳細數字與搜尋路徑：[BM25 自動 K 實驗報告](auto_k_experiment.md)。全部 1～50 曲線、命中病例數、148 類別統計及完整搜尋步驟：[機器可讀實驗快照](../experiments/bm25_dev_official_2026-11-11.json)。
+詳細數字與搜尋路徑：[BM25 自動 K 實驗報告](auto_k_experiment.md)。全部 1～50 曲線、命中病例數、148 類別統計及完整搜尋步驟：[機器可讀實驗快照](../experiments/bm25_dev_official_2026-11-11.json)。另已完成 [K=1～35 CPU 重排序實驗](k_1_35_experiment.md)，全部 K 均有 Top-1、Macro-F1、Conditional Accuracy 與各證型評分。CPU 分數不可視為 Gemma 成績。
 
 ## 5. 下一階段實驗設定（預先凍結）
 
@@ -77,17 +77,19 @@
 | --- | --- |
 | 主要 LLM | Gemma 4 31B-it，確認實際模型版本及 H200 環境後再啟動 |
 | 微調 | LoRA；隨機／BM25 難負例／混合負例作消融 |
-| 主候選數 | **K=17**：本輪 Dev Micro Recall 98.65%、Macro Recall 90.49%，是滿足 Macro ≥90% 的最小 K |
-| 低 K 對照 | **K=5**：Macro Recall 78.18%，用來比較少數類別的不足 |
-| 高 K 對照 | **K=35**：Macro Recall 95.73%，用來檢查額外候選是否改善最終診斷 |
-| K 搜尋 | Recall 用二分搜尋；Gemma 最終 Top-1 可能非單調，需使用 Dev **實測、區間探索、必要時鄰域補測** |
+| 正式 K 搜尋範圍 | **K=1、2、…、35（共 35 組，全部執行）**，任何 K 都不能僅因檢索召回率較低而跳過 |
+| 比較公平性 | 全部 K 使用同一批完整 Dev、同一套候選排名、同一個 Gemma LoRA checkpoint；每一 K 都重算最終模型預測 |
+| 歷史參考 K | K=5、17、35 的 BM25 Recall 差異可作為圖表標示；**不預先指定 K=17 為最終首選** |
+| K 決策 | 使用 Dev 的 **實際 Gemma Top-1、Macro-F1、推論時間／顯存**；若性能相近，選成本較低的 K |
+| 對照方法 | BM25 Top-1、CPU MultinomialNB/ComplementNB 全 K，後續 Embedding、Hybrid、Gemma Zero-shot 與 LoRA |
+| 計算策略 | 可用同一 checkpoint 做固定類別分數的 prefix-K 評估以節省重算；若使用 listwise prompt，**每個 K 必須獨立推論**，不可將兩者混為同一實驗 |
 | 模型比較 | BM25 Top-1、Embedding Top-1、Hybrid Top-1、Gemma Zero-shot、Gemma 直接 148 類分類、LoRA 重排序 |
 | LoRA 訓練資料 | 由全部官方 Train 構造；訓練候選應以 Train 內部 OOF 產生，避免病例本身被檢索為最近鄰 |
 | 選模依據 | **Dev Top-1、Macro-F1**，搭配條件準確率、延遲與記憶體；不得用 Test 選模 |
 | 正式 Test | 完整 5,486 筆；待方法固定後一次性評分並揭露已知重複情況 |
 | 統計報告 | 檢索的 Micro/Macro Recall@K，模型的 Top-1、Macro-F1，總筆數、各類別 support、信賴區間、耗時、顯存與超參數 |
 
-**目前 K=17 是預先設定的 Gemma 第一輪主值，不代表 Gemma 最佳 K。** 後續若 Gemma 在 K=35 或其他 K 的 Dev Top-1、Macro-F1 更佳，可依預先寫明的選模規則選擇；每次變更都記錄原因和比較結果。
+**2026-11-11 更新：K=17 的先前主設定已由 K=1～35 全數比較取代。** BM25 Recall 已全部實測；CPU MultinomialNB、ComplementNB 已全部實測 Top-1 和 Macro-F1。Gemma LoRA 的最佳 K 尚未測定；後續需在 H200 環境用相同 checkpoint 完整測試後選擇。
 
 ## 6. 結果管理
 
