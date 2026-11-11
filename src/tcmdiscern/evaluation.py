@@ -27,8 +27,10 @@ class Prediction:
         predicted = row.get("predicted_label")
         if not isinstance(case_id, str) or not case_id:
             raise ValueError("case_id must be a non-empty string")
-        if not isinstance(gold, list) or not gold or any(
-            not isinstance(x, str) or not x for x in gold
+        if (
+            not isinstance(gold, list)
+            or not gold
+            or any(not isinstance(x, str) or not x for x in gold)
         ):
             raise ValueError(f"{case_id}: gold_labels must be a non-empty string list")
         if not isinstance(candidates, list) or any(
@@ -58,8 +60,7 @@ def evaluate(rows: Sequence[Prediction], ks: Sequence[int] = (5, 10, 25)) -> dic
     n = len(rows)
     recall = {
         str(k): sum(
-            bool(set(row.gold_labels).intersection(row.candidate_labels[:k]))
-            for row in rows
+            bool(set(row.gold_labels).intersection(row.candidate_labels[:k])) for row in rows
         )
         / n
         for k in sorted(set(ks))
@@ -74,14 +75,12 @@ def evaluate(rows: Sequence[Prediction], ks: Sequence[int] = (5, 10, 25)) -> dic
         result["top1_correct"] = correct
         for k in sorted(set(ks)):
             covered = [
-                row for row in rows
-                if set(row.gold_labels).intersection(row.candidate_labels[:k])
+                row for row in rows if set(row.gold_labels).intersection(row.candidate_labels[:k])
             ]
             if covered and all(row.predicted_label in row.candidate_labels[:k] for row in rows):
-                result.setdefault("conditional_accuracy_at_k", {})[str(k)] = (
-                    sum(row.predicted_label in row.gold_labels for row in covered)
-                    / len(covered)
-                )
+                result.setdefault("conditional_accuracy_at_k", {})[str(k)] = sum(
+                    row.predicted_label in row.gold_labels for row in covered
+                ) / len(covered)
     return result
 
 

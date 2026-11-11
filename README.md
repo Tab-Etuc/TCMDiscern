@@ -30,6 +30,18 @@ uv run ruff check .
 
 一般 CPU 環境即可進行資料處理與評分測試。GPU／Gemma 訓練依賴待實測 H200 環境後獨立加入，避免本地安裝大型套件。
 
+## 研究資料
+
+已於研究工作機取得原作者公開的 **TCM-SD 54,152 筆病例**（Train 43,180／Dev 5,486／Test 5,486）、148 類詞表，以及 1,027 條證型知識；另備有 819 筆獨立研究集、MTCMB、RobustSDT、BEST4SDT 評估資產。資料儲存在本機 `data/`，**不隨 Git 提交**。
+
+```bash
+uv run python scripts/fetch_tcmsd.py          # 在新環境下載官方 TCM-SD
+uv run python scripts/sync_existing_data.py   # 選用：匯入本機既有次要評估資料
+uv run python scripts/audit_datasets.py       # 核對筆數、標籤、重複病例
+```
+
+原始格式為 JSONL（副檔名 `.json`），臨床輸入欄位是 `chief_complaint`、`description`、`detection`；標準證型是 `norm_syndrome`。完整資料來源、授權與已確認的 Train/Test 重複問題，請參閱 [研究資料清冊](docs/data_sources.md)。
+
 ## 專案結構
 
 ```text
