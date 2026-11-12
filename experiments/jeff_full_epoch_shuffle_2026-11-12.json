@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-12",
+  "status": "JEFF_ALL_TRAIN_TWO_EPOCH_RESHUFFLE_PASS",
+  "seed": 20261112,
+  "s1": {
+    "original_train_records": 43180,
+    "epochs_checked": 2,
+    "question_instances_checked": 86360,
+    "positive_count_by_original_record": {
+      "1": 43180
+    },
+    "gold_position_changed_between_epochs_n": 40452,
+    "reshuffled_candidate_lists_not_equal_source_n": 86360,
+    "all_gold_and_positive_masks_validated": true,
+    "source_records_modified": false
+  },
+  "s2_s3_s4_shared": {
+    "original_train_records": 43180,
+    "epochs_checked": 2,
+    "question_instances_checked": 86360,
+    "positive_count_by_original_record": {
+      "1": 42360,
+      "2": 816,
+      "3": 4
+    },
+    "gold_position_changed_between_epochs_n": 40504,
+    "reshuffled_candidate_lists_not_equal_source_n": 86360,
+    "all_gold_and_positive_masks_validated": true,
+    "source_records_modified": false
+  },
+  "total_training_question_instances_verified": 172720,
+  "test_data_loaded": false,
+  "gpu_model_training_performed": false
+}

@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-12",
+  "status": "PEFT_CPU_RESTART_MATCHES_UNINTERRUPTED_TRAINING",
+  "model": "synthetic tiny decoder/Head, no Jeff weights",
+  "first_optimizer_update_saved": true,
+  "resumed_optimizer_state": true,
+  "resumed_scheduler_state": true,
+  "resumed_torch_rng": true,
+  "replayed_second_update_matches": true,
+  "step2_max_logit_difference": 0.0,
+  "patient_data_loaded": false,
+  "actual_h200_test": false
+}

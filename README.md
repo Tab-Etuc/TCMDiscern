@@ -105,14 +105,14 @@ uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 4
 
 已依研究定稿生成 **43,180 筆**全 Train K=16 多答案題目（S2/S3/S4 共用，不重複建立三套病例）：42,360 筆只有 1 個觀察標註、816 筆有 2 個、4 筆有 3 個。使用 Jeff 指定 Tokenizer 測量**最長 3,577 tokens，0 筆超過 8,192**。四種 Loss 的解析梯度／有限差分及 CPU PyTorch 自動微分一致。完整 Dev 5,486 筆評分 Dry Run 精準重現 **BM25 79.58% Top-1／54.85% Macro-F1**。另完成 148 類正負例曝光與重複群組權重稽核。
 
-[全部本機檢查、結果、重現指令與 H200 阻擋項目](docs/jeff_local_preflight_2026-11-12.md)。
+[全部本機檢查、結果、重現指令與 H200 阻擋項目](docs/jeff_local_preflight_2026-11-12.md)。另已實跑 S1／多正解各 43,180 筆、各兩個 epoch，共 **172,720 題**的答案／Mask／選項排列完整性檢查，見 [全量動態重排統計](experiments/jeff_full_epoch_shuffle_2026-11-12.json)。H200 真正執行參考 [Jeff 訓練及評分手冊](docs/jeff_h200_runbook_2026-11-12.md)。
 
 ### 已完成：訓練前完整審查與矛盾負例過濾
 
 - **全量 Tokenizer 檢查：** Train 43,180、Dev 5,486 筆 K=16 Prompt 都低於 Jeff 8,192 token 限制。
 - **重複病例檢索風險：** 原 OOF 6,054 筆查詢能命中其他折完全相同的文字；新 Exact-text Group-aware OOF 降為 0，官方資料與切分不變。
 - **明確矛盾負例：** 原 OOF 的 817 筆、Group-aware OOF 原本 793 筆，在 K=16 把相同病例的另一個官方金標列為錯誤選項。現在以同文不同金標集合過濾負例，另外產生 `epoch02` **43,180 筆**，共替換 797 個矛盾負例，完整 QA **0 個**已知矛盾負例。
-- **仍阻擋大型微調：** 31B LoRA + Decision Head 訓練器、H200 記憶體實測與 Jeff Zero-shot Dev 分數尚未完成。需先確認 GPU 反向傳播、Head 正確讀取最後有效 Token、Loss／梯度、checkpoint 與原始 Jeff 逐 logit 一致。
+- **H200 仍待實測：** LoRA＋原版 Decision Head 訓練入口、Step-0／單步驗收、可續訓的多步流程與 Zero-shot／微調後 Dev 評分程式已建立，並以小型 CPU PEFT 驗證四種 Loss 的梯度及重新載入。**31B Jeff 的 H200 實際推論、顯存、Step-0 logits parity、完整 Dev 分數仍未完成。**
 
 ```bash
 # 以下為完整的產生步驟，已生成的快照採不覆寫政策

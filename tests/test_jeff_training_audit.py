@@ -114,4 +114,6 @@ def test_machine_preflight_never_claims_to_have_run_model(monkeypatch, tmp_path)
     assert result["status"] == "BLOCKED"
     assert result["training_executed"] is False
     assert result["checkpoint"]["weights_present"] is False
-    assert any("trainer not implemented" in b for b in result["blockers"])
+    assert any("No GPU" in b or "NVIDIA GPU unavailable" in b for b in result["blockers"])
+    assert any("model weights are unavailable" in b for b in result["blockers"])
+    assert any("H200" in w for w in result["warnings"])

@@ -135,8 +135,8 @@ def preflight(folder: Path) -> dict:
         blockers.append("PyTorch does not match upstream tested version")
     if versions["transformers"] != PINNED["transformers"]:
         blockers.append("Transformers does not match upstream tested version")
-    if versions["peft"] is None:
-        blockers.append("PEFT not installed for new trainable LoRA")
+    if versions["peft"] != "0.21.1":
+        blockers.append("PEFT must match the CPU-validated pinned version 0.21.1")
     if not model["weights_present"]:
         blockers.append("Pinned Jeff-1.1-Large merged model weights are unavailable")
         if disk_free_gib < 70:
@@ -146,7 +146,11 @@ def preflight(folder: Path) -> dict:
     if model["release_metadata_matches"] is False:
         blockers.append("Released model/head metadata do not match the research configuration")
     if not (ROOT / "scripts/train_jeff_lora.py").exists():
-        blockers.append("Gradient-enabled LoRA + Decision Head trainer not implemented")
+        blockers.append("Original Jeff Step-0/gradient gate missing")
+    if not (ROOT / "scripts/run_jeff_finetune.py").exists():
+        blockers.append("Multi-step LoRA + Decision Head training entrypoint missing")
+    if not (ROOT / "scripts/run_jeff_zeroshot.py").exists():
+        blockers.append("Official Jeff zero-shot/Dev scoring entrypoint missing")
     warnings.extend(
         [
             "The 80GiB threshold is an upstream INFERENCE minimum, not a demonstrated LoRA training minimum.",
@@ -154,6 +158,7 @@ def preflight(folder: Path) -> dict:
             "The released model already has merged LoRA; do not apply its stored adapter a second time.",
             "Before training, prove zero-step logits match the untouched Jeff checkpoint.",
             "The official training script has not been published; the new domain trainer requires independent verification.",
+            "A local multi-step trainer is present but has not been validated on the released 31B Jeff weights or H200.",
         ]
     )
     return {
@@ -167,6 +172,7 @@ def preflight(folder: Path) -> dict:
         "disk_free_gib": disk_free_gib,
         "installed_versions": versions,
         "upstream_versions": PINNED,
+        "domain_training_peft_version": "0.21.1",
         "checkpoint": model,
         "blockers": blockers,
         "warnings": warnings,

@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-12",
+  "status": "TINY_CPU_PEFT_AND_HEAD_GRADIENT_CHECKPOINT_PASS",
+  "torch": "2.9.1+cpu",
+  "training_real_jeff": false,
+  "original_jeff_head_loaded": false,
+  "target_modules": {
+    "q_proj": 1,
+    "k_proj": 1,
+    "v_proj": 1,
+    "o_proj": 1,
+    "gate_proj": 1,
+    "up_proj": 1,
+    "down_proj": 1
+  },
+  "lora_trainable_parameters": 448,
+  "step0_max_abs_logit_difference": 0.0,
+  "all_four_losses_have_nonzero_lora_and_head_gradient": true,
+  "adapter_checkpoint_reload_matches": true,
+  "losses": {
+    "s1": {
+      "loss": 2.543210983276367,
+      "lora_gradient_l1": 13.913741424679756,
+      "head_gradient_l1": 19.28973138332367,
+      "gradient_path_verified": true
+    },
+    "s2": {
+      "loss": 2.3250555992126465,
+      "lora_gradient_l1": 13.598422482144088,
+      "head_gradient_l1": 18.89908277988434,
+      "gradient_path_verified": true
+    },
+    "s3": {
+      "loss": 1.376288652420044,
+      "lora_gradient_l1": 6.955394824035466,
+      "head_gradient_l1": 15.676770448684692,
+      "gradient_path_verified": true
+    },
+    "s4": {
+      "loss": 2.4604814052581787,
+      "lora_gradient_l1": 7.0766861801967025,
+      "head_gradient_l1": 15.575355291366577,
+      "gradient_path_verified": true
+    }
+  }
+}
