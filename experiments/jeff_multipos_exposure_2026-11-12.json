@@ -1,0 +1,1255 @@
+{
+  "date": "2026-11-12",
+  "status": "LOCAL_JEFF_K16_NEGATIVE_EXPOSURE_AUDITED",
+  "data_source": "Original Train + group-aware K16 observed-label training examples",
+  "original_train_rows": 43180,
+  "removed_train_rows": 0,
+  "official_syndrome_classes": 148,
+  "rows_with_multiple_observed_gold": 820,
+  "expected_total_option_exposures": 690880,
+  "positive_exposures": 44004,
+  "negative_exposures": 646876,
+  "negative_to_positive_ratio_median": 53.68915,
+  "negative_to_positive_ratio_max": 864.1111,
+  "duplicate_groups": {
+    "unique_clinical_inputs": 38599,
+    "group_sizes_histogram": {
+      "1": 36509,
+      "2": 1576,
+      "3": 193,
+      "4": 96,
+      "5": 48,
+      "6": 54,
+      "7": 19,
+      "8": 19,
+      "9": 15,
+      "10": 5,
+      "11": 8,
+      "12": 7,
+      "13": 4,
+      "14": 2,
+      "15": 2,
+      "16": 5,
+      "17": 3,
+      "18": 3,
+      "19": 3,
+      "20": 2,
+      "21": 1,
+      "23": 1,
+      "24": 2,
+      "25": 2,
+      "26": 2,
+      "27": 2,
+      "28": 1,
+      "29": 1,
+      "31": 2,
+      "32": 1,
+      "34": 1,
+      "35": 1,
+      "36": 1,
+      "40": 1,
+      "48": 2,
+      "52": 1,
+      "54": 1,
+      "61": 1,
+      "65": 1,
+      "86": 1
+    },
+    "total_train_rows": 43180,
+    "all_rows_retained": true,
+    "sum_inverse_group_weight": 38599.0
+  },
+  "per_syndrome": [
+    {
+      "syndrome": "中气下陷证",
+      "official_train_support": 25,
+      "positive_option_exposures": 78,
+      "negative_option_exposures": 9150,
+      "negatives_per_positive_exposure": 117.3077,
+      "negatives_per_official_train_case": 366.0
+    },
+    {
+      "syndrome": "中气不足证",
+      "official_train_support": 23,
+      "positive_option_exposures": 24,
+      "negative_option_exposures": 7900,
+      "negatives_per_positive_exposure": 329.1667,
+      "negatives_per_official_train_case": 343.4783
+    },
+    {
+      "syndrome": "外伤损络证",
+      "official_train_support": 16,
+      "positive_option_exposures": 16,
+      "negative_option_exposures": 1616,
+      "negatives_per_positive_exposure": 101.0,
+      "negatives_per_official_train_case": 101.0
+    },
+    {
+      "syndrome": "大肠湿热证",
+      "official_train_support": 32,
+      "positive_option_exposures": 32,
+      "negative_option_exposures": 3241,
+      "negatives_per_positive_exposure": 101.2812,
+      "negatives_per_official_train_case": 101.2812
+    },
+    {
+      "syndrome": "寒凝血瘀证",
+      "official_train_support": 88,
+      "positive_option_exposures": 89,
+      "negative_option_exposures": 5707,
+      "negatives_per_positive_exposure": 64.1236,
+      "negatives_per_official_train_case": 64.8523
+    },
+    {
+      "syndrome": "寒湿阻络证",
+      "official_train_support": 40,
+      "positive_option_exposures": 40,
+      "negative_option_exposures": 3138,
+      "negatives_per_positive_exposure": 78.45,
+      "negatives_per_official_train_case": 78.45
+    },
+    {
+      "syndrome": "寒痰阻肺证",
+      "official_train_support": 9,
+      "positive_option_exposures": 9,
+      "negative_option_exposures": 1979,
+      "negatives_per_positive_exposure": 219.8889,
+      "negatives_per_official_train_case": 219.8889
+    },
+    {
+      "syndrome": "心肺气虚证",
+      "official_train_support": 57,
+      "positive_option_exposures": 57,
+      "negative_option_exposures": 4600,
+      "negatives_per_positive_exposure": 80.7018,
+      "negatives_per_official_train_case": 80.7018
+    },
+    {
+      "syndrome": "心肾不交证",
+      "official_train_support": 64,
+      "positive_option_exposures": 64,
+      "negative_option_exposures": 789,
+      "negatives_per_positive_exposure": 12.3281,
+      "negatives_per_official_train_case": 12.3281
+    },
+    {
+      "syndrome": "心脉痹阻证",
+      "official_train_support": 396,
+      "positive_option_exposures": 397,
+      "negative_option_exposures": 6808,
+      "negatives_per_positive_exposure": 17.1486,
+      "negatives_per_official_train_case": 17.1919
+    },
+    {
+      "syndrome": "心脾两虚证",
+      "official_train_support": 11,
+      "positive_option_exposures": 11,
+      "negative_option_exposures": 1640,
+      "negatives_per_positive_exposure": 149.0909,
+      "negatives_per_official_train_case": 149.0909
+    },
+    {
+      "syndrome": "心虚胆怯证",
+      "official_train_support": 22,
+      "positive_option_exposures": 22,
+      "negative_option_exposures": 2083,
+      "negatives_per_positive_exposure": 94.6818,
+      "negatives_per_official_train_case": 94.6818
+    },
+    {
+      "syndrome": "心血虚证",
+      "official_train_support": 97,
+      "positive_option_exposures": 97,
+      "negative_option_exposures": 4949,
+      "negatives_per_positive_exposure": 51.0206,
+      "negatives_per_official_train_case": 51.0206
+    },
+    {
+      "syndrome": "心阳不振证",
+      "official_train_support": 15,
+      "positive_option_exposures": 15,
+      "negative_option_exposures": 1467,
+      "negatives_per_positive_exposure": 97.8,
+      "negatives_per_official_train_case": 97.8
+    },
+    {
+      "syndrome": "正虚毒瘀证",
+      "official_train_support": 142,
+      "positive_option_exposures": 144,
+      "negative_option_exposures": 5015,
+      "negatives_per_positive_exposure": 34.8264,
+      "negatives_per_official_train_case": 35.3169
+    },
+    {
+      "syndrome": "正虚毒结证",
+      "official_train_support": 69,
+      "positive_option_exposures": 69,
+      "negative_option_exposures": 2152,
+      "negatives_per_positive_exposure": 31.1884,
+      "negatives_per_official_train_case": 31.1884
+    },
+    {
+      "syndrome": "正虚瘀结证",
+      "official_train_support": 1771,
+      "positive_option_exposures": 1775,
+      "negative_option_exposures": 5175,
+      "negatives_per_positive_exposure": 2.9155,
+      "negatives_per_official_train_case": 2.9221
+    },
+    {
+      "syndrome": "毒邪流窜证",
+      "official_train_support": 8,
+      "positive_option_exposures": 8,
+      "negative_option_exposures": 510,
+      "negatives_per_positive_exposure": 63.75,
+      "negatives_per_official_train_case": 63.75
+    },
+    {
+      "syndrome": "气不摄血证",
+      "official_train_support": 15,
+      "positive_option_exposures": 18,
+      "negative_option_exposures": 968,
+      "negatives_per_positive_exposure": 53.7778,
+      "negatives_per_official_train_case": 64.5333
+    },
+    {
+      "syndrome": "气滞痰凝证",
+      "official_train_support": 22,
+      "positive_option_exposures": 23,
+      "negative_option_exposures": 2243,
+      "negatives_per_positive_exposure": 97.5217,
+      "negatives_per_official_train_case": 101.9545
+    },
+    {
+      "syndrome": "气滞血瘀证",
+      "official_train_support": 4258,
+      "positive_option_exposures": 4327,
+      "negative_option_exposures": 27816,
+      "negatives_per_positive_exposure": 6.4285,
+      "negatives_per_official_train_case": 6.5326
+    },
+    {
+      "syndrome": "气滞证",
+      "official_train_support": 66,
+      "positive_option_exposures": 66,
+      "negative_option_exposures": 1704,
+      "negatives_per_positive_exposure": 25.8182,
+      "negatives_per_official_train_case": 25.8182
+    },
+    {
+      "syndrome": "气虚不摄证",
+      "official_train_support": 71,
+      "positive_option_exposures": 72,
+      "negative_option_exposures": 1251,
+      "negatives_per_positive_exposure": 17.375,
+      "negatives_per_official_train_case": 17.6197
+    },
+    {
+      "syndrome": "气虚痰结证",
+      "official_train_support": 53,
+      "positive_option_exposures": 68,
+      "negative_option_exposures": 2023,
+      "negatives_per_positive_exposure": 29.75,
+      "negatives_per_official_train_case": 38.1698
+    },
+    {
+      "syndrome": "气虚血溢证",
+      "official_train_support": 12,
+      "positive_option_exposures": 13,
+      "negative_option_exposures": 776,
+      "negatives_per_positive_exposure": 59.6923,
+      "negatives_per_official_train_case": 64.6667
+    },
+    {
+      "syndrome": "气虚血瘀证",
+      "official_train_support": 7380,
+      "positive_option_exposures": 7477,
+      "negative_option_exposures": 26386,
+      "negatives_per_positive_exposure": 3.529,
+      "negatives_per_official_train_case": 3.5753
+    },
+    {
+      "syndrome": "气虚证",
+      "official_train_support": 23,
+      "positive_option_exposures": 23,
+      "negative_option_exposures": 2368,
+      "negatives_per_positive_exposure": 102.9565,
+      "negatives_per_official_train_case": 102.9565
+    },
+    {
+      "syndrome": "气血不足证",
+      "official_train_support": 61,
+      "positive_option_exposures": 66,
+      "negative_option_exposures": 12413,
+      "negatives_per_positive_exposure": 188.0758,
+      "negatives_per_official_train_case": 203.4918
+    },
+    {
+      "syndrome": "气血两虚证",
+      "official_train_support": 47,
+      "positive_option_exposures": 47,
+      "negative_option_exposures": 3165,
+      "negatives_per_positive_exposure": 67.3404,
+      "negatives_per_official_train_case": 67.3404
+    },
+    {
+      "syndrome": "气血亏虚证",
+      "official_train_support": 193,
+      "positive_option_exposures": 218,
+      "negative_option_exposures": 19574,
+      "negatives_per_positive_exposure": 89.789,
+      "negatives_per_official_train_case": 101.4197
+    },
+    {
+      "syndrome": "气血失调证",
+      "official_train_support": 7,
+      "positive_option_exposures": 7,
+      "negative_option_exposures": 173,
+      "negatives_per_positive_exposure": 24.7143,
+      "negatives_per_official_train_case": 24.7143
+    },
+    {
+      "syndrome": "气血瘀滞证",
+      "official_train_support": 30,
+      "positive_option_exposures": 30,
+      "negative_option_exposures": 1640,
+      "negatives_per_positive_exposure": 54.6667,
+      "negatives_per_official_train_case": 54.6667
+    },
+    {
+      "syndrome": "气郁痰阻证",
+      "official_train_support": 21,
+      "positive_option_exposures": 22,
+      "negative_option_exposures": 270,
+      "negatives_per_positive_exposure": 12.2727,
+      "negatives_per_official_train_case": 12.8571
+    },
+    {
+      "syndrome": "气阴两虚证",
+      "official_train_support": 764,
+      "positive_option_exposures": 854,
+      "negative_option_exposures": 10508,
+      "negatives_per_positive_exposure": 12.3044,
+      "negatives_per_official_train_case": 13.7539
+    },
+    {
+      "syndrome": "气阴亏虚证",
+      "official_train_support": 11,
+      "positive_option_exposures": 11,
+      "negative_option_exposures": 2617,
+      "negatives_per_positive_exposure": 237.9091,
+      "negatives_per_official_train_case": 237.9091
+    },
+    {
+      "syndrome": "津亏热结证",
+      "official_train_support": 47,
+      "positive_option_exposures": 72,
+      "negative_option_exposures": 4455,
+      "negatives_per_positive_exposure": 61.875,
+      "negatives_per_official_train_case": 94.7872
+    },
+    {
+      "syndrome": "湿毒蕴结证",
+      "official_train_support": 10,
+      "positive_option_exposures": 10,
+      "negative_option_exposures": 946,
+      "negatives_per_positive_exposure": 94.6,
+      "negatives_per_official_train_case": 94.6
+    },
+    {
+      "syndrome": "湿热下注证",
+      "official_train_support": 6972,
+      "positive_option_exposures": 7150,
+      "negative_option_exposures": 8994,
+      "negatives_per_positive_exposure": 1.2579,
+      "negatives_per_official_train_case": 1.29
+    },
+    {
+      "syndrome": "湿热内蕴证",
+      "official_train_support": 99,
+      "positive_option_exposures": 99,
+      "negative_option_exposures": 5307,
+      "negatives_per_positive_exposure": 53.6061,
+      "negatives_per_official_train_case": 53.6061
+    },
+    {
+      "syndrome": "湿热瘀滞证",
+      "official_train_support": 10,
+      "positive_option_exposures": 10,
+      "negative_option_exposures": 586,
+      "negatives_per_positive_exposure": 58.6,
+      "negatives_per_official_train_case": 58.6
+    },
+    {
+      "syndrome": "湿热瘀阻证",
+      "official_train_support": 552,
+      "positive_option_exposures": 552,
+      "negative_option_exposures": 5083,
+      "negatives_per_positive_exposure": 9.2083,
+      "negatives_per_official_train_case": 9.2083
+    },
+    {
+      "syndrome": "湿热蕴毒证",
+      "official_train_support": 24,
+      "positive_option_exposures": 25,
+      "negative_option_exposures": 2531,
+      "negatives_per_positive_exposure": 101.24,
+      "negatives_per_official_train_case": 105.4583
+    },
+    {
+      "syndrome": "湿热蕴结证",
+      "official_train_support": 462,
+      "positive_option_exposures": 463,
+      "negative_option_exposures": 11750,
+      "negatives_per_positive_exposure": 25.378,
+      "negatives_per_official_train_case": 25.4329
+    },
+    {
+      "syndrome": "湿热阻络证",
+      "official_train_support": 111,
+      "positive_option_exposures": 111,
+      "negative_option_exposures": 2520,
+      "negatives_per_positive_exposure": 22.7027,
+      "negatives_per_official_train_case": 22.7027
+    },
+    {
+      "syndrome": "热毒壅结证",
+      "official_train_support": 9,
+      "positive_option_exposures": 9,
+      "negative_option_exposures": 7777,
+      "negatives_per_positive_exposure": 864.1111,
+      "negatives_per_official_train_case": 864.1111
+    },
+    {
+      "syndrome": "热毒炽盛证",
+      "official_train_support": 31,
+      "positive_option_exposures": 31,
+      "negative_option_exposures": 6525,
+      "negatives_per_positive_exposure": 210.4839,
+      "negatives_per_official_train_case": 210.4839
+    },
+    {
+      "syndrome": "热毒蕴结证",
+      "official_train_support": 1148,
+      "positive_option_exposures": 1177,
+      "negative_option_exposures": 7665,
+      "negatives_per_positive_exposure": 6.5123,
+      "negatives_per_official_train_case": 6.6768
+    },
+    {
+      "syndrome": "热毒蕴肤证",
+      "official_train_support": 15,
+      "positive_option_exposures": 16,
+      "negative_option_exposures": 761,
+      "negatives_per_positive_exposure": 47.5625,
+      "negatives_per_official_train_case": 50.7333
+    },
+    {
+      "syndrome": "痰气交阻证",
+      "official_train_support": 9,
+      "positive_option_exposures": 9,
+      "negative_option_exposures": 577,
+      "negatives_per_positive_exposure": 64.1111,
+      "negatives_per_official_train_case": 64.1111
+    },
+    {
+      "syndrome": "痰浊上蒙证",
+      "official_train_support": 18,
+      "positive_option_exposures": 19,
+      "negative_option_exposures": 1628,
+      "negatives_per_positive_exposure": 85.6842,
+      "negatives_per_official_train_case": 90.4444
+    },
+    {
+      "syndrome": "痰浊中阻证",
+      "official_train_support": 28,
+      "positive_option_exposures": 28,
+      "negative_option_exposures": 2441,
+      "negatives_per_positive_exposure": 87.1786,
+      "negatives_per_official_train_case": 87.1786
+    },
+    {
+      "syndrome": "痰浊内蕴证",
+      "official_train_support": 55,
+      "positive_option_exposures": 56,
+      "negative_option_exposures": 1791,
+      "negatives_per_positive_exposure": 31.9821,
+      "negatives_per_official_train_case": 32.5636
+    },
+    {
+      "syndrome": "痰浊蒙窍证",
+      "official_train_support": 250,
+      "positive_option_exposures": 258,
+      "negative_option_exposures": 5663,
+      "negatives_per_positive_exposure": 21.9496,
+      "negatives_per_official_train_case": 22.652
+    },
+    {
+      "syndrome": "痰湿中阻证",
+      "official_train_support": 164,
+      "positive_option_exposures": 166,
+      "negative_option_exposures": 5476,
+      "negatives_per_positive_exposure": 32.988,
+      "negatives_per_official_train_case": 33.3902
+    },
+    {
+      "syndrome": "痰湿内阻证",
+      "official_train_support": 47,
+      "positive_option_exposures": 49,
+      "negative_option_exposures": 3329,
+      "negatives_per_positive_exposure": 67.9388,
+      "negatives_per_official_train_case": 70.8298
+    },
+    {
+      "syndrome": "痰湿蒙窍证",
+      "official_train_support": 184,
+      "positive_option_exposures": 187,
+      "negative_option_exposures": 5702,
+      "negatives_per_positive_exposure": 30.492,
+      "negatives_per_official_train_case": 30.9891
+    },
+    {
+      "syndrome": "痰湿蕴肺证",
+      "official_train_support": 1666,
+      "positive_option_exposures": 1672,
+      "negative_option_exposures": 6591,
+      "negatives_per_positive_exposure": 3.942,
+      "negatives_per_official_train_case": 3.9562
+    },
+    {
+      "syndrome": "痰湿证",
+      "official_train_support": 23,
+      "positive_option_exposures": 28,
+      "negative_option_exposures": 3863,
+      "negatives_per_positive_exposure": 137.9643,
+      "negatives_per_official_train_case": 167.9565
+    },
+    {
+      "syndrome": "痰湿阻滞证",
+      "official_train_support": 15,
+      "positive_option_exposures": 15,
+      "negative_option_exposures": 1650,
+      "negatives_per_positive_exposure": 110.0,
+      "negatives_per_official_train_case": 110.0
+    },
+    {
+      "syndrome": "痰火扰心证",
+      "official_train_support": 48,
+      "positive_option_exposures": 48,
+      "negative_option_exposures": 3643,
+      "negatives_per_positive_exposure": 75.8958,
+      "negatives_per_official_train_case": 75.8958
+    },
+    {
+      "syndrome": "痰热内扰证",
+      "official_train_support": 16,
+      "positive_option_exposures": 16,
+      "negative_option_exposures": 289,
+      "negatives_per_positive_exposure": 18.0625,
+      "negatives_per_official_train_case": 18.0625
+    },
+    {
+      "syndrome": "痰热壅肺证",
+      "official_train_support": 122,
+      "positive_option_exposures": 127,
+      "negative_option_exposures": 5324,
+      "negatives_per_positive_exposure": 41.9213,
+      "negatives_per_official_train_case": 43.6393
+    },
+    {
+      "syndrome": "痰瘀互结证",
+      "official_train_support": 274,
+      "positive_option_exposures": 275,
+      "negative_option_exposures": 13607,
+      "negatives_per_positive_exposure": 49.48,
+      "negatives_per_official_train_case": 49.6606
+    },
+    {
+      "syndrome": "痰瘀滞络证",
+      "official_train_support": 78,
+      "positive_option_exposures": 81,
+      "negative_option_exposures": 7166,
+      "negatives_per_positive_exposure": 88.4691,
+      "negatives_per_official_train_case": 91.8718
+    },
+    {
+      "syndrome": "痰瘀痹阻证",
+      "official_train_support": 423,
+      "positive_option_exposures": 423,
+      "negative_option_exposures": 12677,
+      "negatives_per_positive_exposure": 29.9693,
+      "negatives_per_official_train_case": 29.9693
+    },
+    {
+      "syndrome": "痰蒙清窍证",
+      "official_train_support": 21,
+      "positive_option_exposures": 31,
+      "negative_option_exposures": 2474,
+      "negatives_per_positive_exposure": 79.8065,
+      "negatives_per_official_train_case": 117.8095
+    },
+    {
+      "syndrome": "痰蒙神窍证",
+      "official_train_support": 19,
+      "positive_option_exposures": 20,
+      "negative_option_exposures": 1420,
+      "negatives_per_positive_exposure": 71.0,
+      "negatives_per_official_train_case": 74.7368
+    },
+    {
+      "syndrome": "瘀滞胞宫证",
+      "official_train_support": 15,
+      "positive_option_exposures": 15,
+      "negative_option_exposures": 1477,
+      "negatives_per_positive_exposure": 98.4667,
+      "negatives_per_official_train_case": 98.4667
+    },
+    {
+      "syndrome": "瘀血内阻证",
+      "official_train_support": 7,
+      "positive_option_exposures": 7,
+      "negative_option_exposures": 1541,
+      "negatives_per_positive_exposure": 220.1429,
+      "negatives_per_official_train_case": 220.1429
+    },
+    {
+      "syndrome": "瘀血阻滞证",
+      "official_train_support": 63,
+      "positive_option_exposures": 77,
+      "negative_option_exposures": 4540,
+      "negatives_per_positive_exposure": 58.961,
+      "negatives_per_official_train_case": 72.0635
+    },
+    {
+      "syndrome": "瘀血阻络证",
+      "official_train_support": 280,
+      "positive_option_exposures": 294,
+      "negative_option_exposures": 11904,
+      "negatives_per_positive_exposure": 40.4898,
+      "negatives_per_official_train_case": 42.5143
+    },
+    {
+      "syndrome": "瘀阻心脉证",
+      "official_train_support": 80,
+      "positive_option_exposures": 81,
+      "negative_option_exposures": 4412,
+      "negatives_per_positive_exposure": 54.4691,
+      "negatives_per_official_train_case": 55.15
+    },
+    {
+      "syndrome": "肝气犯胃证",
+      "official_train_support": 64,
+      "positive_option_exposures": 64,
+      "negative_option_exposures": 1419,
+      "negatives_per_positive_exposure": 22.1719,
+      "negatives_per_official_train_case": 22.1719
+    },
+    {
+      "syndrome": "肝经湿热证",
+      "official_train_support": 150,
+      "positive_option_exposures": 150,
+      "negative_option_exposures": 2427,
+      "negatives_per_positive_exposure": 16.18,
+      "negatives_per_official_train_case": 16.18
+    },
+    {
+      "syndrome": "肝肾两虚证",
+      "official_train_support": 15,
+      "positive_option_exposures": 18,
+      "negative_option_exposures": 1453,
+      "negatives_per_positive_exposure": 80.7222,
+      "negatives_per_official_train_case": 96.8667
+    },
+    {
+      "syndrome": "肝肾亏损证",
+      "official_train_support": 16,
+      "positive_option_exposures": 16,
+      "negative_option_exposures": 3007,
+      "negatives_per_positive_exposure": 187.9375,
+      "negatives_per_official_train_case": 187.9375
+    },
+    {
+      "syndrome": "肝肾亏虚证",
+      "official_train_support": 1295,
+      "positive_option_exposures": 1304,
+      "negative_option_exposures": 10828,
+      "negatives_per_positive_exposure": 8.3037,
+      "negatives_per_official_train_case": 8.3614
+    },
+    {
+      "syndrome": "肝肾阴虚证",
+      "official_train_support": 172,
+      "positive_option_exposures": 178,
+      "negative_option_exposures": 8940,
+      "negatives_per_positive_exposure": 50.2247,
+      "negatives_per_official_train_case": 51.9767
+    },
+    {
+      "syndrome": "肝胃不和证",
+      "official_train_support": 485,
+      "positive_option_exposures": 487,
+      "negative_option_exposures": 5326,
+      "negatives_per_positive_exposure": 10.9363,
+      "negatives_per_official_train_case": 10.9814
+    },
+    {
+      "syndrome": "肝胃气滞证",
+      "official_train_support": 19,
+      "positive_option_exposures": 19,
+      "negative_option_exposures": 2689,
+      "negatives_per_positive_exposure": 141.5263,
+      "negatives_per_official_train_case": 141.5263
+    },
+    {
+      "syndrome": "肝胃郁热证",
+      "official_train_support": 1785,
+      "positive_option_exposures": 1801,
+      "negative_option_exposures": 8020,
+      "negatives_per_positive_exposure": 4.4531,
+      "negatives_per_official_train_case": 4.493
+    },
+    {
+      "syndrome": "肝胆湿热证",
+      "official_train_support": 31,
+      "positive_option_exposures": 31,
+      "negative_option_exposures": 1367,
+      "negatives_per_positive_exposure": 44.0968,
+      "negatives_per_official_train_case": 44.0968
+    },
+    {
+      "syndrome": "肝郁气滞证",
+      "official_train_support": 109,
+      "positive_option_exposures": 112,
+      "negative_option_exposures": 6262,
+      "negatives_per_positive_exposure": 55.9107,
+      "negatives_per_official_train_case": 57.4495
+    },
+    {
+      "syndrome": "肝郁脾虚证",
+      "official_train_support": 39,
+      "positive_option_exposures": 39,
+      "negative_option_exposures": 3230,
+      "negatives_per_positive_exposure": 82.8205,
+      "negatives_per_official_train_case": 82.8205
+    },
+    {
+      "syndrome": "肝郁血瘀证",
+      "official_train_support": 79,
+      "positive_option_exposures": 79,
+      "negative_option_exposures": 4248,
+      "negatives_per_positive_exposure": 53.7722,
+      "negatives_per_official_train_case": 53.7722
+    },
+    {
+      "syndrome": "肝阳上亢证",
+      "official_train_support": 185,
+      "positive_option_exposures": 186,
+      "negative_option_exposures": 9559,
+      "negatives_per_positive_exposure": 51.3925,
+      "negatives_per_official_train_case": 51.6703
+    },
+    {
+      "syndrome": "肝阴不足证",
+      "official_train_support": 79,
+      "positive_option_exposures": 79,
+      "negative_option_exposures": 1627,
+      "negatives_per_positive_exposure": 20.5949,
+      "negatives_per_official_train_case": 20.5949
+    },
+    {
+      "syndrome": "肠燥津伤证",
+      "official_train_support": 14,
+      "positive_option_exposures": 14,
+      "negative_option_exposures": 3191,
+      "negatives_per_positive_exposure": 227.9286,
+      "negatives_per_official_train_case": 227.9286
+    },
+    {
+      "syndrome": "肺卫不固证",
+      "official_train_support": 42,
+      "positive_option_exposures": 45,
+      "negative_option_exposures": 1760,
+      "negatives_per_positive_exposure": 39.1111,
+      "negatives_per_official_train_case": 41.9048
+    },
+    {
+      "syndrome": "肺肾气虚证",
+      "official_train_support": 55,
+      "positive_option_exposures": 55,
+      "negative_option_exposures": 2684,
+      "negatives_per_positive_exposure": 48.8,
+      "negatives_per_official_train_case": 48.8
+    },
+    {
+      "syndrome": "肺阴虚证",
+      "official_train_support": 11,
+      "positive_option_exposures": 11,
+      "negative_option_exposures": 846,
+      "negatives_per_positive_exposure": 76.9091,
+      "negatives_per_official_train_case": 76.9091
+    },
+    {
+      "syndrome": "肾不纳气证",
+      "official_train_support": 12,
+      "positive_option_exposures": 12,
+      "negative_option_exposures": 1704,
+      "negatives_per_positive_exposure": 142.0,
+      "negatives_per_official_train_case": 142.0
+    },
+    {
+      "syndrome": "肾气虚证",
+      "official_train_support": 35,
+      "positive_option_exposures": 35,
+      "negative_option_exposures": 2281,
+      "negatives_per_positive_exposure": 65.1714,
+      "negatives_per_official_train_case": 65.1714
+    },
+    {
+      "syndrome": "肾虚寒凝证",
+      "official_train_support": 24,
+      "positive_option_exposures": 24,
+      "negative_option_exposures": 799,
+      "negatives_per_positive_exposure": 33.2917,
+      "negatives_per_official_train_case": 33.2917
+    },
+    {
+      "syndrome": "肾虚水泛证",
+      "official_train_support": 58,
+      "positive_option_exposures": 58,
+      "negative_option_exposures": 1004,
+      "negatives_per_positive_exposure": 17.3103,
+      "negatives_per_official_train_case": 17.3103
+    },
+    {
+      "syndrome": "肾虚肝亢证",
+      "official_train_support": 29,
+      "positive_option_exposures": 29,
+      "negative_option_exposures": 634,
+      "negatives_per_positive_exposure": 21.8621,
+      "negatives_per_official_train_case": 21.8621
+    },
+    {
+      "syndrome": "肾虚证",
+      "official_train_support": 527,
+      "positive_option_exposures": 527,
+      "negative_option_exposures": 2437,
+      "negatives_per_positive_exposure": 4.6243,
+      "negatives_per_official_train_case": 4.6243
+    },
+    {
+      "syndrome": "肾阳虚证",
+      "official_train_support": 7,
+      "positive_option_exposures": 7,
+      "negative_option_exposures": 1624,
+      "negatives_per_positive_exposure": 232.0,
+      "negatives_per_official_train_case": 232.0
+    },
+    {
+      "syndrome": "脾气虚证",
+      "official_train_support": 29,
+      "positive_option_exposures": 29,
+      "negative_option_exposures": 2781,
+      "negatives_per_positive_exposure": 95.8966,
+      "negatives_per_official_train_case": 95.8966
+    },
+    {
+      "syndrome": "脾肾两虚证",
+      "official_train_support": 908,
+      "positive_option_exposures": 917,
+      "negative_option_exposures": 10553,
+      "negatives_per_positive_exposure": 11.5082,
+      "negatives_per_official_train_case": 11.6222
+    },
+    {
+      "syndrome": "脾肾气虚证",
+      "official_train_support": 14,
+      "positive_option_exposures": 14,
+      "negative_option_exposures": 355,
+      "negatives_per_positive_exposure": 25.3571,
+      "negatives_per_official_train_case": 25.3571
+    },
+    {
+      "syndrome": "脾肾阳虚证",
+      "official_train_support": 83,
+      "positive_option_exposures": 85,
+      "negative_option_exposures": 9697,
+      "negatives_per_positive_exposure": 114.0824,
+      "negatives_per_official_train_case": 116.8313
+    },
+    {
+      "syndrome": "脾胃不和证",
+      "official_train_support": 128,
+      "positive_option_exposures": 128,
+      "negative_option_exposures": 3602,
+      "negatives_per_positive_exposure": 28.1406,
+      "negatives_per_official_train_case": 28.1406
+    },
+    {
+      "syndrome": "脾胃气虚证",
+      "official_train_support": 24,
+      "positive_option_exposures": 24,
+      "negative_option_exposures": 2657,
+      "negatives_per_positive_exposure": 110.7083,
+      "negatives_per_official_train_case": 110.7083
+    },
+    {
+      "syndrome": "脾胃湿热证",
+      "official_train_support": 8,
+      "positive_option_exposures": 28,
+      "negative_option_exposures": 2014,
+      "negatives_per_positive_exposure": 71.9286,
+      "negatives_per_official_train_case": 251.75
+    },
+    {
+      "syndrome": "脾胃积热证",
+      "official_train_support": 60,
+      "positive_option_exposures": 60,
+      "negative_option_exposures": 2174,
+      "negatives_per_positive_exposure": 36.2333,
+      "negatives_per_official_train_case": 36.2333
+    },
+    {
+      "syndrome": "脾胃虚寒证",
+      "official_train_support": 464,
+      "positive_option_exposures": 493,
+      "negative_option_exposures": 6044,
+      "negatives_per_positive_exposure": 12.2596,
+      "negatives_per_official_train_case": 13.0259
+    },
+    {
+      "syndrome": "脾胃虚弱证",
+      "official_train_support": 154,
+      "positive_option_exposures": 154,
+      "negative_option_exposures": 6719,
+      "negatives_per_positive_exposure": 43.6299,
+      "negatives_per_official_train_case": 43.6299
+    },
+    {
+      "syndrome": "脾胃阳虚证",
+      "official_train_support": 17,
+      "positive_option_exposures": 17,
+      "negative_option_exposures": 1771,
+      "negatives_per_positive_exposure": 104.1765,
+      "negatives_per_official_train_case": 104.1765
+    },
+    {
+      "syndrome": "脾虚湿盛证",
+      "official_train_support": 60,
+      "positive_option_exposures": 60,
+      "negative_option_exposures": 8458,
+      "negatives_per_positive_exposure": 140.9667,
+      "negatives_per_official_train_case": 140.9667
+    },
+    {
+      "syndrome": "脾虚湿蕴证",
+      "official_train_support": 31,
+      "positive_option_exposures": 31,
+      "negative_option_exposures": 1908,
+      "negatives_per_positive_exposure": 61.5484,
+      "negatives_per_official_train_case": 61.5484
+    },
+    {
+      "syndrome": "血热证",
+      "official_train_support": 138,
+      "positive_option_exposures": 138,
+      "negative_option_exposures": 3276,
+      "negatives_per_positive_exposure": 23.7391,
+      "negatives_per_official_train_case": 23.7391
+    },
+    {
+      "syndrome": "血瘀痰凝证",
+      "official_train_support": 155,
+      "positive_option_exposures": 155,
+      "negative_option_exposures": 1048,
+      "negatives_per_positive_exposure": 6.7613,
+      "negatives_per_official_train_case": 6.7613
+    },
+    {
+      "syndrome": "血虚证",
+      "official_train_support": 19,
+      "positive_option_exposures": 25,
+      "negative_option_exposures": 7777,
+      "negatives_per_positive_exposure": 311.08,
+      "negatives_per_official_train_case": 409.3158
+    },
+    {
+      "syndrome": "血虚风燥证",
+      "official_train_support": 38,
+      "positive_option_exposures": 38,
+      "negative_option_exposures": 1117,
+      "negatives_per_positive_exposure": 29.3947,
+      "negatives_per_official_train_case": 29.3947
+    },
+    {
+      "syndrome": "阳虚寒凝证",
+      "official_train_support": 23,
+      "positive_option_exposures": 23,
+      "negative_option_exposures": 1074,
+      "negatives_per_positive_exposure": 46.6957,
+      "negatives_per_official_train_case": 46.6957
+    },
+    {
+      "syndrome": "阳虚水泛证",
+      "official_train_support": 448,
+      "positive_option_exposures": 448,
+      "negative_option_exposures": 11282,
+      "negatives_per_positive_exposure": 25.183,
+      "negatives_per_official_train_case": 25.183
+    },
+    {
+      "syndrome": "阳虚痰凝证",
+      "official_train_support": 7,
+      "positive_option_exposures": 7,
+      "negative_option_exposures": 2468,
+      "negatives_per_positive_exposure": 352.5714,
+      "negatives_per_official_train_case": 352.5714
+    },
+    {
+      "syndrome": "阳虚血瘀证",
+      "official_train_support": 82,
+      "positive_option_exposures": 82,
+      "negative_option_exposures": 4984,
+      "negatives_per_positive_exposure": 60.7805,
+      "negatives_per_official_train_case": 60.7805
+    },
+    {
+      "syndrome": "阴虚津亏证",
+      "official_train_support": 32,
+      "positive_option_exposures": 32,
+      "negative_option_exposures": 8248,
+      "negatives_per_positive_exposure": 257.75,
+      "negatives_per_official_train_case": 257.75
+    },
+    {
+      "syndrome": "阴虚湿热证",
+      "official_train_support": 9,
+      "positive_option_exposures": 9,
+      "negative_option_exposures": 1635,
+      "negatives_per_positive_exposure": 181.6667,
+      "negatives_per_official_train_case": 181.6667
+    },
+    {
+      "syndrome": "阴虚火旺证",
+      "official_train_support": 159,
+      "positive_option_exposures": 161,
+      "negative_option_exposures": 6979,
+      "negatives_per_positive_exposure": 43.3478,
+      "negatives_per_official_train_case": 43.8931
+    },
+    {
+      "syndrome": "阴虚血热证",
+      "official_train_support": 29,
+      "positive_option_exposures": 29,
+      "negative_option_exposures": 1693,
+      "negatives_per_positive_exposure": 58.3793,
+      "negatives_per_official_train_case": 58.3793
+    },
+    {
+      "syndrome": "阴虚血瘀证",
+      "official_train_support": 115,
+      "positive_option_exposures": 116,
+      "negative_option_exposures": 4984,
+      "negatives_per_positive_exposure": 42.9655,
+      "negatives_per_official_train_case": 43.3391
+    },
+    {
+      "syndrome": "阴虚阳亢证",
+      "official_train_support": 265,
+      "positive_option_exposures": 265,
+      "negative_option_exposures": 6759,
+      "negatives_per_positive_exposure": 25.5057,
+      "negatives_per_official_train_case": 25.5057
+    },
+    {
+      "syndrome": "阴虚风动证",
+      "official_train_support": 29,
+      "positive_option_exposures": 29,
+      "negative_option_exposures": 2729,
+      "negatives_per_positive_exposure": 94.1034,
+      "negatives_per_official_train_case": 94.1034
+    },
+    {
+      "syndrome": "风寒外袭证",
+      "official_train_support": 352,
+      "positive_option_exposures": 352,
+      "negative_option_exposures": 5832,
+      "negatives_per_positive_exposure": 16.5682,
+      "negatives_per_official_train_case": 16.5682
+    },
+    {
+      "syndrome": "风寒湿痹证",
+      "official_train_support": 81,
+      "positive_option_exposures": 81,
+      "negative_option_exposures": 5786,
+      "negatives_per_positive_exposure": 71.4321,
+      "negatives_per_official_train_case": 71.4321
+    },
+    {
+      "syndrome": "风寒湿阻证",
+      "official_train_support": 26,
+      "positive_option_exposures": 26,
+      "negative_option_exposures": 3093,
+      "negatives_per_positive_exposure": 118.9615,
+      "negatives_per_official_train_case": 118.9615
+    },
+    {
+      "syndrome": "风寒痹阻证",
+      "official_train_support": 23,
+      "positive_option_exposures": 23,
+      "negative_option_exposures": 2477,
+      "negatives_per_positive_exposure": 107.6957,
+      "negatives_per_official_train_case": 107.6957
+    },
+    {
+      "syndrome": "风寒袭肺证",
+      "official_train_support": 467,
+      "positive_option_exposures": 468,
+      "negative_option_exposures": 4510,
+      "negatives_per_positive_exposure": 9.6368,
+      "negatives_per_official_train_case": 9.6574
+    },
+    {
+      "syndrome": "风寒袭表证",
+      "official_train_support": 46,
+      "positive_option_exposures": 47,
+      "negative_option_exposures": 3864,
+      "negatives_per_positive_exposure": 82.2128,
+      "negatives_per_official_train_case": 84.0
+    },
+    {
+      "syndrome": "风寒阻络证",
+      "official_train_support": 53,
+      "positive_option_exposures": 53,
+      "negative_option_exposures": 1925,
+      "negatives_per_positive_exposure": 36.3208,
+      "negatives_per_official_train_case": 36.3208
+    },
+    {
+      "syndrome": "风湿热证",
+      "official_train_support": 17,
+      "positive_option_exposures": 17,
+      "negative_option_exposures": 1748,
+      "negatives_per_positive_exposure": 102.8235,
+      "negatives_per_official_train_case": 102.8235
+    },
+    {
+      "syndrome": "风湿蕴肤证",
+      "official_train_support": 24,
+      "positive_option_exposures": 24,
+      "negative_option_exposures": 1022,
+      "negatives_per_positive_exposure": 42.5833,
+      "negatives_per_official_train_case": 42.5833
+    },
+    {
+      "syndrome": "风热伤络证",
+      "official_train_support": 20,
+      "positive_option_exposures": 20,
+      "negative_option_exposures": 767,
+      "negatives_per_positive_exposure": 38.35,
+      "negatives_per_official_train_case": 38.35
+    },
+    {
+      "syndrome": "风热外袭证",
+      "official_train_support": 14,
+      "positive_option_exposures": 14,
+      "negative_option_exposures": 1859,
+      "negatives_per_positive_exposure": 132.7857,
+      "negatives_per_official_train_case": 132.7857
+    },
+    {
+      "syndrome": "风热毒蕴证",
+      "official_train_support": 24,
+      "positive_option_exposures": 24,
+      "negative_option_exposures": 1208,
+      "negatives_per_positive_exposure": 50.3333,
+      "negatives_per_official_train_case": 50.3333
+    },
+    {
+      "syndrome": "风热犯肺证",
+      "official_train_support": 58,
+      "positive_option_exposures": 59,
+      "negative_option_exposures": 2542,
+      "negatives_per_positive_exposure": 43.0847,
+      "negatives_per_official_train_case": 43.8276
+    },
+    {
+      "syndrome": "风热血热证",
+      "official_train_support": 19,
+      "positive_option_exposures": 19,
+      "negative_option_exposures": 572,
+      "negatives_per_positive_exposure": 30.1053,
+      "negatives_per_official_train_case": 30.1053
+    },
+    {
+      "syndrome": "风热袭表证",
+      "official_train_support": 24,
+      "positive_option_exposures": 24,
+      "negative_option_exposures": 1201,
+      "negatives_per_positive_exposure": 50.0417,
+      "negatives_per_official_train_case": 50.0417
+    },
+    {
+      "syndrome": "风痰上扰证",
+      "official_train_support": 367,
+      "positive_option_exposures": 368,
+      "negative_option_exposures": 9540,
+      "negatives_per_positive_exposure": 25.9239,
+      "negatives_per_official_train_case": 25.9946
+    },
+    {
+      "syndrome": "风痰入络证",
+      "official_train_support": 305,
+      "positive_option_exposures": 306,
+      "negative_option_exposures": 10225,
+      "negatives_per_positive_exposure": 33.415,
+      "negatives_per_official_train_case": 33.5246
+    },
+    {
+      "syndrome": "风痰瘀阻证",
+      "official_train_support": 2984,
+      "positive_option_exposures": 3007,
+      "negative_option_exposures": 11276,
+      "negatives_per_positive_exposure": 3.7499,
+      "negatives_per_official_train_case": 3.7788
+    },
+    {
+      "syndrome": "风痰闭窍证",
+      "official_train_support": 10,
+      "positive_option_exposures": 10,
+      "negative_option_exposures": 1437,
+      "negatives_per_positive_exposure": 143.7,
+      "negatives_per_official_train_case": 143.7
+    },
+    {
+      "syndrome": "风痰闭阻证",
+      "official_train_support": 8,
+      "positive_option_exposures": 8,
+      "negative_option_exposures": 1217,
+      "negatives_per_positive_exposure": 152.125,
+      "negatives_per_official_train_case": 152.125
+    },
+    {
+      "syndrome": "饮食积滞证",
+      "official_train_support": 62,
+      "positive_option_exposures": 62,
+      "negative_option_exposures": 1739,
+      "negatives_per_positive_exposure": 28.0484,
+      "negatives_per_official_train_case": 28.0484
+    },
+    {
+      "syndrome": "髓海不足证",
+      "official_train_support": 17,
+      "positive_option_exposures": 19,
+      "negative_option_exposures": 985,
+      "negatives_per_positive_exposure": 51.8421,
+      "negatives_per_official_train_case": 57.9412
+    }
+  ],
+  "notes": [
+    "Training sampler is currently unweighted; this report does not change it.",
+    "Observed alternative gold labels are counted as positives, never negatives.",
+    "Natural frequency of labels and negative option exposure are highly nonuniform.",
+    "Compare class/group-balanced sampling in a separate controlled experiment."
+  ],
+  "model_training_completed": false
+}

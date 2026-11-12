@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-12",
+  "status": "CPU_TORCH_AUTOGRAD_LOSS_PARITY_VERIFIED",
+  "torch_version": "2.9.1+cpu",
+  "device": "cpu",
+  "validated": 7,
+  "all_passed": true,
+  "model_weights_loaded": false,
+  "jeff_head_logits_verified": false,
+  "h200_step_zero_training_verified": false,
+  "comparisons": [
+    {
+      "method": "s1",
+      "observed_positives": 1,
+      "loss": 6.795802593231201,
+      "max_abs_gradient_difference": 3.8275768998730086e-08,
+      "passed": true
+    },
+    {
+      "method": "s2",
+      "observed_positives": 3,
+      "loss": 6.788957595825195,
+      "max_abs_gradient_difference": 1.3534385739921717e-07,
+      "passed": true
+    },
+    {
+      "method": "s3",
+      "observed_positives": 3,
+      "loss": 4.835787296295166,
+      "max_abs_gradient_difference": 3.8275768998730086e-08,
+      "passed": true
+    },
+    {
+      "method": "s4",
+      "observed_positives": 3,
+      "loss": 7.195802688598633,
+      "max_abs_gradient_difference": 3.8275768998730086e-08,
+      "passed": true
+    },
+    {
+      "method": "s2",
+      "observed_positives": 1,
+      "loss": 6.795802593231201,
+      "max_abs_gradient_difference": 3.8275768998730086e-08,
+      "passed": true
+    },
+    {
+      "method": "s3",
+      "observed_positives": 1,
+      "loss": 6.795802593231201,
+      "max_abs_gradient_difference": 3.8275768998730086e-08,
+      "passed": true
+    },
+    {
+      "method": "s4",
+      "observed_positives": 1,
+      "loss": 6.795802593231201,
+      "max_abs_gradient_difference": 3.8275768998730086e-08,
+      "passed": true
+    }
+  ]
+}

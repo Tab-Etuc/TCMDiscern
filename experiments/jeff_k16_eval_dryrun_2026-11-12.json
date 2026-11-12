@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-12",
+  "status": "K16_JEFF_EVALUATION_WIRING_SMOKE_PASS",
+  "method": "fake rank-1 logits, exactly reproduces original BM25",
+  "real_jeff_inference": false,
+  "trained_checkpoint_scored": false,
+  "complete_official_dev": true,
+  "test_cases_loaded": false,
+  "results": {
+    "n_cases": 5486,
+    "label_classes": 148,
+    "top1_accuracy": 0.7958439664600802,
+    "top1_correct_n": 4366,
+    "macro_f1": 0.5484957707533203,
+    "bm25_top1_accuracy": 0.7958439664600802,
+    "bm25_top1_correct_n": 4366,
+    "bm25_macro_f1": 0.5484957707533203,
+    "bm25_to_jeff_rescued_cases": 0,
+    "bm25_to_jeff_broken_cases": 0,
+    "net_correct_change": 0,
+    "gold_in_top16_n": 5409,
+    "gold_absent_top16_n": 77,
+    "conditional_top1_when_gold_in_top16": 0.8071732298021815,
+    "predictions_from_supplied_candidates_only": true,
+    "official_single_gold_scoring": true
+  }
+}

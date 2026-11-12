@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-12",
+  "status": "JEFF_MULTIPOS_K16_PINNED_TOKENIZER_COMPLETE",
+  "model": "jgeuter/Jeff-1.1-Large",
+  "model_revision": "970c21af246a44c5527f7109fca129ab6015c941",
+  "max_input_tokens": 8192,
+  "model_weights_loaded": false,
+  "model_training_performed": false,
+  "official_train_cases_retained": true,
+  "stats": {
+    "rows": 43180,
+    "minimum": 494,
+    "median": 658,
+    "p95": 973,
+    "p99": 1343,
+    "maximum": 3577,
+    "over_4096": 0,
+    "over_8192": 0,
+    "total_prompt_tokens": 30328826,
+    "mean_tokens": 702.38
+  }
+}

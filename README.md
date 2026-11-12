@@ -15,7 +15,7 @@
 5. 多答案／標註歧義採預先固定的對照：安全單正解 CE、Masked CE、Multi-positive Set Loss，均勻 Soft-target CE 為次要消融。保持 K=16、相同 Train OOF 候選設定與完整官方評估。
 6. 使用官方完整 Dev 比較 **K=1～35** 的真實 Jeff Top-1、Macro-F1、延遲、顯存與統計不確定性，選擇最佳 K。
 
-> **2026-11-12 方法定稿：** Jeff 1.1 + BM25 K=16；主研究假設採 **Multi-positive Set Loss** 處理 Train 同文異標的標註歧義，安全單正解 CE 與 Masked CE 作對照，均勻 Soft CE 作次要消融。完整規格請先讀 [標註歧義與 Jeff 多正解方法定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md)。已完成原始 BM25 Dev 基準、Train Group-aware OOF 與安全單正解 K=16 43,180 筆資料 QA；**Set Loss 訓練資料與 GPU LoRA 尚未實作，沒有 Jeff 診斷成績。** 原始官方病例、標籤與切分完全保留。
+> **2026-11-12 方法定稿：** Jeff 1.1 + BM25 K=16；主研究假設採 **Multi-positive Set Loss** 處理 Train 同文異標的標註歧義，安全單正解 CE 與 Masked CE 作對照，均勻 Soft CE 作次要消融。完整規格請先讀 [標註歧義與 Jeff 多正解方法定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md)。已完成原始 BM25 Dev 基準、Train Group-aware OOF 與安全單正解 K=16 43,180 筆資料 QA；**S2/S3/S4 共用 K=16 43,180 筆訓練題、Loss CPU 梯度與全量 QA 已完成；Jeff GPU LoRA 尚未訓練，沒有 Jeff 診斷成績。** 原始官方病例、標籤與切分完全保留。
 
 ## 開發環境
 
@@ -94,12 +94,18 @@ uv run python scripts/export_jeff_train.py                     # 預設只產生
 uv run python -m scripts.verify_jeff_train                     # QA 封存資料
 uv run python -m scripts.summarize_jeff_oof                    # OOF 全 K 統計
 # 另行產生消融資料（須選擇未使用的 epoch）：
-uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 3
+uv run python scripts/export_jeff_train.py --ks 5 16 --mixed --epoch 4
 ```
 
 ### 最新研究定稿：多答案與單答案公平比較
 
-**S1 安全單金標 CE／S2 Masked CE／S3 多觀察正解 Set Loss／S4 均勻 Soft-target CE**，使用相同 Jeff-1.1-Large、Train 43,180、Group-aware OOF、主要 K=16；正式 Dev／Test 不補金標。**優先驗證 S3，S2/S3/S4 使用相同候選以隔離 Loss 影響。** 已定稿方法，新增多正解訓練題及 LoRA 尚未實作。詳見 [唯一完整研究定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md) 與 [多標註上界彙總](experiments/jeff_multi_annotation_bounds_2026-11-12.json)。
+**S1 安全單金標 CE／S2 Masked CE／S3 多觀察正解 Set Loss／S4 均勻 Soft-target CE**，使用相同 Jeff-1.1-Large、Train 43,180、Group-aware OOF、主要 K=16；正式 Dev／Test 不補金標。**優先驗證 S3，S2/S3/S4 使用相同候選以隔離 Loss 影響。** **新增多正解訓練題與 CPU Loss 驗證已完成，LoRA 訓練尚未執行。**詳見 [唯一完整研究定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md) 與 [多標註上界彙總](experiments/jeff_multi_annotation_bounds_2026-11-12.json)。
+
+### 已完成：S2/S3/S4 多正解資料與 CPU 訓練前驗收
+
+已依研究定稿生成 **43,180 筆**全 Train K=16 多答案題目（S2/S3/S4 共用，不重複建立三套病例）：42,360 筆只有 1 個觀察標註、816 筆有 2 個、4 筆有 3 個。使用 Jeff 指定 Tokenizer 測量**最長 3,577 tokens，0 筆超過 8,192**。四種 Loss 的解析梯度／有限差分及 CPU PyTorch 自動微分一致。完整 Dev 5,486 筆評分 Dry Run 精準重現 **BM25 79.58% Top-1／54.85% Macro-F1**。另完成 148 類正負例曝光與重複群組權重稽核。
+
+[全部本機檢查、結果、重現指令與 H200 阻擋項目](docs/jeff_local_preflight_2026-11-12.md)。
 
 ### 已完成：訓練前完整審查與矛盾負例過濾
 

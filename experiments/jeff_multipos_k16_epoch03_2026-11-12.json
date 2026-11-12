@@ -1,0 +1,60 @@
+{
+  "study": "TCMDiscern",
+  "date": "2026-11-12",
+  "status": "MULTIPOSITIVE_K16_TRAIN_ROWS_EXPORTED_NO_MODEL_TRAINING",
+  "official_split": "Train only",
+  "source": "TCM-SD 43,180 original Train rows",
+  "oof_policy": "exact_text_grouped",
+  "oof_candidate_source": "bm25_train_text_grouped.jsonl",
+  "base_model": "jgeuter/Jeff-1.1-Large",
+  "model_training_completed": false,
+  "all_original_train_rows_preserved": true,
+  "train_only_observed_label_sets": true,
+  "dev_test_labels_used": false,
+  "epoch": 3,
+  "seed": 20261111,
+  "prompt": "Jeff/SemIf (state,question,options); targets remain outside prompt",
+  "supervision": [
+    "S2 Masked CE (original target_index and observed positive_indices)",
+    "S3 Set Loss (observed positive_indices)",
+    "S4 Uniform Soft-target CE (target_distribution)"
+  ],
+  "data": {
+    "file": "data/jeff/train_oof_multipos_k16_epoch03.jsonl",
+    "rows": 43180,
+    "original_rows_removed": 0,
+    "k": 16,
+    "observed_positive_counts_by_original_row": {
+      "1": 42360,
+      "2": 816,
+      "3": 4
+    },
+    "distinct_text_groups_by_number_of_observed_labels": {
+      "1": 38347,
+      "2": 251,
+      "3": 1
+    },
+    "original_gold_position_histogram": {
+      "0": 2646,
+      "1": 2671,
+      "2": 2654,
+      "3": 2651,
+      "4": 2703,
+      "5": 2680,
+      "6": 2694,
+      "7": 2690,
+      "8": 2658,
+      "9": 2767,
+      "10": 2697,
+      "11": 2675,
+      "12": 2788,
+      "13": 2815,
+      "14": 2738,
+      "15": 2653
+    },
+    "target_distribution_normalized_each_row": true,
+    "same_candidates_for_s2_s3_s4": true,
+    "original_official_label_preserved": true,
+    "each_observed_label_included_once": true
+  }
+}

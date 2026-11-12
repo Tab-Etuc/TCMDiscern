@@ -103,6 +103,6 @@ Jeff 原作者訓練使用 `target_distribution`，但來源包括**實際人工
 
 **已完成：** 官方資料稽核、原始 BM25 Dev K=1～35、Train 分組 OOF 43,180 筆、保留每列原始標籤的單正解安全負例 epoch02、逐筆 QA、官方 Jeff K16 Prompt Tokenizer（全 Train/Dev 無超過 8,192 tokens）、65 項以上 CPU 回歸測試。
 
-**尚未執行：** S2/S3/S4 正式訓練題目的新資料產生、相應 Loss 的單元測試與 Jeff GPU 反傳、完整 Jeff Zero-shot Dev、LoRA 訓練、最終 Test。**本文件只固定研究決策；不得把上述待辦寫成完成。**
+**2026-11-12 執行狀態更新：** S2/S3/S4 共用的多正解 K=16 Train 43,180 筆已生成並完成逐筆 QA，四組 Loss 已通過解析梯度與 CPU PyTorch autograd，Jeff tokenizer 長度及 Dev 評分模擬通過。**仍未執行 Jeff GPU 反傳、Zero-shot Dev、LoRA、正式 Test。** [本機執行紀錄](jeff_local_preflight_2026-11-12.md)。研究假設及 Loss 優先順序不因這些檢查更動。
 
 > 審稿立場：將「使用正確選項集合，合理處理標註歧義」當成**可證偽的訓練假說**，而不宣稱它已經帶來提升；只要單標籤資料的既有基準不能超越或結果無法重現，研究就必須如實報告。

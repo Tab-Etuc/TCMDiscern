@@ -77,7 +77,7 @@
 | --- | --- |
 | 主模型 | **`jgeuter/Jeff-1.1-Large`**，以其發布權重與既有 Decision Head 為訓練起點；底層為 Gemma 4 31B-it |
 | 微調 | 在 Jeff 已發布的合併權重上另加 LoRA，並適應既有 Decision Head；凍結主模型權重 |
-| 訓練題目 | **安全單正解 CE 已完成資料建構；Set Loss 主假設尚待實作。** Set Loss 將同一完整 Train 臨床文字所有觀察金標（1～3）一併放入 16 個選項，其餘由 Group-aware OOF BM25 補足；每個 epoch 打亂位置並同步更新多正解 mask。訓練與測試 Prompt 均使用 Jeff 官方 SemIf 格式 |
+| 訓練題目 | **S1 安全單正解與 S2/S3/S4 共用的多答案 K=16 訓練資料均已建立；四種 Loss 已完成 CPU 數值和 PyTorch autograd 驗證，H200 LoRA 尚未執行。** Set Loss 將同一完整 Train 臨床文字所有觀察金標（1～3）一併放入 16 個選項，其餘由 Group-aware OOF BM25 補足；每個 epoch 打亂位置並同步更新多正解 mask。訓練與測試 Prompt 均使用 Jeff 官方 SemIf 格式 |
 | 資料來源 | 全部官方 Train 43,180 筆；訓練候選僅使用 Train 內部 OOF，不改官方 Train/Dev/Test 切分 |
 | K 設定 | **主要 K=16**（Jeff 原生 A～P 16 個選項，一次 Forward Pass）；**完整 Dev 仍評估 K=1～35**，K=5／17／35 為消融對照，最後最佳 K 依 Dev Top-1／Macro-F1 與耗時決定 |
 | 選項限制 | Jeff 原生 16 個 A～P slot；K=17～35 沿用原作者多組先選優勝者、再總決選的分組推論 |
@@ -91,9 +91,13 @@
 
 ### 5.1 多答案／弱標註研究規範（2026-11-12 定稿）
 
-**以 [Jeff 標註歧義與完整領域微調定稿](jeff_ambiguity_final_protocol_2026-11-12.md) 為後續實作唯一方法依據。** 全部 43,180 Train 中有 252 組、820 筆相同臨床全文卻出現 2～3 個不同官方金標。這是觀察到的標註歧義，**尚未經醫師證明所有證型同時成立**。S1 安全單金標為基準；S2 Masked CE、S3 優先驗證的多正解 Set Loss、S4 均勻 Soft-target CE 使用相同的 16 個候選以隔離監督方式影響。全部保留原始病例，真實 Dev K=16 候選不補標準答案，官方單金標 Accuracy／Macro-F1 不改；S2/S3/S4 訓練題及 H200 LoRA 尚未執行。
+**以 [Jeff 標註歧義與完整領域微調定稿](jeff_ambiguity_final_protocol_2026-11-12.md) 為後續實作唯一方法依據。** 全部 43,180 Train 中有 252 組、820 筆相同臨床全文卻出現 2～3 個不同官方金標。這是觀察到的標註歧義，**尚未經醫師證明所有證型同時成立**。S1 安全單金標為基準；S2 Masked CE、S3 優先驗證的多正解 Set Loss、S4 均勻 Soft-target CE 使用相同的 16 個候選以隔離監督方式影響。全部保留原始病例，真實 Dev K=16 候選不補標準答案，官方單金標 Accuracy／Macro-F1 不改；**S2/S3/S4 共用 43,180 筆訓練題已完成全量驗證**，H200 LoRA 尚未執行。
 
 [多標註與單答案理論上界稽核](../experiments/jeff_multi_annotation_bounds_2026-11-12.json)指出，固定真實 BM25 Top-16 的 Dev **5,409/5,486** 包含金標；若相同病例與相同候選只能產生相同的確定性答案，另外 **24 筆**因同輸入不同官方金標無法同時答對，故單答案的**條件性理論上界為 5,385/5,486（98.16%）**。此為資料一致性上界，**不是 Jeff 實測準確率**。正式官方成績仍使用原始 5,486 筆，不刪除或改寫標註。
+
+### 5.2 本機模型訓練前驗收（2026-11-12）
+
+已實際完成 S2/S3/S4 共用的 43,180 筆 K=16 資料、全量監督 QA、Jeff 原版 Tokenizer 長度、S1～S4 Loss 的 NumPy 解析梯度與 PyTorch CPU autograd、Dev BM25 評分流程模擬，以及 148 類正負例曝光。**沒有執行真實 Jeff 模型 Forward／Backward。** 詳見 [CPU 預先驗收結果](jeff_local_preflight_2026-11-12.md)。
 
 ## 6. 結果管理
 
