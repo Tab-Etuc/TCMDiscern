@@ -101,6 +101,38 @@ def validate_checkpoint_manifest(manifest: dict) -> None:
         raise ValueError("Checkpoint method and frozen Train source disagree")
 
 
+def reset_released_backbone(decider: Any, original_model_dir: Path) -> dict:
+    """Remove this study's LoRA without merging it into the released 31B.
+
+    Reuses the already allocated model weights and restores the published Head
+    from its small safetensors. This is the only supported transition between
+    independent LoRA runs within one GPU process.
+    """
+    from jeff.head import load_head
+    from peft import PeftModel
+    from peft.tuners.tuners_utils import BaseTunerLayer
+
+    adapter = decider.base
+    if not isinstance(adapter, PeftModel):
+        raise TypeError("Expected the fine-tuned PEFT adapter before reset")
+    original = adapter.base_model.unload()
+    # PEFT 0.21.1 BaseTuner.__init__ sets self.model.peft_config even
+    # after unloading all LoRA layers. Check real modules before removing
+    # this stale metadata to keep the next independent injection clean.
+    if any(isinstance(module, BaseTunerLayer) for module in original.modules()):
+        raise RuntimeError("PEFT unload left real tuner layers in the released backbone")
+    if hasattr(original, "peft_config"):
+        delattr(original, "peft_config")
+    decider.model.model = original
+    decider.base = original
+    decider.forward = original
+    # Trainer freezes backbone permanently; newly initialized adapters will
+    # carry all new gradients, and the original fp32 Head is restored here.
+    decider.head = load_head(original_model_dir).to(decider.device).eval()
+    decider.model.eval()
+    return {"released_backbone_reused": True, "fresh_original_head": True}
+
+
 def restore_checkpoint(decider: Any, checkpoint_dir: Path) -> dict:
     """Fresh-release reload: new LoRA + trained FP32 Head, probe logit parity."""
     if not checkpoint_dir.is_dir():

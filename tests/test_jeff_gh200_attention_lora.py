@@ -1,4 +1,5 @@
 """CPU-only checks for GH200 causal fallback and Gemma 4 31B text LoRA targets."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -49,9 +50,7 @@ def test_attention_falls_back_only_after_failing_prefix_audit(monkeypatch):
 
 
 def test_attention_eager_must_also_pass(monkeypatch):
-    decider = SimpleNamespace(
-        model=SimpleNamespace(set_attn_implementation=lambda _: None)
-    )
+    decider = SimpleNamespace(model=SimpleNamespace(set_attn_implementation=lambda _: None))
 
     def audit(decider, ids):
         raise RuntimeError("Gemma 4 attention backend changed earlier hidden states")
@@ -107,12 +106,46 @@ def test_text_only_targets_match_gemma4_global_k_eq_v():
     model = TextBackbone()
     modules, counts = select_lora_target_modules(model)
     assert counts == {
-        "q_proj": 2, "k_proj": 2, "v_proj": 1, "o_proj": 2,
-        "gate_proj": 2, "up_proj": 2, "down_proj": 2,
+        "q_proj": 2,
+        "k_proj": 2,
+        "v_proj": 1,
+        "o_proj": 2,
+        "gate_proj": 2,
+        "up_proj": 2,
+        "down_proj": 2,
     }
     assert len(modules) == 13
     assert all(name.startswith("language_model.layers.") for name in modules)
     assert validate_lora_targets(model) == counts
+
+
+def test_gemma4_final_shared_kv_layers_skip_both_k_and_v_modules():
+    model = TextBackbone()
+    # In the final Gemma 4 decoder layers, K/V states come from earlier
+    # projection layers; q_proj, o_proj and MLP are still trainable.
+    shared_attention = SimpleNamespace(
+        is_kv_shared_layer=True,
+        use_alternative_attention=True,
+        q_proj=object(),
+        k_proj=None,
+        v_proj=None,
+        o_proj=object(),
+    )
+    mlp = SimpleNamespace(gate_proj=object(), up_proj=object(), down_proj=object())
+    model.language_model.layers.append(SimpleNamespace(self_attn=shared_attention, mlp=mlp))
+    paths, counts = select_lora_target_modules(model)
+    assert counts == {
+        "q_proj": 3,
+        "k_proj": 2,
+        "v_proj": 1,
+        "o_proj": 3,
+        "gate_proj": 3,
+        "up_proj": 3,
+        "down_proj": 3,
+    }
+    assert len(paths) == 18
+    assert not any(".2.self_attn.k_proj" in path for path in paths)
+    assert not any(".2.self_attn.v_proj" in path for path in paths)
 
 
 def test_missing_required_text_decoder_projection_is_rejected():

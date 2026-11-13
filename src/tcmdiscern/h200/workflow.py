@@ -92,6 +92,7 @@ class Stage:
     command: tuple[str, ...]
     expected: Path | None = None
     verify: Callable[[], bool] | None = None
+    perform: Callable[[], None] | None = None
 
 
 class H200Runner:
@@ -135,6 +136,35 @@ class H200Runner:
             if returncode:
                 raise subprocess.CalledProcessError(returncode, command)
 
+    @staticmethod
+    def _invoke_inline(perform: Callable[[], None], command: Sequence[str], log_path: Path) -> None:
+        """Keep one GPU model resident and still tee stage stdout/stderr to logs."""
+        from contextlib import redirect_stderr, redirect_stdout
+
+        class Tee:
+            def __init__(self, original, log):
+                self.original, self.log = original, log
+
+            def write(self, message):
+                self.original.write(message)
+                self.log.write(message)
+                return len(message)
+
+            def flush(self):
+                self.original.flush()
+                self.log.flush()
+
+            def isatty(self):
+                return self.original.isatty()
+
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as log:
+            log.write(f"\n===== {now_utc()} (single-load GPU session) =====\n")
+            log.write(" ".join(command) + "\n")
+            log.flush()
+            with redirect_stdout(Tee(sys.stdout, log)), redirect_stderr(Tee(sys.stderr, log)):
+                perform()
+
     def stage(self, stage: Stage) -> None:
         marker = self.state_dir / f"{stage.name}.json"
         cmd = (self.python, *stage.command)
@@ -172,7 +202,10 @@ class H200Runner:
         save_json(marker, {"status": "running", "command": identity, "started_at": now_utc()})
         print(f"[RUN] {stage.name}", flush=True)
         try:
-            self.invoke(cmd, self.root, self.log_dir / f"{stage.name}.log")
+            if stage.perform is None:
+                self.invoke(cmd, self.root, self.log_dir / f"{stage.name}.log")
+            else:
+                self._invoke_inline(stage.perform, cmd, self.log_dir / f"{stage.name}.log")
             if stage.expected is not None and not stage.expected.exists():
                 raise FileNotFoundError(
                     f"{stage.name}: successful process created no expected output"
@@ -274,6 +307,7 @@ class H200Runner:
         if (
             result.get("kind") != expected_kind
             or result.get("rows") != DEV_ROWS
+            or result.get("attention_backend") not in {"released_default", "eager"}
             or result.get("scores", {}).get("n_cases") != DEV_ROWS
         ):
             return False
@@ -362,7 +396,7 @@ class H200Runner:
             weighting=experiment.weighting,
         )
 
-    def train(self, experiment: Experiment) -> None:
+    def train(self, experiment: Experiment, *, session=None) -> None:
         cmd = self._training_command(experiment)
         self.stage(
             Stage(
@@ -370,10 +404,11 @@ class H200Runner:
                 command=cmd,
                 expected=self.root / "data/runs" / experiment.run_id / "summary.json",
                 verify=lambda: self._complete_training(experiment),
+                perform=(lambda: session.train_cli(cmd)) if session is not None else None,
             )
         )
 
-    def evaluate(self, experiment: Experiment, epoch: int) -> None:
+    def evaluate(self, experiment: Experiment, epoch: int, *, session=None) -> None:
         if epoch not in range(1, experiment.epochs + 1):
             raise ValueError("Checkpoint epoch is outside the registered training budget")
         step = UPDATES_PER_EPOCH * epoch
@@ -398,107 +433,59 @@ class H200Runner:
                 command=cmd,
                 expected=report,
                 verify=lambda: self._complete_inference(report, expected_kind="FULL_DEV_FINETUNED"),
+                perform=(
+                    lambda: session.syndrome_dev(
+                        root=self.root,
+                        checkpoint=resume,
+                        run_id=eval_id,
+                    )
+                )
+                if session is not None
+                else None,
             )
         )
 
+    def _valid_integrated_pilot(self) -> bool:
+        report_path = self.root / "data/h200/pilot_one_load.json"
+        if not report_path.is_file() or not self._valid_pilot_training():
+            return False
+        try:
+            report = read_json(report_path)
+            return (
+                report.get("status") == "JEFF_SYNDROME_PILOT_ONE_LOAD_PASS"
+                and report.get("model_weight_loads") == 1
+                and report.get("optimizer_steps") == 16
+                and report.get("fresh_adapter_reload") is True
+                and report.get("test_opened") is False
+                and self._valid_smoke_two()
+                and self._valid_smoke_two(
+                    self.root / "data/jeff/dev_pilot-s3-16updates-smoke_k16_0002.jsonl"
+                )
+            )
+        except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+            return False
+
     def pilot(self) -> None:
+        """One 31B read covers original inference, S3 LoRA, and fresh reload."""
         self.prepare()
         if not self.dry_run:
             self.require_gpu()
         self.stage(
             Stage(
-                name="pilot-zeroshot-2",
+                name="pilot-one-load",
                 command=(
                     "-m",
-                    "scripts.run_jeff_zeroshot",
+                    "scripts.run_jeff_pilot_once",
                     "--model-dir",
                     str(self.model_dir),
-                    "--limit",
-                    "2",
                 ),
-                expected=self.root / "data/jeff/dev_zero_shot_k16_smoke0002.jsonl",
-                verify=lambda: self._valid_smoke_two(),
-            )
-        )
-        self.stage(
-            Stage(
-                name="pilot-step0-s3",
-                command=(
-                    "-m",
-                    "scripts.train_jeff_lora",
-                    "--model-dir",
-                    str(self.model_dir),
-                    "--method",
-                    "s3",
-                ),
-            )
-        )
-        pilot_run_id = "pilot-s3-16updates"
-        pilot_command = self._resume_command(
-            (
-                "-m",
-                "scripts.run_jeff_finetune",
-                "--model-dir",
-                str(self.model_dir),
-                "--method",
-                "s3",
-                "--run-id",
-                pilot_run_id,
-                "--steps",
-                "16",
-                "--epochs",
-                "1",
-                "--accumulation",
-                str(ACCUMULATION),
-                "--seed",
-                str(SEEDS[0]),
-                "--warmup-steps",
-                "0",
-                "--checkpoint-every",
-                "4",
-            ),
-            run_id=pilot_run_id,
-            method="s3",
-            seed=SEEDS[0],
-            updates=16,
-        )
-        self.stage(
-            Stage(
-                name="pilot-16updates-s3",
-                command=pilot_command,
-                expected=self.root / "data/runs/pilot-s3-16updates/summary.json",
-                verify=self._valid_pilot_training,
-            )
-        )
-        checkpoint = self.root / "data/runs/pilot-s3-16updates/resume-0000016"
-        pilot_result = self.root / "data/jeff/dev_pilot-s3-16updates-smoke_k16_0002.jsonl"
-        self.stage(
-            Stage(
-                name="pilot-checkpoint-reload-2",
-                command=(
-                    "-m",
-                    "scripts.run_jeff_zeroshot",
-                    "--model-dir",
-                    str(self.model_dir),
-                    "--checkpoint",
-                    str(checkpoint),
-                    "--run-id",
-                    "pilot-s3-16updates-smoke",
-                    "--limit",
-                    "2",
-                ),
-                expected=pilot_result,
-                verify=lambda: self._valid_smoke_two(pilot_result),
+                expected=self.root / "data/h200/pilot_one_load.json",
+                verify=self._valid_integrated_pilot,
             )
         )
 
-    def screen(self) -> None:
-        """Three permanent first-seed runs before committing to multi-seed H200 cost.
-
-        Every screen checkpoint belongs to the final registered two-epoch run.
-        'full' safely reuses all completed stages, without wasted pilot epochs.
-        """
-        self.pilot()
+    def _primary_stages(self, *, session, full: bool, include_exploratory: bool = False) -> None:
+        """One persistent 31B load for released Dev + all training and Dev stages."""
         report = self.root / "experiments/jeff_zero_shot_k16_dev.json"
         self.stage(
             Stage(
@@ -506,24 +493,43 @@ class H200Runner:
                 command=("-m", "scripts.run_jeff_zeroshot", "--model-dir", str(self.model_dir)),
                 expected=report,
                 verify=lambda: self._complete_inference(report, expected_kind="FULL_DEV_ZERO_SHOT"),
+                perform=(lambda: session.syndrome_dev(root=self.root))
+                if session is not None
+                else None,
             )
         )
-        for method in ("s1", "s2", "s3"):
-            experiment = Experiment(method, SEEDS[0], epochs=2)
-            self.train(experiment)
-            for epoch in (1, 2):
-                self.evaluate(experiment, epoch)
+        first_seed = [Experiment(method, SEEDS[0], epochs=2) for method in ("s1", "s2", "s3")]
+        specs = first_seed
+        if full:
+            specs.extend(e for e in registered_main() if e.seed != SEEDS[0])
+            if include_exploratory:
+                specs.extend(registered_exploratory())
+        for experiment in specs:
+            self.train(experiment, session=session)
+            for epoch in range(1, experiment.epochs + 1):
+                self.evaluate(experiment, epoch, session=session)
+
+    def screen(self) -> None:
+        """First-seed syndrome experiments; all GPU stages share one model."""
+        self.pilot()
+        if self.dry_run:
+            session = None
+        else:
+            from .session import JeffGPUSession
+
+            session = JeffGPUSession(self.model_dir)
+        self._primary_stages(session=session, full=False)
 
     def full(self, *, include_exploratory: bool = False) -> None:
-        self.screen()
-        planned = list(registered_main())
-        if include_exploratory:
-            planned.extend(registered_exploratory())
-        for experiment in planned:
-            self.train(experiment)
-            for epoch in range(1, experiment.epochs + 1):
-                self.evaluate(experiment, epoch)
+        """Pre-registered all-seed experiment with a resident verified backbone."""
+        self.pilot()
+        if self.dry_run:
+            session = None
+        else:
+            from .session import JeffGPUSession
 
+            session = JeffGPUSession(self.model_dir)
+        self._primary_stages(session=session, full=True, include_exploratory=include_exploratory)
         selection = self.root / "experiments/jeff_h200_dev_selection.json"
         command = ("-m", "scripts.summarize_h200")
         if include_exploratory:

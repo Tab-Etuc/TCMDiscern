@@ -36,7 +36,8 @@ case "$MODE" in
       bash "$ROOT/run_h200.sh" pilot
     fi
     mkdir -p "$ROOT/data/h200"
-    exec 9>"$ROOT/data/h200/joint16-runner.lock"
+    # Serialize all 31B studies against the syndrome runner on this GH200.
+    exec 9>"$ROOT/data/h200/runner.lock"
     flock -n 9
     "$ROOT/.venv/bin/python" -m scripts.joint16_h200 "$MODE" "$@"
     ;;

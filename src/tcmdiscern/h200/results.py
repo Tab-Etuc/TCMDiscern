@@ -23,6 +23,7 @@ def _read_scores(path: Path, *, expected_method: str) -> dict:
         report.get("kind") != "FULL_DEV_FINETUNED"
         or report.get("rows") != DEV_ROWS
         or report.get("trained_lora") is not True
+        or report.get("attention_backend") not in {"released_default", "eager"}
         or not isinstance(checkpoint, dict)
         or checkpoint.get("method") != expected_method
         or metrics.get("n_cases") != DEV_ROWS
@@ -36,6 +37,7 @@ def _read_scores(path: Path, *, expected_method: str) -> dict:
     if abs(metrics["top1_accuracy"] * DEV_ROWS - metrics.get("top1_correct_n", -1)) > 1e-6:
         raise ValueError(f"Accuracy denominator or numerator corrupted: {path}")
     return {
+        "attention_backend": report["attention_backend"],
         "top1_accuracy": float(metrics["top1_accuracy"]),
         "macro_f1": float(metrics["macro_f1"]),
         "top1_correct_n": int(metrics["top1_correct_n"]),
@@ -94,6 +96,13 @@ def summarize(root: Path, *, include_exploratory: bool = False) -> dict:
     zero_shot = json.loads(baseline.read_text(encoding="utf-8"))
     if zero_shot.get("kind") != "FULL_DEV_ZERO_SHOT" or zero_shot.get("rows") != DEV_ROWS:
         raise ValueError("Zero-shot Dev result is not a complete 5,486-case evaluation")
+    backend = zero_shot.get("attention_backend")
+    if backend not in {"released_default", "eager"} or any(
+        trial["attention_backend"] != backend
+        for summary in primary
+        for trial in summary["seed_trials"]
+    ):
+        raise ValueError("Mixed Jeff attention backends across pre-registered Dev runs")
     return {
         "status": "H200_FULL_DEV_RESULTS_SELECTED_NO_TEST_EVALUATION",
         "official_dev_cases": DEV_ROWS,

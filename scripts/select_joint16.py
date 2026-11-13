@@ -4,6 +4,7 @@ Select the epoch by three-seed mean Top-1 (Macro-F1 tie-break), then take the
 predeclared first seed. Both classes are scored against Train∪Dev labels, so
 novel Dev categories are included in Macro-F1.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ def run_id(mode: str, seed: int) -> str:
 
 def summarize(root: Path = ROOT) -> dict:
     outcome = {}
+    observed_backends: set[str] = set()
     for mode in MODES:
         comparisons = []
         for epoch in EPOCHS:
@@ -41,6 +43,7 @@ def summarize(root: Path = ROOT) -> dict:
                     or data.get("split") != "dev"
                     or data.get("mode") != mode
                     or data.get("run_id") != rid
+                    or data.get("attention_backend") not in {"released_default", "eager"}
                     or scores.get("n_cases") != 5486
                 ):
                     raise ValueError(f"Invalid full Dev run: {file}")
@@ -51,30 +54,56 @@ def summarize(root: Path = ROOT) -> dict:
                     for key in ("top1_accuracy", "macro_f1")
                 ):
                     raise ValueError("Invalid score value")
-                trials.append({
-                    "seed": seed,
-                    "accuracy": scores["top1_accuracy"],
-                    "macro_f1": scores["macro_f1"],
-                })
-            comparisons.append({
-                "epoch": epoch,
-                "seed_scores": trials,
-                "mean_accuracy": sum(t["accuracy"] for t in trials) / len(trials),
-                "mean_macro_f1": sum(t["macro_f1"] for t in trials) / len(trials),
-            })
-        selected = max(comparisons, key=lambda x: (
-            x["mean_accuracy"], x["mean_macro_f1"], -x["epoch"],
-        ))
+                observed_backends.add(data["attention_backend"])
+                trials.append(
+                    {
+                        "seed": seed,
+                        "accuracy": scores["top1_accuracy"],
+                        "macro_f1": scores["macro_f1"],
+                    }
+                )
+            comparisons.append(
+                {
+                    "epoch": epoch,
+                    "seed_scores": trials,
+                    "mean_accuracy": sum(t["accuracy"] for t in trials) / len(trials),
+                    "mean_macro_f1": sum(t["macro_f1"] for t in trials) / len(trials),
+                }
+            )
+        selected = max(
+            comparisons,
+            key=lambda x: (
+                x["mean_accuracy"],
+                x["mean_macro_f1"],
+                -x["epoch"],
+            ),
+        )
         outcome[mode] = {
             "selected_epoch": selected["epoch"],
             "fixed_test_seed": SEEDS[0],
             "checkpoint": (
-                f"data/runs/{run_id(mode, SEEDS[0])}/"
-                f"resume-{selected['epoch'] * 675:07d}"
+                f"data/runs/{run_id(mode, SEEDS[0])}/resume-{selected['epoch'] * 675:07d}"
             ),
             "comparisons": comparisons,
         }
+        zero = root / "experiments" / f"joint16_dev_{mode}_zero.json"
+        if not zero.is_file():
+            raise FileNotFoundError(f"Missing released Jeff baseline: {zero}")
+        baseline = json.loads(zero.read_text(encoding="utf-8"))
+        if (
+            baseline.get("kind") != "FULL_EVALUATION"
+            or baseline.get("split") != "dev"
+            or baseline.get("mode") != mode
+            or baseline.get("run_id") != "zero"
+            or baseline.get("attention_backend") not in {"released_default", "eager"}
+            or baseline.get("scores", {}).get("n_cases") != 5486
+        ):
+            raise ValueError(f"Invalid original Jeff Dev baseline: {zero}")
+        observed_backends.add(baseline["attention_backend"])
+    if len(observed_backends) != 1:
+        raise ValueError("Mixed attention backends across Jeff disease/pair experiments")
     return {
+        "attention_backend": observed_backends.pop(),
         "status": "JOINT16_DEV_SELECTED_TEST_UNOPENED",
         "selection_rule": "three-seed mean Top-1 then Macro-F1, fixed first seed on Test",
         "selected": outcome,

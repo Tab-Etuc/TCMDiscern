@@ -1,4 +1,5 @@
 """TCM-SD K16 disease/pair preparation, choice, scoring and plan tests."""
+
 from __future__ import annotations
 
 import json
@@ -47,7 +48,8 @@ def test_pair16_options_show_separate_disease_and_syndrome():
     assert in_top16 is False
     check_training_example(entry, row_index=4, multi=False, expected_k=K, study_mode="pair16")
     assert entry["row"]["options"][entry["target_index"]] == {
-        "id": label, "description": "中醫病名：消渴；證型：氣陰兩虛"
+        "id": label,
+        "description": "中醫病名：消渴；證型：氣陰兩虛",
     }
     assert "norm_syndrome" not in entry["row"]["state"]
     row, meta = eval_example(case(), index=0, bm25_labels=ranked, mode="pair", split="dev")
@@ -60,11 +62,7 @@ def test_pair16_options_show_separate_disease_and_syndrome():
 def test_hierarchical_cross_and_flat_keep_use_sixteen_unique_legal_pairs():
     diseases = [f"病{i}" for i in range(16)]
     syndromes = [f"證{i}" for i in range(16)]
-    ranked = [
-        pair_key(d, s)
-        for i, d in enumerate(diseases)
-        for s in syndromes
-    ]
+    ranked = [pair_key(d, s) for i, d in enumerate(diseases) for s in syndromes]
     for d, s in ((1, 16), (2, 8), (4, 4), (8, 2), (16, 1)):
         options = hierarchical_pairs(diseases, ranked, disease_k=d, syndrome_k=s)
         assert len(set(options)) == K
@@ -72,8 +70,11 @@ def test_hierarchical_cross_and_flat_keep_use_sixteen_unique_legal_pairs():
     mixed = hybrid_pairs(diseases, ranked, flat_keep=8, disease_k=4, syndrome_k=2)
     assert len(set(mixed)) == K
     crossed = crossed_pairs(
-        diseases, syndromes, ranked,
-        allowed_pairs=frozenset(ranked), flat_keep=8,
+        diseases,
+        syndromes,
+        ranked,
+        allowed_pairs=frozenset(ranked),
+        flat_keep=8,
     )
     assert len(set(crossed)) == K
     assert set(crossed) <= set(ranked)
@@ -90,8 +91,11 @@ def test_joint_scoring_is_full_row_and_checks_predictions(monkeypatch):
         {"gold": b, "candidates": [wrong, b, a, *[pair_key("病", str(i)) for i in range(13)]]},
     ]
     scores = evaluate_joint16.score(
-        train=cases, eval_cases=cases,
-        metadata=records, predicted=[a, wrong], mode="pair",
+        train=cases,
+        eval_cases=cases,
+        metadata=records,
+        predicted=[a, wrong],
+        mode="pair",
     )
     assert scores["top1_accuracy"] == 0.5
     assert scores["disease_top1"] == 0.5
@@ -99,8 +103,11 @@ def test_joint_scoring_is_full_row_and_checks_predictions(monkeypatch):
     assert scores["oracle16"] == 1.0
     with pytest.raises(ValueError, match="sixteen candidates"):
         evaluate_joint16.score(
-            train=cases, eval_cases=cases, metadata=records,
-            predicted=[a, pair_key("未收錄", "新證")], mode="pair",
+            train=cases,
+            eval_cases=cases,
+            metadata=records,
+            predicted=[a, pair_key("未收錄", "新證")],
+            mode="pair",
         )
 
 
@@ -116,6 +123,7 @@ def test_model_selection_uses_three_seeds_on_dev_and_fixed_test_seed(tmp_path):
                     "split": "dev",
                     "mode": mode,
                     "run_id": name,
+                    "attention_backend": "eager",
                     "scores": {
                         "n_cases": 5486,
                         "top1_accuracy": (0.5 + epoch * 0.1 + seed % 10 * 0.001),
@@ -125,14 +133,24 @@ def test_model_selection_uses_three_seeds_on_dev_and_fixed_test_seed(tmp_path):
                 (folder / f"joint16_dev_{mode}_{name}.json").write_text(
                     json.dumps(data), encoding="utf-8"
                 )
+    for mode in MODES:
+        (folder / f"joint16_dev_{mode}_zero.json").write_text(
+            json.dumps(
+                {
+                    "kind": "FULL_EVALUATION",
+                    "mode": mode,
+                    "split": "dev",
+                    "run_id": "zero",
+                    "attention_backend": "eager",
+                    "scores": {"n_cases": 5486},
+                }
+            ),
+            encoding="utf-8",
+        )
     selection = summarize(tmp_path)
     assert selection["status"] == "JOINT16_DEV_SELECTED_TEST_UNOPENED"
-    assert all(
-        selection["selected"][mode]["selected_epoch"] == 2 for mode in MODES
-    )
-    assert all(
-        selection["selected"][mode]["fixed_test_seed"] == SEEDS[0] for mode in MODES
-    )
+    assert all(selection["selected"][mode]["selected_epoch"] == 2 for mode in MODES)
+    assert all(selection["selected"][mode]["fixed_test_seed"] == SEEDS[0] for mode in MODES)
 
 
 def test_h200_expanded_joint_plan_has_six_extra_trainings():

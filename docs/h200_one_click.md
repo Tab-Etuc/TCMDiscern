@@ -14,14 +14,15 @@ bash run_h200.sh full --confirm-full
 ```
 
 - `prepare`：自動建立 Python 3.12 開發虛擬環境（使用 frozen `uv.lock`），僅下載官方 TCM-SD Train/Dev，重建 **43,180 筆 Group-aware OOF BM25**、**5,486 筆 Dev BM25**、S1 單正解、S2/S3/S4 多正解 K=16，以及 Dev K=5/16/17，最後全部逐筆核對。已存在的私有資產會重用，但驗收仍需重新檢查；不通過立即停止。沒有下載、訓練 31B 模型。
-- `pilot`：依 GPU 驅動版本自動選擇獨立 CUDA 環境：Driver R580+ 使用 Jeff 官方測試的 torch 2.13.0 / CUDA 13.0；Driver R525～R579 使用 PyTorch 2.11.0+cu128 / CUDA 12.8（含 Linux ARM64 GH200 wheel，符合 Jeff v1.3.0 的 torch>=2.11 需求）。兩條路線均在專案 `.venv` 內安裝，不更動主機的 Python/PyTorch，且在下載模型前先驗證真實 CUDA BF16 矩陣運算。之後安裝 Jeff v1.3.0 與 PEFT 0.21.1，下載釘選模型權重與 Head，執行 2 筆 Dev、注意力與 Step-0 一致性、1,024 次病例曝光的 16-update Pilot（accumulation 64）。CUDA 12.8 路線屬相容性測試配置，結果應註明與上游 CUDA 13.0 的版本差異。
-- `full --confirm-full`：先確保 Pilot 完成；跑完正式 Zero-shot 5,486 Dev；執行 9 組 S1/S2/S3 × 3 Seeds × 2 Epoch、各 1,350 Updates；每組在 675 與 1350 Updates 的 checkpoint 對官方 Dev 完整推論。最後自動產生 `experiments/jeff_h200_dev_selection.json`，按三 Seed 平均 Accuracy 選方法和 Epoch、Macro-F1 平手判定。**正式 Test 保留封存，不自動測試。**
+- `pilot`：Driver R580+ 使用 Jeff 官方測試的 torch 2.13.0/CUDA 13.0；Driver R525～R579 選擇獨立 PyTorch 2.11.0+cu128/CUDA 12.8（支援 Linux ARM64/GH200）。只修改專案 `.venv`，先驗證 CUDA BF16，再取得 Jeff v1.3.0 模型/Head。**整個證型 Pilot 只讀取 31B 權重一次**：在同一 Python 工作階段連續驗證注意力、兩筆原版 Dev、LoRA Step-0、16 次真正的 S3 梯度更新（累積 64，1,024 筆曝光）、保存 Optimizer/Head/Adapter，最後卸下訓練 Adapter 並從 Checkpoint 重新載入做兩筆 Dev 推論。任何 checkpoint 遺失、已有 logits 與目前後端不一致，會安全停止。CUDA 12.8 屬相容性配置，應在論文記錄與上游 CUDA 13.0 的版本差異。
+- `screen --confirm-screen`：先驗證 Pilot，使用單一**常駐 GPU Python 工作階段**完成原版 Zero-shot 5,486 Dev 與第一個 Seed 的 S1/S2/S3 各兩 Epoch 微調及 Epoch 1/2 完整 Dev 推論。各組開始前重新載入原版 Head，上一組 LoRA 直接卸載、不合併至 Backbone；評估則重新載入指定訓練 checkpoint。
+- `full --confirm-full`：沿用上述常駐 GPU 流程，執行 9 組 S1/S2/S3 × 3 Seeds × 2 Epoch、各 1,350 Updates；每組在 675 與 1350 Updates 評估完整 Dev，依完成標記跳過已驗證階段。選模前核對全部 Dev 報表都使用同一已驗證的注意力後端，然後才產生 `experiments/jeff_h200_dev_selection.json`，按三 Seed 平均 Accuracy 選方法與 Epoch。**正式 Test 封存。**
 - `full --confirm-full --include-exploratory`：額外增加 S4、S3 的 Train OOF 困難病例 ×2 加權，各單 Seed、1 Epoch（探索性比較）。
 - `status`：只讀階段狀態；`plan`：列印所有方法與計算預算；`full --dry-run`：列印全部訓練／評估指令，不下載、不啟動 GPU、不寫資料。這三個模式可在未安裝 PyTorch 的機器使用。
 
 若 Hugging Face 對模型設有存取同意，必須先用同一使用者完成模型存取授權，並在 H200 端執行 `hf auth login`；部署腳本不保存金鑰至程式庫。
 
-**GH200 Driver 550 / CUDA 12.8 實測注意力後端注意事項：** PyTorch 2.11 的預設 SDPA 在人工合成前綴不變性測試中，可能出現前段 hidden state 隨後綴改變的異常（`Gemma 4 attention backend changed earlier hidden states`）。現已改為載入模型一次後先測試預設後端，若失敗則在**同一個已載入模型**中切換 `eager` 並重新嚴格測試；只有真的通過才繼續推論／LoRA。病名／病證推論亦與證型及訓練共用這套檢查，結果記錄 `attention_backend`。由於 31B Gemma 4 全域層部分共用 K/V，LoRA 目標逐層依實際投影驗證、限定文字 decoder，避開 vision tower。已下載模型和 CPU 資產保留；Pilot 中斷後可原命令續跑。此修正仍須經目標 GH200 重新測試驗證。
+**GH200 Driver 550 / CUDA 12.8 實測注意力後端注意事項：** PyTorch 2.11 的預設 SDPA 在人工合成前綴不變性測試中，可能出現前段 hidden state 隨後綴改變的異常（`Gemma 4 attention backend changed earlier hidden states`）。現已改為載入模型一次後先測試預設後端，若失敗則在**同一個已載入模型**中切換 `eager` 並重新嚴格測試；只有真的通過才繼續推論／LoRA。病名／病證推論亦與證型及訓練共用這套檢查，結果記錄 `attention_backend`。Gemma 4 31B 的全域層使用 K=V、後段 Shared-KV 層連 k_proj/v_proj 也沒有；LoRA 逐層按 Transformers 5.17 真實模組配置驗證，僅作用於文字 Decoder，保留 vision tower 原始權重。已下載模型和 CPU 資產保留；Pilot 中斷後可原命令續跑。此修正仍須經目標 GH200 重新測試驗證。
 
 ## 2. 目錄及架構
 
@@ -31,7 +32,9 @@ bash run_h200.sh full --confirm-full
 | `scripts/h200.py` | CPU/GPU 命令路由，全面禁用未確認的大規模訓練 |
 | `src/tcmdiscern/h200/plan.py` | 不可變的 Methods、Seeds、Epoch 和完整 Updates 規格 |
 | `src/tcmdiscern/h200/artifacts.py` | Clone 後重建來源資料／候選／Prompt，避免覆寫 |
-| `src/tcmdiscern/h200/workflow.py` | 階段日誌、結果檢查、續訓、回復與自動評估 |
+| `src/tcmdiscern/h200/workflow.py` | 單程序 Stage 日誌、結果完整性、續訓及自動評估 |
+| `src/tcmdiscern/h200/session.py` | GH200 常駐 Backbone、隔離每組 LoRA/Head、避免重複載入權重 |
+| `scripts/run_jeff_pilot_once.py` | 一次載入完成證型 Pilot、真實 16 次更新及 Checkpoint 重載 |
 | `src/tcmdiscern/h200/results.py` | 三 Seed 完整 Dev 指標彙整與預定選模 |
 | `scripts/audit_h200_payload.py` | 本機/H200 重複執行的全量病例來源比對 |
 | `scripts/audit_jeff_training_controls.py` | 全量 A～P 位置、S1/S3 配對、多正標、OOF 難度驗證 |
@@ -49,8 +52,8 @@ bash run_h200.sh full --confirm-full
 ## 4. 重要驗證界線
 
 - 本機可驗證：官方 Train/Dev 全量列數與每列來源、Group-aware OOF、S1～S4 金標／候選／Prompt、A～P 排列、K=1～35 模擬打分及研究統計。
-- **只有 H200 能驗證：** 31B merged backbone + FP32 Decision Head 真正 Forward、BF16 backward、LoRA 實際更新、Optimizer/Checkpoint 續訓、GPU 峰值記憶體、全套 6 次訓練的耗時與成績。
-- 目前 H200 安裝／模型下載命令已按 Jeff v1.3.0 原版 requirements 編排，但仍待第一次在目標主機上從乾淨 clone 實際通過。**不要把 CPU 模擬測試當成 GPU 上線驗證。**
+- **只有 GH200 能驗證：** 已知 Driver 550/CUDA12.8 能載入完整 31B 權重，但先前的預設 SDPA 前綴因果檢查失敗；新的 eager 回退、全量 BF16 Backward、真正 LoRA/Head 梯度、Checkpoint 重載、GPU 峰值顯存及實際效能須在 H200 再次驗證。
+- 模型來源與提示格式對齊 Jeff 官方 v1.3.0 和〈Releasing the Inner Jev〉所述 16-slot Decision Head、BF16 Backbone、LoRA rank32/alpha64。GH200 CUDA12.8 分支是相容性配置；每個模型輸出包含 `attention_backend`，後續彙整會拒絕混用後端。模型是否可完成單張 GH200 微調，仍以實際 Pilot 為準。
 
 ## 5. 直接查問題
 

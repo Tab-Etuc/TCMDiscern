@@ -35,10 +35,11 @@ def select_lora_target_modules(
 ) -> tuple[list[str], dict[str, int]]:
     """Select only the Gemma 4 TEXT decoder modules by exact qualified name.
 
-    31B global-attention layers reuse their K projection as V
-    (attention_k_eq_v=True), so they legitimately lack v_proj. The vision
-    tower, which also has q/k/v/MLP module names, must not receive LoRA for
-    these text-only diagnosis tasks.
+    Gemma 4 31B has two independent weight-sharing rules:
+    (1) global attention with attention_k_eq_v has no v_proj,
+    (2) final shared-KV decoder layers have neither k_proj nor v_proj.
+    The vision tower, which also has q/k/v/MLP module names, must not receive
+    LoRA for these text-only diagnosis tasks.
     """
     language_model = getattr(model, "language_model", model)
     layer_prefix = "language_model.layers" if language_model is not model else "layers"
@@ -63,12 +64,19 @@ def select_lora_target_modules(
                     continue
                 qualified = f"{layer_prefix}.{index}.{section}.{component}"
                 if qualified not in registered:
+                    shared_kv = bool(getattr(attn, "is_kv_shared_layer", False))
+                    if (
+                        component in {"k_proj", "v_proj"}
+                        and shared_kv
+                        and getattr(attn, component, None) is None
+                    ):
+                        continue  # Last decoder layers reuse previous K/V states.
                     if (
                         component == "v_proj"
                         and bool(getattr(attn, "use_alternative_attention", False))
                         and getattr(attn, "v_proj", None) is None
                     ):
-                        continue  # The released 31B global attention has K == V.
+                        continue  # Global attention uses K == V.
                     raise RuntimeError(f"Missing required Gemma 4 text LoRA module: {qualified}")
                 if registered[qualified] is not getattr(owner, component, None):
                     raise RuntimeError(f"Incorrect Gemma 4 LoRA target module: {qualified}")
@@ -77,8 +85,10 @@ def select_lora_target_modules(
     if any(count == 0 for count in counts.values()):
         raise RuntimeError(f"No text decoder LoRA projections found: {counts}")
     for name, count in counts.items():
-        if name != "v_proj" and count != len(layers):
+        if name not in {"k_proj", "v_proj"} and count != len(layers):
             raise RuntimeError(f"Incomplete Gemma 4 text LoRA coverage: {counts}")
+    if counts["k_proj"] > len(layers) or counts["v_proj"] > counts["k_proj"]:
+        raise RuntimeError(f"Invalid Gemma 4 shared-KV LoRA counts: {counts}")
     return names, counts
 
 

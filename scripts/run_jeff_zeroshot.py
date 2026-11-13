@@ -135,6 +135,7 @@ def run(
     root: Path,
     checkpoint: Path | None = None,
     run_id: str | None = None,
+    released=None,
 ) -> dict:
     from jeff import __version__ as jeff_version
     from jeff.model import JeffModel
@@ -165,13 +166,17 @@ def run(
 
     if not torch.cuda.is_available():
         raise RuntimeError("This 31B released Jeff baseline requires H200-class GPU")
-    jeff = JeffModel(
-        model_folder,
-        device="cuda",
-        reasoning=False,
-        long_input="refuse",
-        cudnn_attention=False,
-        compile=False,
+    jeff = (
+        released
+        if released is not None
+        else JeffModel(
+            model_folder,
+            device="cuda",
+            reasoning=False,
+            long_input="refuse",
+            cudnn_attention=False,
+            compile=False,
+        )
     )
     if jeff.config.get("bidirectional") is not None:
         raise ValueError("The pinned Jeff-1.1-Large must use causal attention")
@@ -179,7 +184,14 @@ def run(
         raise ValueError("Unexpected Jeff model input token limit")
     from tcmdiscern.jeff_attention import audit_released_jeff_attention
 
-    attention_report = audit_released_jeff_attention(jeff.decider)
+    # The resident session performed the same audit at model load. Preserve its
+    # verified backend and avoid costly repeated causal-prefix forwards.
+    if released is None or not hasattr(jeff.decider, "attention_backend"):
+        attention_report = audit_released_jeff_attention(jeff.decider)
+    else:
+        attention_report = {"attention_backend": jeff.decider.attention_backend}
+    if checkpoint is None and hasattr(jeff.decider.base, "peft_config"):
+        raise ValueError("Zero-shot requires the released adapter-free backbone")
 
     reload_info = None
     if checkpoint is not None:

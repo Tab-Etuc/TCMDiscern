@@ -13,7 +13,8 @@ from pathlib import Path
 from tcmdiscern.jeff_train_loop import run
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """Keep CLI, integrated Pilot and registered runs on identical settings."""
     parser = argparse.ArgumentParser(description="Train Jeff-1.1-Large on H200")
     parser.add_argument("--model-dir", required=True, type=Path)
     parser.add_argument("--method", required=True, choices=("s1", "s2", "s3", "s4"))
@@ -47,7 +48,11 @@ def main() -> None:
         type=Path,
         help="A prior resume-NNNNNNN checkpoint inside the same --run-id; keeps the exact optimizer budget",
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
     result = run(args)
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
 

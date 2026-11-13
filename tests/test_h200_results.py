@@ -30,6 +30,7 @@ def test_selection_uses_paired_seed_mean_not_luckiest_seed(tmp_path):
                     "kind": "FULL_DEV_FINETUNED",
                     "rows": DEV_ROWS,
                     "trained_lora": True,
+                    "attention_backend": "eager",
                     "checkpoint": {"method": method},
                     "scores": {
                         "n_cases": DEV_ROWS,
@@ -45,6 +46,7 @@ def test_selection_uses_paired_seed_mean_not_luckiest_seed(tmp_path):
         json.dumps(
             {
                 "kind": "FULL_DEV_ZERO_SHOT",
+                "attention_backend": "eager",
                 "rows": DEV_ROWS,
                 "scores": {"n_cases": DEV_ROWS, "top1_accuracy": 0.70},
             }

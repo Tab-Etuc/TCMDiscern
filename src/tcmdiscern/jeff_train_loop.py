@@ -64,7 +64,9 @@ def load_train(method: str, *, study_mode: str | None = None) -> list[dict]:
         folder = "joint16" if candidate_width == 16 else "disease_study"
         return load_frozen_train(
             ROOT / "data" / folder / STUDY_FILE[study_mode],
-            multi=False, expected_count=43180, expected_k=candidate_width,
+            multi=False,
+            expected_count=43180,
+            expected_k=candidate_width,
             study_mode=study_mode,
         )
     return load_frozen_train(
@@ -77,9 +79,7 @@ def load_train(method: str, *, study_mode: str | None = None) -> list[dict]:
 def fixed_run_settings(args: Any) -> dict:
     """Only these exactly matching settings may be resumed together."""
     study_mode = getattr(args, "study_mode", None)
-    source = (
-        STUDY_FILE[study_mode] if study_mode is not None else TRAIN_FILE[args.method]
-    )
+    source = STUDY_FILE[study_mode] if study_mode is not None else TRAIN_FILE[args.method]
     settings = {
         "run_id": args.run_id,
         "loss_method": args.method,
@@ -101,12 +101,14 @@ def fixed_run_settings(args: Any) -> dict:
         "checkpoint_every": getattr(args, "checkpoint_every", 100),
     }
     if study_mode is not None:
-        settings.update({
-            "study_mode": study_mode,
-            "study_k": 16 if study_mode in {"disease16", "pair16"} else 5,
-            "pairwise_weight": getattr(args, "pairwise_weight", 0.0),
-            "pairwise_margin": getattr(args, "pairwise_margin", 0.2),
-        })
+        settings.update(
+            {
+                "study_mode": study_mode,
+                "study_k": 16 if study_mode in {"disease16", "pair16"} else 5,
+                "pairwise_weight": getattr(args, "pairwise_weight", 0.0),
+                "pairwise_margin": getattr(args, "pairwise_margin", 0.2),
+            }
+        )
     return settings
 
 
@@ -208,8 +210,13 @@ def iter_update_groups(
     )
 
 
-def run(args: Any) -> dict:
-    """Execute explicitly on H200; requires the pinned release on local disk."""
+def run(args: Any, *, released: Any | None = None) -> dict:
+    """Train a registered run, optionally reusing one already-validated Jeff model.
+
+    A preloaded released model permits the integrated H200 Pilot to reuse its
+    single expensive 31B read, while keeping identical gradient/checkpoint
+    logic and exact CLI hyperparameters.
+    """
     run_dir = validate_run_args(args)
 
     import torch
@@ -242,7 +249,15 @@ def run(args: Any) -> dict:
     torch.cuda.manual_seed_all(args.seed)
     began = time.perf_counter()
 
-    released = load_original_checkpoint(model_dir)
+    if released is None:
+        released = load_original_checkpoint(model_dir)
+    else:
+        # Refuse accidental training on a previous Pilot's adapter or altered
+        # head. The caller must restore the original release first.
+        if hasattr(released.decider.base, "peft_config"):
+            raise ValueError("Preloaded Jeff model already has an active LoRA adapter")
+        if released.decider.base is not released.decider.model.model:
+            raise ValueError("Preloaded Jeff decoder does not match its original backbone")
     decider = released.decider
     ids0 = encode_prompt(decider.tokenizer, rows[0]["row"], JEFF_MAX_INPUT_TOKENS)
     adapter, _, initial_delta, modules, n_trainable = inject_lora_and_assert_step_zero(
@@ -287,6 +302,8 @@ def run(args: Any) -> dict:
     run_dir.mkdir(parents=True, exist_ok=True)
     gradients = None
     most_recent_checkpoint = None
+    session_started = time.perf_counter()
+    updates_before_session = progress["global_update"]
     initial_epoch = progress["cursor_epoch"]
     initial_offset = progress["cursor_offset"]
     for epoch in range(initial_epoch, args.epochs):
@@ -317,8 +334,10 @@ def run(args: Any) -> dict:
                     loss = supervised_loss(logits, item, "s1")
                 else:
                     from .disease_study import study_torch_loss
+
                     loss = study_torch_loss(
-                        logits[:5], item,
+                        logits[:5],
+                        item,
                         pairwise_weight=getattr(args, "pairwise_weight", 0.0),
                         margin=getattr(args, "pairwise_margin", 0.2),
                     )
@@ -339,6 +358,19 @@ def run(args: Any) -> dict:
             optimizer.step()
             scheduler.step()
             progress["global_update"] += 1
+            update = progress["global_update"]
+            if update == 1 or update % 10 == 0 or update == args.steps:
+                elapsed = time.perf_counter() - session_started
+                completed_here = max(1, update - updates_before_session)
+                remaining = int((args.steps - update) * elapsed / completed_here)
+                print(
+                    f"[TRAIN] {args.run_id}: {update}/{args.steps} updates "
+                    f"({update / args.steps:.1%}), "
+                    f"last_loss={float(loss.detach().item()):.5f}, "
+                    f"elapsed={elapsed / 60:.1f}m, "
+                    f"estimated_remaining={remaining / 60:.1f}m",
+                    flush=True,
+                )
             if next_offset == len(rows):
                 progress["cursor_epoch"] = epoch + 1
                 progress["cursor_offset"] = 0
