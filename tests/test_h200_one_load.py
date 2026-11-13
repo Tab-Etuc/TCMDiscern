@@ -14,11 +14,25 @@ from scripts import run_jeff_pilot_once as pilot
 from scripts.joint16_h200 import valid_eval_report, valid_training_report
 from tcmdiscern.h200.workflow import H200Runner, Stage
 
+VALID_UPDATE_EVIDENCE = {
+    "first_optimizer_update_verified": {
+        "lora_B": 2e-5,
+        "head_delta_weight": 1e-4,
+        "head_delta_bias": 1e-4,
+    },
+    "first_gradient": {
+        "adapter_gradients_present": True,
+        "head_delta_gradients_present": True,
+        "all_gradients_finite": True,
+    },
+    "mean_training_loss": 1.7,
+}
+
 
 def test_pilot_cli_uses_registered_16_real_updates(tmp_path):
     args = pilot.pilot_training_args(tmp_path, root=tmp_path)
-    assert args.run_id == "pilot-s3-16updates"
-    assert args.steps == 16
+    assert args.run_id == "pilot-s3-2updates"
+    assert args.steps == 2
     assert args.accumulation == 64
     assert args.method == "s3"
     assert args.resume is None
@@ -26,7 +40,7 @@ def test_pilot_cli_uses_registered_16_real_updates(tmp_path):
 
 def test_pilot_resumes_last_complete_optimizer_boundary(tmp_path):
     run_dir = tmp_path / "data/runs" / pilot.RUN_ID
-    target = run_dir / "resume-0000004"
+    target = run_dir / "resume-0000001"
     target.mkdir(parents=True)
     for name in (
         "training_state.json",
@@ -49,10 +63,10 @@ def test_pilot_resumes_last_complete_optimizer_boundary(tmp_path):
                 "run_id": pilot.RUN_ID,
                 "loss_method": "s3",
                 "seed": SEEDS[0],
-                "target_updates": 16,
+                "target_updates": 2,
                 "accumulation": 64,
                 "model_revision": JEFF_MODEL_REVISION,
-                "global_update": 4,
+                "global_update": 1,
             }
         ),
         encoding="utf-8",
@@ -84,7 +98,7 @@ def test_integrated_pilot_initializes_one_model_and_reloads_saved_adapter(
         calls["train"] += 1
         decider.base = adapter
         folder = tmp_path / "data/runs" / pilot.RUN_ID
-        final = folder / "resume-0000016"
+        final = folder / "resume-0000002"
         final.mkdir(parents=True)
         (folder / "summary.json").write_text(
             json.dumps(
@@ -92,9 +106,12 @@ def test_integrated_pilot_initializes_one_model_and_reloads_saved_adapter(
                     "status": "JEFF_LORA_CHECKPOINT_SAVED_DEV_EVALUATION_PENDING",
                     "run_id": pilot.RUN_ID,
                     "loss_method": "s3",
-                    "global_update": 16,
+                    "global_update": 2,
                     "accumulation": 64,
                     "source_count_verified": 43180,
+                    "microbatches": 128,
+                    "expected_case_exposures": 128,
+                    **VALID_UPDATE_EVIDENCE,
                 }
             ),
             encoding="utf-8",
@@ -111,7 +128,7 @@ def test_integrated_pilot_initializes_one_model_and_reloads_saved_adapter(
             (final / name).touch()
         (final / "adapter").mkdir()
         (final / "adapter/adapter_model.safetensors").touch()
-        return {"global_update": 16}
+        return {"global_update": 2}
 
     def fake_reset(decider, model_dir):
         assert decider.base is adapter
@@ -120,7 +137,7 @@ def test_integrated_pilot_initializes_one_model_and_reloads_saved_adapter(
 
     def fake_restore(decider, saved):
         assert decider.base is original
-        assert saved.name == "resume-0000016"
+        assert saved.name == "resume-0000002"
         calls["reload"] += 1
         decider.base = adapter
 
@@ -152,7 +169,7 @@ def test_integrated_pilot_initializes_one_model_and_reloads_saved_adapter(
 
     report = pilot.run_one_load(tmp_path / "model", root=tmp_path)
     assert report["model_weight_loads"] == 1
-    assert report["optimizer_steps"] == 16
+    assert report["optimizer_steps"] == 2
     assert calls == {"load": 1, "train": 1, "reset": 1, "reload": 1}
     assert (tmp_path / "data/h200/pilot_one_load.json").is_file()
     with pytest.raises(FileExistsError, match="already exists"):
@@ -296,6 +313,9 @@ def test_joint_gpu_training_report_requires_complete_optimizer_snapshot(tmp_path
                 "target_updates": 1,
                 "accumulation": 1,
                 "source_count_verified": 43180,
+                "microbatches": 1,
+                "expected_case_exposures": 1,
+                **VALID_UPDATE_EVIDENCE,
             }
         ),
         encoding="utf-8",
@@ -326,7 +346,7 @@ def test_integrated_pilot_completion_checks_all_files(tmp_path):
             {
                 "status": "JEFF_SYNDROME_PILOT_ONE_LOAD_PASS",
                 "model_weight_loads": 1,
-                "optimizer_steps": 16,
+                "optimizer_steps": 2,
                 "fresh_adapter_reload": True,
                 "test_opened": False,
             }

@@ -97,10 +97,10 @@ def test_resume_must_use_same_run_id_and_existing_completed_checkpoint(tmp_path,
         training.validate_run_args(args(resume=out))
 
 
-def test_one_step_cli_is_safe_default_and_s1_has_its_own_frozen_training_source():
+def test_one_step_cli_is_safe_default_and_s1_uses_paired_candidate_source():
     spec = args(steps=1, epochs=1, accumulation=1, method="s1")
     settings = training.fixed_run_settings(spec)
-    assert settings["source"] == "train_oof_k16_epoch02.jsonl"
+    assert settings["source"] == "train_oof_multipos_k16_epoch03.jsonl"
     assert settings["target_updates"] == 1
     assert settings["lora_lr"] == 2e-5
     assert settings["head_lr"] == 1e-4

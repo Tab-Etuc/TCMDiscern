@@ -50,7 +50,7 @@ def test_resume_manifest_directly_accepted_by_fresh_dev_loader(method: str) -> N
         ({"official_train_case_count": 43179}, "original Train"),
         ({"model_revision": "incorrect-model-revision"}, "different Jeff revision"),
         ({"loss_method": "unknown"}, "loss method"),
-        ({"loss_method": "s1", "source": "train_oof_multipos_k16_epoch03.jsonl"}, "disagree"),
+        ({"loss_method": "s1", "source": "train_oof_k16_epoch02.jsonl"}, "disagree"),
         ({"loss_method": "s3", "source": "train_oof_k16_epoch02.jsonl"}, "disagree"),
     ],
 )

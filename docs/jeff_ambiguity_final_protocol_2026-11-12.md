@@ -43,14 +43,14 @@ Jeff 原作者訓練使用 `target_distribution`，但來源包括**實際人工
 
 | 實驗方法 | Loss | 用途與限制 |
 | --- | --- | --- |
-| **S1 安全單正解 CE（已完成資料基準）** | `-log p_y` | 只有本列 `y` 進選項，其他觀察到的金標**排除於負例池**。主流 One-hot CE baseline；與多正解方案的 Prompt 候選集合不同，不能把 S1→S3 變化全歸因於 Loss。 |
+| **S1 同候選單正解 CE（正式 LoRA 基準，2026-11-13 訓練前修正）** | `-log p_y` | 使用與 S2／S3／S4 **完全相同**的 16 個候選及 Prompt，只有本列 `y` 被監督為正解。其他觀察正解在單標籤 CE 中作為負例；此安排刻意保留原始單標籤學習偏差，才能隔離 Loss 方法效果。 |
 | **S2 Masked CE（相同候選控制組）** | `-log[e^{z_y}/(e^{z_y}+Σ_{n∈N} e^{z_n})]` | 選項同時包含全部 `P(x)`，本列原金標之外的其他觀察正解對 Loss **不加分也不扣分**。與 S3/S4 用相同 16 個選項，隔離 Loss 因素。 |
 | **S3 Multi-positive Set Loss（主要假設）** | `-log Σ_{j∈P} p_j` | 對候選標註集合分配總機率，不強迫等分；當 `|P|=1`，嚴格退化成原 CE。**不保證所有正解都高分**，適合目前單一 Top-1 與部分標籤不確定性。 |
 | **S4 均勻 Soft-target CE（次要消融）** | `-Σ_j q_j log p_j, q_j=1/|P|\ (j∈P), 0\ (j∉P)` | 參考 Jeff DecisionBank 的分布監督，但額外假設每個觀察標註等權有效。須由實驗證明，**預先不指定為主方法**。 |
 
 - **重要理論限制：** JMLR 2024 *Towards Unbiased Exploration in Partial Label Learning* 指出，Softmax 部分標籤學習可能因初始化偏差過早集中在某一候選。`Set Loss` 只約束正解集合的機率總量，**可能只學會其中一個觀察標籤**。因此必須同時檢查組內機率集中程度、正解相對負例的順位，並用 S2 Masked CE 評估是否更能保留所有觀察正解；不得宣稱 Set Loss 已解決「兩個都要判對」。
 - **工程先決條件：** 所有 Loss 先用合成 logits 做有限值、梯度、選項置換與數值穩定性測試；使用 `logsumexp` 避免 underflow，沒有正解進 16 個選項時必須報錯。所有方法 `K=16`、相同 Prompt 模板、相同候選 OOF 索引與相同 Train／Dev 分母。
-- **訓練方案不能直接套用目前的 `epoch02` 到 S2～S4。** `epoch02` 是「其他標註排除於負例」的 S1 設定；S2～S4 需另建立**包含全部觀察標註的相同候選題目**、另存新的資料路徑及 epoch，且不可覆寫歷史檔案。
+- **2026-11-13 訓練前配對控制修正：** 全量核查發現舊版 S1 `epoch02` 與 S2／S3 `epoch03` 的候選集合有 **820／43,180 筆不同**。正式 H200 的 S1～S4 **共同讀取** `train_oof_multipos_k16_epoch03.jsonl`；S1 在訓練載入時僅投影成 `target_index` 單正解，S2～S4 保留 `positive_indices` 等外部 Loss 欄位。逐筆驗證現行 S1 與 S3 43,180 題的 Prompt 和原始金標一致。舊 `epoch02` 資料檔保留於 `data/` 作「安全負例 S1」歷史對照，如需額外 GPU 訓練，須標為不同候選集的獨立消融。
 - 若要在部署時同時輸出多個證型，應另建獨立的多標籤目標與經醫師確認的資料；目前 S3 的 Softmax 只提供相對選項機率，不能用固定機率門檻宣稱已找齊所有正解。
 - **防假效果：** 43,180 原始資料列全部保留；同文字重複次數作為分層報告。同群組加權 `1/n_group` 可在 S1～S4 **統一使用作獨立消融**；不能只替其中一組加權，否則 Loss 效果與訓練分布效果混雜。
 
@@ -80,8 +80,8 @@ Jeff 原作者訓練使用 `target_distribution`，但來源包括**實際人工
 - 先做好 S1/S2/S3/S4 的合成資料 Loss 單元測試，不得僅以 Prompt JSON 相同就宣稱訓練器可用。
 
 **階段 B：主要實驗（P1）**
-- 用 Group-aware OOF、K=16、相同 43,180 Train 預算。至少：Jeff Zero-shot、S1 safe CE、S2 masked CE、S3 Set Loss。
-- S2 與 S3 **同一候選集合、同一 shuffling、同一 seed／batch budget**；兩者差異才能合理歸因於 Loss。S1 對照既有修正好的單正解資料。
+- 用 Group-aware OOF、K=16、相同 43,180 Train 預算。至少：Jeff Zero-shot、**S1 同候選 one-hot CE**、S2 masked CE、S3 Set Loss。
+- **S1／S2／S3 同一候選集合、同一 shuffling、同一 seed／batch budget**；三者僅在監督 Loss 上不同。舊「安全單正解候選」保留作歷史產物，若未來訓練必須分開標示。
 - Dev 5,486 筆（**真實 BM25 前 16、不補正解**）做 checkpoint 選擇，優先依 Macro-F1，同時設 Accuracy 不劣於 BM25 基準的檢核；若以多指標進行選模，事先公開規則。
 
 **階段 C：限制性消融（P2）**

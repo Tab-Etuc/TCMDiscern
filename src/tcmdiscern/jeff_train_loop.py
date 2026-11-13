@@ -22,11 +22,13 @@ from typing import Any
 
 from .jeff_config import JEFF_MAX_INPUT_TOKENS, JEFF_MODEL_REVISION
 from .jeff_gpu_core import (
+    capture_first_update,
     decision_logits,
     gradient_audit,
     parameter_audit,
     supervised_loss,
     trainable_parameters,
+    verify_first_update,
 )
 from .jeff_resume import restore_resume, save_resume
 from .jeff_schedule import (
@@ -39,7 +41,10 @@ from .jeff_weighting import WEIGHTING_CHOICES, load_train_oof_weights, normalize
 
 ROOT = Path(__file__).resolve().parents[2]
 TRAIN_FILE = {
-    "s1": "train_oof_k16_epoch02.jsonl",
+    # The S1 single-gold CE control uses exactly the same sixteen option
+    # identities as S2/S3/S4. Otherwise 820/43,180 training candidate sets
+    # differ, confounding a paper comparison of supervision objectives.
+    "s1": "train_oof_multipos_k16_epoch03.jsonl",
     "s2": "train_oof_multipos_k16_epoch03.jsonl",
     "s3": "train_oof_multipos_k16_epoch03.jsonl",
     "s4": "train_oof_multipos_k16_epoch03.jsonl",
@@ -69,11 +74,24 @@ def load_train(method: str, *, study_mode: str | None = None) -> list[dict]:
             expected_k=candidate_width,
             study_mode=study_mode,
         )
-    return load_frozen_train(
+    # Always validate the same multi-positive Train candidate source.
+    # The S1 ablation removes only external multi-label supervision; both
+    # methods receive identical model-visible question and candidate options.
+    shared = load_frozen_train(
         ROOT / "data/jeff" / TRAIN_FILE[method],
-        multi=method != "s1",
+        multi=True,
         expected_count=43180,
     )
+    if method == "s1":
+        return [
+            {
+                "row": item["row"],
+                "target_index": item["target_index"],
+                "target_letter": item["target_letter"],
+            }
+            for item in shared
+        ]
+    return shared
 
 
 def fixed_run_settings(args: Any) -> dict:
@@ -192,6 +210,15 @@ def _new_progress(settings: dict) -> dict:
     }
 
 
+def expected_case_exposures(rows: int, accumulation: int, updates: int) -> int:
+    """Exact number of Train rows consumed for an optimizer-step budget."""
+    if rows <= 0 or accumulation <= 0 or updates <= 0:
+        raise ValueError("Training exposure accounting requires positive integers")
+    per_epoch = math.ceil(rows / accumulation)
+    complete_epochs, remaining_updates = divmod(updates, per_epoch)
+    return complete_epochs * rows + min(rows, remaining_updates * accumulation)
+
+
 def iter_update_groups(
     records: list[dict],
     *,
@@ -301,6 +328,7 @@ def run(args: Any, *, released: Any | None = None) -> dict:
     # Resume validation is finished. Only now may we create a new run directory.
     run_dir.mkdir(parents=True, exist_ok=True)
     gradients = None
+    first_parameter_update = None
     most_recent_checkpoint = None
     session_started = time.perf_counter()
     updates_before_session = progress["global_update"]
@@ -355,7 +383,20 @@ def run(args: Any, *, released: Any | None = None) -> dict:
                 max_norm=args.clip_norm,
                 error_if_nonfinite=True,
             )
+            # Verify an actual LoRA-B and Head weight change after step one.
+            # A finite loss/gradient alone is insufficient evidence of training.
+            update_probe = (
+                capture_first_update(adapter, decider.head)
+                if first_parameter_update is None
+                else None
+            )
             optimizer.step()
+            if update_probe is not None:
+                first_parameter_update = verify_first_update(update_probe)
+                print(
+                    f"[TRAIN] First optimizer step changed LoRA and Head: {first_parameter_update}",
+                    flush=True,
+                )
             scheduler.step()
             progress["global_update"] += 1
             update = progress["global_update"]
@@ -405,10 +446,21 @@ def run(args: Any, *, released: Any | None = None) -> dict:
 
     if progress["global_update"] != args.steps or most_recent_checkpoint is None:
         raise RuntimeError("Requested optimizer budget was not reached")
+    expected_exposures = expected_case_exposures(len(rows), args.accumulation, args.steps)
+    if progress["microbatches"] != expected_exposures:
+        raise RuntimeError(
+            f"Training exposed {progress['microbatches']} cases, expected "
+            f"{expected_exposures}; refuse an incomplete or duplicated epoch"
+        )
+    if args.steps == total_optimizer_steps(len(rows), args.accumulation, args.epochs) and (
+        progress["cursor_epoch"] != args.epochs or progress["cursor_offset"] != 0
+    ):
+        raise RuntimeError("Full epochs are incomplete despite reaching optimizer budget")
     report = {
         "status": "JEFF_LORA_CHECKPOINT_SAVED_DEV_EVALUATION_PENDING",
         **progress,
         "source_count_verified": len(rows),
+        "expected_case_exposures": expected_exposures,
         "study_mode": study_mode,
         "model_pretrained_head_reinitialized": False,
         "original_model_revision": JEFF_MODEL_REVISION,
@@ -417,6 +469,7 @@ def run(args: Any, *, released: Any | None = None) -> dict:
         "lora_trainable_parameters": n_trainable,
         "trainable_parameters": report_parameters,
         "first_gradient": gradients,
+        "first_optimizer_update_verified": first_parameter_update,
         "mean_training_loss": (progress["sum_microbatch_loss"] / progress["microbatches"]),
         "peak_cuda_bytes": int(torch.cuda.max_memory_allocated()),
         "attention_backend": getattr(decider, "attention_backend", "unrecorded"),

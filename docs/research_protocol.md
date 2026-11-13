@@ -82,7 +82,7 @@
 | K 設定 | **主要 K=16**（Jeff 原生 A～P 16 個選項，一次 Forward Pass）；**完整 Dev 仍評估 K=1～35**，K=5／17／35 為消融對照，最後最佳 K 依 Dev Top-1／Macro-F1 與耗時決定 |
 | 選項限制 | Jeff 原生 16 個 A～P slot；K=17～35 沿用原作者多組先選優勝者、再總決選的分組推論 |
 | Baseline | BM25 Top-1 79.58%、Macro-F1 54.85%，以及 Jeff-1.1-Large 未再微調版本 |
-| 消融 | **預定：S1 安全單正解 CE、S2 Masked CE、S3 Multi-positive Set Loss（主要假說）、S4 均勻 Soft-target CE（次要消融）**。S2/S3/S4 必須用相同的 16 個候選，隔離 Loss 影響；其餘候選來源與硬體預算一致。完整定義見 [方法定稿](jeff_ambiguity_final_protocol_2026-11-12.md) |
+| 消融 | **正式 H200 對照：S1 同候選單正解 CE、S2 Masked CE、S3 Multi-positive Set Loss（主要假說）、S4 均勻 Soft-target CE（次要消融）**。四組讀取同一份 43,180 筆 K16 候選題目，僅監督 Loss 不同；舊版安全負例 S1 列為不同候選池的歷史對照。完整定義見 [方法定稿](jeff_ambiguity_final_protocol_2026-11-12.md) |
 | 選模依據 | **完整 Dev Top-1、Macro-F1**，搭配條件準確率、推論時間與峰值顯存；不得用 Test 選模 |
 | 正式 Test | 完整 5,486 筆；待方法固定後一次性評分並揭露已知重複情況 |
 | 統計報告 | Micro/Macro Recall@K、Jeff Top-1、Macro-F1、類別 support、信賴區間、耗時、顯存、訓練超參數 |

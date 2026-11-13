@@ -80,7 +80,7 @@ python -m scripts.audit_jeff_training_controls --check-only
 
 # 真實 BF16 GPU 安全檢查（優先於全量訓練）
 python -m scripts.train_jeff_lora --model-dir /models/Jeff-1.1-Large --method s3
-python -m scripts.run_jeff_finetune --model-dir /models/Jeff-1.1-Large --method s3 --run-id pilot-s3-16updates --steps 16 --epochs 1 --accumulation 64 --seed 20261112 --warmup-steps 0 --checkpoint-every 16
+bash run_h200.sh pilot  # 2026-11-13 修訂：單次模型載入，2 updates × 64 cases，驗證真實 LoRA／Head 更新及 Checkpoint 重載
 
 # 主線 S3 第一 Seed，與 S1 使用完全相同的設定
 python -m scripts.run_jeff_finetune --model-dir /models/Jeff-1.1-Large --method s3 --run-id s3-seed20261112-e2 --steps 1350 --epochs 2 --accumulation 64 --seed 20261112 --warmup-steps 40 --checkpoint-every 300

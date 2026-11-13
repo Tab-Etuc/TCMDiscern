@@ -23,7 +23,9 @@ from tcmdiscern.h200.workflow import (
     H200Runner,
     Stage,
     complete_optimizer_checkpoint,
+    verified_optimizer_learning_signal,
 )
+from tcmdiscern.jeff_train_loop import expected_case_exposures
 
 ROOT = Path(__file__).resolve().parents[1]
 EPOCHS = 2
@@ -115,6 +117,10 @@ def valid_training_report(
                 result.get("target_updates") == steps,
                 result.get("accumulation") == accumulation,
                 result.get("source_count_verified") == 43180,
+                result.get("expected_case_exposures")
+                == expected_case_exposures(43180, accumulation, steps),
+                result.get("microbatches") == expected_case_exposures(43180, accumulation, steps),
+                verified_optimizer_learning_signal(result),
                 complete_optimizer_checkpoint(checkpoint),
             )
         )

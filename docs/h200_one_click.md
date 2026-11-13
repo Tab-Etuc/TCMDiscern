@@ -13,8 +13,8 @@ bash run_h200.sh pilot
 bash run_h200.sh full --confirm-full
 ```
 
-- `prepare`：自動建立 Python 3.12 開發虛擬環境（使用 frozen `uv.lock`），僅下載官方 TCM-SD Train/Dev，重建 **43,180 筆 Group-aware OOF BM25**、**5,486 筆 Dev BM25**、S1 單正解、S2/S3/S4 多正解 K=16，以及 Dev K=5/16/17，最後全部逐筆核對。已存在的私有資產會重用，但驗收仍需重新檢查；不通過立即停止。沒有下載、訓練 31B 模型。
-- `pilot`：Driver R580+ 使用 Jeff 官方測試的 torch 2.13.0/CUDA 13.0；Driver R525～R579 選擇獨立 PyTorch 2.11.0+cu128/CUDA 12.8（支援 Linux ARM64/GH200）。只修改專案 `.venv`，先驗證 CUDA BF16，再取得 Jeff v1.3.0 模型/Head。**整個證型 Pilot 只讀取 31B 權重一次**：在同一 Python 工作階段連續驗證注意力、兩筆原版 Dev、LoRA Step-0、16 次真正的 S3 梯度更新（累積 64，1,024 筆曝光）、保存 Optimizer/Head/Adapter，最後卸下訓練 Adapter 並從 Checkpoint 重新載入做兩筆 Dev 推論。任何 checkpoint 遺失、已有 logits 與目前後端不一致，會安全停止。CUDA 12.8 屬相容性配置，應在論文記錄與上游 CUDA 13.0 的版本差異。
+- `prepare`：自動建立 Python 3.12 開發虛擬環境（使用 frozen `uv.lock`），僅下載官方 TCM-SD Train/Dev，重建 **43,180 筆 Group-aware OOF BM25**、**5,486 筆 Dev BM25**、S1 歷史安全單正解資料、S2/S3/S4 多正解 K=16，以及 Dev K=5/16/17，最後全部逐筆核對。正式訓練 S1 會使用多正解資料的**相同候選題目**並只保留單金標 Loss，確保方法比較的題目相同。已存在的私有資產會重用，但驗收仍需重新檢查；不通過立即停止。沒有下載、訓練 31B 模型。
+- `pilot`：Driver R580+ 使用 Jeff 官方測試的 torch 2.13.0/CUDA 13.0；Driver R525～R579 選擇獨立 PyTorch 2.11.0+cu128/CUDA 12.8（支援 Linux ARM64/GH200）。只修改專案 `.venv`，先驗證 CUDA BF16，再取得 Jeff v1.3.0 模型/Head。**整個證型 Pilot 只讀取 31B 權重一次**：在同一 Python 工作階段連續驗證注意力、兩筆原版 Dev、LoRA Step-0、2 次真正的 S3 Optimizer 更新（累積 64，128 筆曝光）、保存 Optimizer/Head/Adapter，最後卸下訓練 Adapter 並從 Checkpoint 重新載入做兩筆 Dev 推論。任何 checkpoint 遺失、已有 logits 與目前後端不一致，會安全停止。CUDA 12.8 屬相容性配置，應在論文記錄與上游 CUDA 13.0 的版本差異。
 - `screen --confirm-screen`：先驗證 Pilot，使用單一**常駐 GPU Python 工作階段**完成原版 Zero-shot 5,486 Dev 與第一個 Seed 的 S1/S2/S3 各兩 Epoch 微調及 Epoch 1/2 完整 Dev 推論。各組開始前重新載入原版 Head，上一組 LoRA 直接卸載、不合併至 Backbone；評估則重新載入指定訓練 checkpoint。
 - `full --confirm-full`：沿用上述常駐 GPU 流程，執行 9 組 S1/S2/S3 × 3 Seeds × 2 Epoch、各 1,350 Updates；每組在 675 與 1350 Updates 評估完整 Dev，依完成標記跳過已驗證階段。選模前核對全部 Dev 報表都使用同一已驗證的注意力後端，然後才產生 `experiments/jeff_h200_dev_selection.json`，按三 Seed 平均 Accuracy 選方法與 Epoch。**正式 Test 封存。**
 - `full --confirm-full --include-exploratory`：額外增加 S4、S3 的 Train OOF 困難病例 ×2 加權，各單 Seed、1 Epoch（探索性比較）。
@@ -34,7 +34,7 @@ bash run_h200.sh full --confirm-full
 | `src/tcmdiscern/h200/artifacts.py` | Clone 後重建來源資料／候選／Prompt，避免覆寫 |
 | `src/tcmdiscern/h200/workflow.py` | 單程序 Stage 日誌、結果完整性、續訓及自動評估 |
 | `src/tcmdiscern/h200/session.py` | GH200 常駐 Backbone、隔離每組 LoRA/Head、避免重複載入權重 |
-| `scripts/run_jeff_pilot_once.py` | 一次載入完成證型 Pilot、真實 16 次更新及 Checkpoint 重載 |
+| `scripts/run_jeff_pilot_once.py` | 一次載入完成證型 Pilot、真實 2 次更新、權重變化驗證及 Checkpoint 重載 |
 | `src/tcmdiscern/h200/results.py` | 三 Seed 完整 Dev 指標彙整與預定選模 |
 | `scripts/audit_h200_payload.py` | 本機/H200 重複執行的全量病例來源比對 |
 | `scripts/audit_jeff_training_controls.py` | 全量 A～P 位置、S1/S3 配對、多正標、OOF 難度驗證 |

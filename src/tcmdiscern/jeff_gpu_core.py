@@ -11,6 +11,7 @@ Only the H200 entrypoints should import the official jeff package/PEFT.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Sequence
 from typing import Any
 
@@ -157,6 +158,82 @@ def gradient_audit(adapter_model: Any, head: Any) -> dict:
         "adapter_tensors_with_grad": len(adapter),
         "all_gradients_finite": True,
     }
+
+
+def capture_first_update(adapter_model: Any, head: Any) -> dict:
+    """Capture real tensors *after backward* and before the first optimizer step.
+
+    A valid nonzero gradient alone does not prove that an Optimizer actually
+    updated the LoRA matrices or the released Decision Head. Save one active
+    LoRA-B matrix and the complete two Head correction tensors on device.
+    """
+    import torch
+
+    lora_b = [
+        (name, parameter)
+        for name, parameter in adapter_model.named_parameters()
+        if parameter.requires_grad
+        and "lora_B" in name
+        and parameter.grad is not None
+        and bool(torch.isfinite(parameter.grad).all().item())
+        and bool(torch.count_nonzero(parameter.grad).item())
+    ]
+    if not lora_b:
+        raise RuntimeError("No active LoRA-B gradient before the first optimizer update")
+    head_params = dict(head.named_parameters())
+    names = ("delta.weight", "delta.bias")
+    if any(
+        name not in head_params
+        or head_params[name].grad is None
+        or not bool(torch.isfinite(head_params[name].grad).all().item())
+        or not bool(torch.count_nonzero(head_params[name].grad).item())
+        for name in names
+    ):
+        raise RuntimeError("Decision Head correction has no valid first-step gradient")
+    key, active = lora_b[0]
+    return {
+        "lora_B": (key, active, active.detach().clone()),
+        "head_delta_weight": (
+            "delta.weight",
+            head_params["delta.weight"],
+            head_params["delta.weight"].detach().clone(),
+        ),
+        "head_delta_bias": (
+            "delta.bias",
+            head_params["delta.bias"],
+            head_params["delta.bias"].detach().clone(),
+        ),
+    }
+
+
+def validate_update_magnitudes(updates: dict[str, float]) -> dict[str, float]:
+    """Machine-checkable evidence of a real optimizer update."""
+    required = ("lora_B", "head_delta_weight", "head_delta_bias")
+    if set(updates) != set(required) or any(
+        type(updates[name]) not in (float, int)
+        or not math.isfinite(updates[name])
+        or updates[name] <= 0
+        for name in required
+    ):
+        raise RuntimeError("Optimizer failed to change both LoRA and Head parameters")
+    return updates
+
+
+def verify_first_update(snapshot: dict) -> dict[str, float]:
+    """Fail the run immediately if any required trainable tensor stayed fixed."""
+    import torch
+
+    updates: dict[str, float] = {}
+    for kind in ("lora_B", "head_delta_weight", "head_delta_bias"):
+        name, parameter, before = snapshot[kind]
+        after = parameter.detach()
+        if after.shape != before.shape or not torch.isfinite(after).all().item():
+            raise RuntimeError(f"First optimizer update damaged {kind} ({name})")
+        difference = float((after.float() - before.float()).abs().max().item())
+        if not math.isfinite(difference) or difference <= 0:
+            raise RuntimeError(f"First optimizer step did not update {kind} ({name})")
+        updates[kind] = difference
+    return validate_update_magnitudes(updates)
 
 
 def count_trainable_bytes(params: Iterable[Any]) -> int:

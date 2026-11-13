@@ -92,11 +92,25 @@ def validate_checkpoint_manifest(manifest: dict) -> None:
         raise ValueError("Saved adapter was trained on a different Jeff revision")
     if manifest.get("loss_method") not in {"s1", "s2", "s3", "s4"}:
         raise ValueError("Checkpoint has no valid loss method")
-    expected_source = (
-        "train_oof_k16_epoch02.jsonl"
-        if manifest["loss_method"] == "s1"
-        else "train_oof_multipos_k16_epoch03.jsonl"
-    )
+    study_mode = manifest.get("study_mode")
+    if study_mode is None:
+        # Matched-candidate study: S1 CE and multi-positive objectives differ
+        # only in their outside-the-prompt supervision. All 43,180 K16
+        # choices originate from the same official Train-only data source.
+        expected_source = "train_oof_multipos_k16_epoch03.jsonl"
+    else:
+        # Disease and disease-syndrome evaluation must verify the same
+        # Train-only candidate task that produced the LoRA checkpoint.
+        # Keep the frozen data provenance check without assuming every
+        # S1 run is a syndrome classification run.
+        from .jeff_train_loop import STUDY_FILE
+
+        if study_mode not in STUDY_FILE or manifest["loss_method"] != "s1":
+            raise ValueError("Invalid disease-study mode/loss in checkpoint")
+        expected_source = STUDY_FILE[study_mode]
+        required_k = 16 if study_mode in {"disease16", "pair16"} else 5
+        if manifest.get("study_k") != required_k:
+            raise ValueError("Checkpoint candidate width disagrees with study mode")
     if manifest.get("source") != expected_source:
         raise ValueError("Checkpoint method and frozen Train source disagree")
 

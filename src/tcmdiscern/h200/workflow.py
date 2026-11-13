@@ -75,6 +75,26 @@ def complete_optimizer_checkpoint(folder: Path) -> bool:
     )
 
 
+def verified_optimizer_learning_signal(summary: dict) -> bool:
+    """Completed training must prove a real LoRA and Head parameter update."""
+    from tcmdiscern.jeff_gpu_core import validate_update_magnitudes
+
+    try:
+        validate_update_magnitudes(summary["first_optimizer_update_verified"])
+        first_grad = summary["first_gradient"]
+        loss = summary["mean_training_loss"]
+        return (
+            first_grad.get("adapter_gradients_present") is True
+            and first_grad.get("head_delta_gradients_present") is True
+            and first_grad.get("all_gradients_finite") is True
+            and isinstance(loss, (int, float))
+            and math.isfinite(loss)
+            and loss >= 0
+        )
+    except (RuntimeError, KeyError, AttributeError, TypeError, ValueError):
+        return False
+
+
 def canonical_command(command: Sequence[str]) -> list[str]:
     """A resumed command must keep exactly the original frozen run settings."""
     values = list(command)
@@ -286,17 +306,20 @@ class H200Runner:
             return False
 
     def _valid_pilot_training(self) -> bool:
-        file = self.root / "data/runs/pilot-s3-16updates/summary.json"
+        file = self.root / "data/runs/pilot-s3-2updates/summary.json"
         if not file.is_file():
             return False
         result = read_json(file)
         return (
             result.get("loss_method") == "s3"
-            and result.get("global_update") == 16
+            and result.get("global_update") == 2
             and result.get("accumulation") == ACCUMULATION
             and result.get("source_count_verified") == 43180
+            and result.get("expected_case_exposures") == 128
+            and result.get("microbatches") == 128
+            and verified_optimizer_learning_signal(result)
             and complete_optimizer_checkpoint(
-                self.root / "data/runs/pilot-s3-16updates/resume-0000016"
+                self.root / "data/runs/pilot-s3-2updates/resume-0000002"
             )
         )
 
@@ -343,8 +366,16 @@ class H200Runner:
         }
         if any(result.get(k) != v for k, v in expected.items()):
             return False
-        return result.get("source_count_verified") == 43180 and complete_optimizer_checkpoint(
-            self.root / f"data/runs/{experiment.run_id}/resume-{experiment.updates:07d}"
+        return (
+            result.get("source_count_verified") == 43180
+            and result.get("expected_case_exposures") == 43180 * experiment.epochs
+            and result.get("microbatches") == 43180 * experiment.epochs
+            and result.get("cursor_epoch") == experiment.epochs
+            and result.get("cursor_offset") == 0
+            and verified_optimizer_learning_signal(result)
+            and complete_optimizer_checkpoint(
+                self.root / f"data/runs/{experiment.run_id}/resume-{experiment.updates:07d}"
+            )
         )
 
     def _resume_command(
@@ -454,12 +485,12 @@ class H200Runner:
             return (
                 report.get("status") == "JEFF_SYNDROME_PILOT_ONE_LOAD_PASS"
                 and report.get("model_weight_loads") == 1
-                and report.get("optimizer_steps") == 16
+                and report.get("optimizer_steps") == 2
                 and report.get("fresh_adapter_reload") is True
                 and report.get("test_opened") is False
                 and self._valid_smoke_two()
                 and self._valid_smoke_two(
-                    self.root / "data/jeff/dev_pilot-s3-16updates-smoke_k16_0002.jsonl"
+                    self.root / "data/jeff/dev_pilot-s3-2updates-smoke_k16_0002.jsonl"
                 )
             )
         except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError):

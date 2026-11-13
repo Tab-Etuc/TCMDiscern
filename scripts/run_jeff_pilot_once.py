@@ -1,11 +1,11 @@
 """One-load H200 Jeff syndrome Pilot.
 
 Run the released 31B once, preserve its real GPU state, and complete smoke,
-Step-0, 16 optimizer updates, transactional resume and *fresh adapter* reload
+Step-0, 2 optimizer updates, transactional resume and *fresh adapter* reload
 without rereading the 31B from disk for each check.
 
 Original TCM-SD Test is never opened. The two Dev items used for smoke are
-not benchmark results. Training is limited to 16 optimizer updates.
+not benchmark results. Training is limited to 2 optimizer updates.
 """
 
 from __future__ import annotations
@@ -21,14 +21,17 @@ from scripts.run_jeff_zeroshot import iter_dev_rows, run_decider
 from tcmdiscern.datasets import load_records
 from tcmdiscern.evaluation import read_predictions
 from tcmdiscern.h200.plan import ACCUMULATION, SEEDS
-from tcmdiscern.h200.workflow import complete_optimizer_checkpoint
+from tcmdiscern.h200.workflow import (
+    complete_optimizer_checkpoint,
+    verified_optimizer_learning_signal,
+)
 from tcmdiscern.jeff_checkpoint import reset_released_backbone, restore_checkpoint
 from tcmdiscern.jeff_config import JEFF_MODEL_REVISION
 from tcmdiscern.jeff_train_loop import run as train
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN_ID = "pilot-s3-16updates"
-PILOT_UPDATES = 16
+RUN_ID = "pilot-s3-2updates"
+PILOT_UPDATES = 2
 
 
 def pilot_training_args(model_dir: Path, *, root: Path = ROOT):
@@ -51,7 +54,7 @@ def pilot_training_args(model_dir: Path, *, root: Path = ROOT):
         "--warmup-steps",
         "0",
         "--checkpoint-every",
-        "4",
+        "1",
     ]
     run_dir = root / "data/runs" / RUN_ID
     if not (run_dir / "summary.json").is_file() and run_dir.is_dir():
@@ -87,7 +90,7 @@ def pilot_training_args(model_dir: Path, *, root: Path = ROOT):
 
 
 def verify_completed_training(root: Path) -> Path:
-    """Require the actual 16-step optimizer artifact, not a partial JSON."""
+    """Require the actual 2-step optimizer artifact, not a partial JSON."""
     run_dir = root / "data/runs" / RUN_ID
     summary = run_dir / "summary.json"
     last = run_dir / f"resume-{PILOT_UPDATES:07d}"
@@ -101,6 +104,9 @@ def verify_completed_training(root: Path) -> Path:
         or result.get("global_update") != PILOT_UPDATES
         or result.get("accumulation") != ACCUMULATION
         or result.get("source_count_verified") != 43180
+        or result.get("expected_case_exposures") != 128
+        or result.get("microbatches") != 128
+        or not verified_optimizer_learning_signal(result)
     ):
         raise RuntimeError("Pilot completed training summary is inconsistent")
     return last
@@ -182,7 +188,7 @@ def run_one_load(model_dir: Path, *, root: Path = ROOT) -> dict:
     rows = read_two_dev_rows(root)
     summary = root / "data/runs" / RUN_ID / "summary.json"
     original_smoke = root / "data/jeff/dev_zero_shot_k16_smoke0002.jsonl"
-    trained_smoke = root / "data/jeff/dev_pilot-s3-16updates-smoke_k16_0002.jsonl"
+    trained_smoke = root / "data/jeff/dev_pilot-s3-2updates-smoke_k16_0002.jsonl"
     if trained_smoke.exists() and not valid_two_logits(trained_smoke):
         raise RuntimeError("Existing trained Pilot smoke is invalid; manual inspection required")
 
@@ -191,10 +197,10 @@ def run_one_load(model_dir: Path, *, root: Path = ROOT) -> dict:
     attention_backend = getattr(jeff.decider, "attention_backend", "unrecorded")
     score_two_if_missing(rows, jeff.decider, original_smoke)
     if not summary.exists():
-        print("[PILOT] Training syndrome S3 LoRA (16 updates, accumulation=64)", flush=True)
+        print("[PILOT] Training syndrome S3 LoRA (2 updates, accumulation=64)", flush=True)
         result = train(train_args, released=jeff)
         if result.get("global_update") != PILOT_UPDATES:
-            raise RuntimeError("The integrated Pilot did not finish 16 updates")
+            raise RuntimeError("The integrated Pilot did not finish 2 updates")
     checkpoint = verify_completed_training(root)
 
     # Original PEFT adapter is removed, without merging LoRA updates into the
