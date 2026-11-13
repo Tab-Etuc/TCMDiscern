@@ -179,7 +179,7 @@ def run(
         raise ValueError("Unexpected Jeff model input token limit")
     from tcmdiscern.jeff_attention import audit_released_jeff_attention
 
-    audit_released_jeff_attention(jeff.decider)
+    attention_report = audit_released_jeff_attention(jeff.decider)
 
     reload_info = None
     if checkpoint is not None:
@@ -219,6 +219,7 @@ def run(
         "raw_logit_file_ignored": str(output.relative_to(root)),
         "long_input_policy": "refuse",
         "reasoning": False,
+        "attention_backend": attention_report["attention_backend"],
         "trained_lora": checkpoint is not None,
         "checkpoint": (
             reload_info

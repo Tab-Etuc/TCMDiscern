@@ -193,6 +193,10 @@ def evaluate(*, mode: str, split: str, model_dir: Path, run_id: str, checkpoint:
         model_dir, device="cuda", reasoning=False,
         long_input="refuse", cudnn_attention=False, compile=False,
     )
+    from tcmdiscern.jeff_attention import audit_released_jeff_attention
+
+    # Always evaluate with the same verified causal backend used for LoRA.
+    attention_report = audit_released_jeff_attention(model.decider)
     if checkpoint is not None:
         restore_checkpoint(model.decider, checkpoint.expanduser().resolve(strict=True))
     logit_file = directory / f"{split}_{mode}_{run_id}_logits.jsonl"
@@ -202,6 +206,7 @@ def evaluate(*, mode: str, split: str, model_dir: Path, run_id: str, checkpoint:
         "mode": mode, "split": split, "run_id": run_id,
         "checkpoint": str(checkpoint) if checkpoint else "released",
         "k": K, "performance": perf,
+        "attention_backend": attention_report["attention_backend"],
         "logits_file": str(logit_file.relative_to(ROOT)),
         "test_used_for_selection": False,
     }

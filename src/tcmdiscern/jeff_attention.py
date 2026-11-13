@@ -59,7 +59,47 @@ def audit_released_jeff_attention(decider) -> dict:
     from .jeff_config import JEFF_MAX_INPUT_TOKENS
 
     ids = encode_prompt(decider.tokenizer, checkpoint_probe(), JEFF_MAX_INPUT_TOKENS)
-    return audit_official_causal_attention(decider, ids)
+    report = audit_with_safe_backend(decider, ids)
+    decider.attention_backend = report["attention_backend"]
+    return report
+
+
+def audit_with_safe_backend(decider, prompt_ids: Sequence[int]) -> dict:
+    """Use the released attention if causal; otherwise verify eager in-place."""
+    try:
+        report = audit_official_causal_attention(decider, prompt_ids)
+        report["attention_backend"] = "released_default"
+        return report
+    except RuntimeError as original_error:
+        # With torch 2.11 / CUDA 12.8, the default SDPA kernel on a GH200 may
+        # violate text-prefix causality. Fail closed unless the actual released
+        # backbone can switch to eager and independently passes the same audit.
+        if "attention backend changed earlier hidden states" not in str(original_error):
+            raise
+        model = decider.model
+        set_backend = getattr(model, "set_attn_implementation", None)
+        if not callable(set_backend):
+            raise TypeError(
+                "Default Gemma 4 attention is not causal, and the official model "
+                "does not expose set_attn_implementation('eager')"
+            ) from original_error
+        print(
+            "[ATTENTION] Default backend violates causal-prefix check; "
+            "switching the loaded Jeff model to eager and rechecking",
+            flush=True,
+        )
+        set_backend("eager")
+        try:
+            report = audit_official_causal_attention(decider, prompt_ids)
+        except Exception as fallback_error:
+            raise RuntimeError(
+                "Neither default nor eager attention passed causal-prefix safety; "
+                "LoRA and evaluation remain blocked"
+            ) from fallback_error
+        report["attention_backend"] = "eager"
+        report["default_backend_causal_pass"] = False
+        print("[ATTENTION] Eager backend causal-prefix PASS", flush=True)
+        return report
 
 
 def audit_official_causal_attention(decider, prompt_ids: Sequence[int]) -> dict:

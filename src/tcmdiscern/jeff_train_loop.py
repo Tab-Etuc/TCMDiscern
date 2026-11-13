@@ -387,6 +387,7 @@ def run(args: Any) -> dict:
         "first_gradient": gradients,
         "mean_training_loss": (progress["sum_microbatch_loss"] / progress["microbatches"]),
         "peak_cuda_bytes": int(torch.cuda.max_memory_allocated()),
+        "attention_backend": getattr(decider, "attention_backend", "unrecorded"),
         "elapsed_seconds": time.perf_counter() - began,
         "final_checkpoint": str(most_recent_checkpoint.relative_to(ROOT)),
         "optimizer_and_scheduler_saved": True,

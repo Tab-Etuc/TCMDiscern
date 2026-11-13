@@ -30,17 +30,61 @@ LORA_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", 
 METHODS = ("s1", "s2", "s3", "s4")
 
 
-def validate_lora_targets(model, targets: tuple[str, ...] = LORA_TARGETS) -> dict[str, int]:
-    """Verify every LoRA attention target is present before PEFT mutates anything."""
+def select_lora_target_modules(
+    model, targets: tuple[str, ...] = LORA_TARGETS
+) -> tuple[list[str], dict[str, int]]:
+    """Select only the Gemma 4 TEXT decoder modules by exact qualified name.
+
+    31B global-attention layers reuse their K projection as V
+    (attention_k_eq_v=True), so they legitimately lack v_proj. The vision
+    tower, which also has q/k/v/MLP module names, must not receive LoRA for
+    these text-only diagnosis tasks.
+    """
+    language_model = getattr(model, "language_model", model)
+    layer_prefix = "language_model.layers" if language_model is not model else "layers"
+    layers = getattr(language_model, "layers", None)
+    if layers is None or len(layers) == 0:
+        raise RuntimeError("Jeff backbone does not expose Gemma 4 text decoder layers")
+    registered = dict(model.named_modules())
+    names: list[str] = []
     counts = {name: 0 for name in targets}
-    for qualified_name, _ in model.named_modules():
-        name = qualified_name.rsplit(".", 1)[-1]
-        if name in counts:
-            counts[name] += 1
+    selected = set(targets)
+    for index, layer in enumerate(layers):
+        attn = getattr(layer, "self_attn", None)
+        mlp = getattr(layer, "mlp", None)
+        if attn is None or mlp is None:
+            raise RuntimeError(f"Gemma 4 decoder layer {index} is incomplete")
+        for section, components, owner in (
+            ("self_attn", ("q_proj", "k_proj", "v_proj", "o_proj"), attn),
+            ("mlp", ("gate_proj", "up_proj", "down_proj"), mlp),
+        ):
+            for component in components:
+                if component not in selected:
+                    continue
+                qualified = f"{layer_prefix}.{index}.{section}.{component}"
+                if qualified not in registered:
+                    if (
+                        component == "v_proj"
+                        and bool(getattr(attn, "use_alternative_attention", False))
+                        and getattr(attn, "v_proj", None) is None
+                    ):
+                        continue  # The released 31B global attention has K == V.
+                    raise RuntimeError(f"Missing required Gemma 4 text LoRA module: {qualified}")
+                if registered[qualified] is not getattr(owner, component, None):
+                    raise RuntimeError(f"Incorrect Gemma 4 LoRA target module: {qualified}")
+                names.append(qualified)
+                counts[component] += 1
     if any(count == 0 for count in counts.values()):
-        raise RuntimeError(f"Model lacks required Gemma 4 attention projections: {counts}")
-    if len(set(counts.values())) != 1:
-        raise RuntimeError(f"Unequal attention module counts across LoRA targets: {counts}")
+        raise RuntimeError(f"No text decoder LoRA projections found: {counts}")
+    for name, count in counts.items():
+        if name != "v_proj" and count != len(layers):
+            raise RuntimeError(f"Incomplete Gemma 4 text LoRA coverage: {counts}")
+    return names, counts
+
+
+def validate_lora_targets(model, targets: tuple[str, ...] = LORA_TARGETS) -> dict[str, int]:
+    """Validate the actual text decoder and conditional K==V weight tying."""
+    _, counts = select_lora_target_modules(model, targets)
     return counts
 
 
@@ -112,7 +156,7 @@ def inject_lora_and_assert_step_zero(decider, prompt_ids, *, rank: int, alpha: i
     if rank < 1 or alpha < 1:
         raise ValueError("LoRA rank/alpha must be positive")
     baseline = original_logits(decider, prompt_ids)
-    target_counts = validate_lora_targets(decider.base)
+    target_module_names, target_counts = select_lora_target_modules(decider.base)
     # Original 31B merged backbone stays frozen; do not inject the old
     # release adapter/ again (it is already merged in the HF weights).
     for parameter in decider.model.parameters():
@@ -120,7 +164,7 @@ def inject_lora_and_assert_step_zero(decider, prompt_ids, *, rank: int, alpha: i
     config = LoraConfig(
         r=rank,
         lora_alpha=alpha,
-        target_modules=list(LORA_TARGETS),
+        target_modules=target_module_names,
         lora_dropout=0.0,
         bias="none",
     )

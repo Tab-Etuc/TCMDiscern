@@ -21,6 +21,8 @@ bash run_h200.sh full --confirm-full
 
 若 Hugging Face 對模型設有存取同意，必須先用同一使用者完成模型存取授權，並在 H200 端執行 `hf auth login`；部署腳本不保存金鑰至程式庫。
 
+**GH200 Driver 550 / CUDA 12.8 實測注意力後端注意事項：** PyTorch 2.11 的預設 SDPA 在人工合成前綴不變性測試中，可能出現前段 hidden state 隨後綴改變的異常（`Gemma 4 attention backend changed earlier hidden states`）。現已改為載入模型一次後先測試預設後端，若失敗則在**同一個已載入模型**中切換 `eager` 並重新嚴格測試；只有真的通過才繼續推論／LoRA。病名／病證推論亦與證型及訓練共用這套檢查，結果記錄 `attention_backend`。由於 31B Gemma 4 全域層部分共用 K/V，LoRA 目標逐層依實際投影驗證、限定文字 decoder，避開 vision tower。已下載模型和 CPU 資產保留；Pilot 中斷後可原命令續跑。此修正仍須經目標 GH200 重新測試驗證。
+
 ## 2. 目錄及架構
 
 | 位置 | 責任 |
