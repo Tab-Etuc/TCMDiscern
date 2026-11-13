@@ -14,7 +14,7 @@ bash run_h200.sh full --confirm-full
 ```
 
 - `prepare`：自動建立 Python 3.12 開發虛擬環境（使用 frozen `uv.lock`），僅下載官方 TCM-SD Train/Dev，重建 **43,180 筆 Group-aware OOF BM25**、**5,486 筆 Dev BM25**、S1 單正解、S2/S3/S4 多正解 K=16，以及 Dev K=5/16/17，最後全部逐筆核對。已存在的私有資產會重用，但驗收仍需重新檢查；不通過立即停止。沒有下載、訓練 31B 模型。
-- `pilot`：準備資料並安裝 Jeff v1.3.0、官方 CUDA 13.0 版依賴及 PEFT 0.21.1。使用官方釘選 revision 的模型權重、頭部和 Tokenizer；依序執行原始模型 2 筆 Dev、安全注意力檢查、LoRA Step-0 一致性、1,024 次病例曝光的 16-update Pilot（accumulation 64）。無法通過 GPU/版本/梯度/續訓驗證即停止。
+- `pilot`：依 GPU 驅動版本自動選擇獨立 CUDA 環境：Driver R580+ 使用 Jeff 官方測試的 torch 2.13.0 / CUDA 13.0；Driver R525～R579 使用 PyTorch 2.11.0+cu128 / CUDA 12.8（含 Linux ARM64 GH200 wheel，符合 Jeff v1.3.0 的 torch>=2.11 需求）。兩條路線均在專案 `.venv` 內安裝，不更動主機的 Python/PyTorch，且在下載模型前先驗證真實 CUDA BF16 矩陣運算。之後安裝 Jeff v1.3.0 與 PEFT 0.21.1，下載釘選模型權重與 Head，執行 2 筆 Dev、注意力與 Step-0 一致性、1,024 次病例曝光的 16-update Pilot（accumulation 64）。CUDA 12.8 路線屬相容性測試配置，結果應註明與上游 CUDA 13.0 的版本差異。
 - `full --confirm-full`：先確保 Pilot 完成；跑完正式 Zero-shot 5,486 Dev；執行 9 組 S1/S2/S3 × 3 Seeds × 2 Epoch、各 1,350 Updates；每組在 675 與 1350 Updates 的 checkpoint 對官方 Dev 完整推論。最後自動產生 `experiments/jeff_h200_dev_selection.json`，按三 Seed 平均 Accuracy 選方法和 Epoch、Macro-F1 平手判定。**正式 Test 保留封存，不自動測試。**
 - `full --confirm-full --include-exploratory`：額外增加 S4、S3 的 Train OOF 困難病例 ×2 加權，各單 Seed、1 Epoch（探索性比較）。
 - `status`：只讀階段狀態；`plan`：列印所有方法與計算預算；`full --dry-run`：列印全部訓練／評估指令，不下載、不啟動 GPU、不寫資料。這三個模式可在未安裝 PyTorch 的機器使用。

@@ -49,7 +49,7 @@ bash run_h200.sh status                  # 顯示每個階段狀態；中斷後�
 - **資料處理安全**：Train／Dev 自動取得；正式 Test 不下載、不用於模型選擇。每一筆候選／訓練資料都重新驗證，歷史 `experiments/` 快照不覆寫。
 - **可續跑**：階段狀態在 `data/h200/state/`，完整日誌在 `data/h200/logs/`，可續訓 Adapter／Head／Optimizer／Scheduler 在 `data/runs/`。
 - **成果**：完整 Dev 逐次評估寫入私有 `data/jeff/` 和公開彙整 `experiments/`，最終方法選擇寫入 `experiments/jeff_h200_dev_selection.json`。**正式 Test 必須等研究決策完全凍結後另外執行**。
-- **環境**：H200 Linux、可用的 NVIDIA Driver（須支援 CUDA 13）、Git、curl 和模型官方下載權限；若 Hugging Face 採 gated 存取，先在該主機登入 `hf auth login` 或設定個人 Token。可重跑安裝並續傳模型下載，實際 GPU 記憶體仍由 Pilot 驗證。
+- **環境**：H200／GH200 Linux、NVIDIA Driver R580+ 走官方 CUDA 13.0 路線；R525～R579 改走獨立 torch 2.11.0+cu128／CUDA 12.8 相容路線（適用 ARM64，但須通過 GPU BF16、Jeff Step-0 與 LoRA Pilot）。需 Git、curl 與模型官方下載權限；若 Hugging Face 採 gated 存取，先在主機登入 `hf auth login`。可重跑安裝並續傳模型下載，實際 GPU 記憶體由 Pilot 驗證。
 - **資料授權**：TCM-SD 為 CC BY-NC-SA 4.0，僅依其授權用於研究；病歷、模型權重和運行紀錄均在 Git 忽略的 `data/`。
 - **單鍵操作與研究設計**：[H200 執行手冊](docs/h200_one_click.md)、[實驗預先定稿](docs/jeff_experiment_preregistration_2026-11-12.md)。
 

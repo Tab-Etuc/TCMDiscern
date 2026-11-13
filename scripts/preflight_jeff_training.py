@@ -28,12 +28,39 @@ from tcmdiscern.jeff_config import (
 
 ROOT = Path(__file__).resolve().parents[1]
 PINNED = {
-    "torch": "2.13.0",
+    "torch": "2.13.0",  # Original Jeff CUDA 13.0 tested release.
     "transformers": "5.17.0",
     "safetensors": "0.8.0",
     "huggingface_hub": "1.32.0",
     "accelerate": "1.15.0",
 }
+# The CUDA 12.8 wheel supports ARM64 and satisfies Jeff v1.3.0 torch>=2.11.
+# It is a compatibility profile, validated on each H200 by a real BF16 GEMM
+# and the strict published-Head zero-step / gradient pilot.
+CUDA12_TORCH = "2.11.0+cu128"
+
+
+def torch_for_driver(driver_version: str) -> tuple[str, str]:
+    """Select the supported project-local wheel and CUDA runtime for a driver."""
+    major = int(driver_version.split(".", 1)[0])
+    if major >= 580:
+        return PINNED["torch"], "13.0"
+    if major >= 525:
+        return CUDA12_TORCH, "12.8"
+    raise ValueError("CUDA 12.x requires NVIDIA driver R525 or newer")
+
+
+def torch_cuda_runtime() -> dict:
+    """Report the actual imported runtime, rather than trusting wheel metadata."""
+    try:
+        import torch
+    except ImportError:
+        return {"cuda": None, "available": False, "bf16": False}
+    return {
+        "cuda": torch.version.cuda,
+        "available": torch.cuda.is_available(),
+        "bf16": torch.cuda.is_available() and torch.cuda.is_bf16_supported(),
+    }
 
 
 def installed_versions() -> dict[str, str | None]:
@@ -131,8 +158,22 @@ def preflight(folder: Path) -> dict:
         blockers.append("NVIDIA GPU unavailable")
     elif not any(d["memory_mib"] >= 81920 for d in devices):
         blockers.append("No GPU with >=80GiB VRAM for 31B bf16 inference")
-    if versions["torch"] != PINNED["torch"]:
-        blockers.append("PyTorch does not match upstream tested version")
+    selected_torch, expected_cuda = PINNED["torch"], "13.0"
+    if devices:
+        try:
+            # CUDA driver version is common across devices on the same host.
+            selected_torch, expected_cuda = torch_for_driver(devices[0]["driver_version"])
+        except ValueError as exc:
+            blockers.append(str(exc))
+    if versions["torch"] is None or versions["torch"].split("+")[0] != selected_torch.split("+")[0]:
+        blockers.append(f"PyTorch must match selected CUDA profile: {selected_torch}")
+    if selected_torch == CUDA12_TORCH and versions["torch"] != CUDA12_TORCH:
+        blockers.append(f"CUDA 12.8 wheel required: {CUDA12_TORCH}")
+    runtime = torch_cuda_runtime()
+    if runtime["cuda"] != expected_cuda:
+        blockers.append(f"PyTorch CUDA runtime must be {expected_cuda}")
+    if not runtime["available"] or not runtime["bf16"]:
+        blockers.append("Actual CUDA BF16 device execution unavailable")
     if versions["transformers"] != PINNED["transformers"]:
         blockers.append("Transformers does not match upstream tested version")
     if versions["peft"] != "0.21.1":
@@ -161,6 +202,12 @@ def preflight(folder: Path) -> dict:
             "A local multi-step trainer is present but has not been validated on the released 31B Jeff weights or H200.",
         ]
     )
+    if selected_torch == CUDA12_TORCH:
+        warnings.append(
+            "CUDA 12.8 / torch 2.11.0 is a driver-compatible Jeff 1.3 profile; "
+            "upstream benchmark numbers used torch 2.13.0 CUDA 13.0. "
+            "BF16 smoke and released-Head Step-0 comparison must pass before training."
+        )
     return {
         "study": "TCMDiscern",
         "model": JEFF_MODEL_ID,
@@ -171,6 +218,9 @@ def preflight(folder: Path) -> dict:
         "gpus": devices,
         "disk_free_gib": disk_free_gib,
         "installed_versions": versions,
+        "torch_cuda_runtime": runtime,
+        "selected_torch_version": selected_torch,
+        "selected_cuda_runtime": expected_cuda,
         "upstream_versions": PINNED,
         "domain_training_peft_version": "0.21.1",
         "checkpoint": model,

@@ -136,10 +136,20 @@ if ! nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | awk '$1
   echo "No GPU has at least 80 GiB VRAM; refuse to download a 31B model." >&2
   exit 1
 fi
-if ! nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits | awk -F. '$1 >= 580 { ok=1 } END { exit !ok }'; then
-  echo "The pinned CUDA 13.0 environment requires an NVIDIA R580+ driver." >&2
+# Select a driver-compatible, project-local torch wheel; the host/container
+# PyTorch installation is never modified. NVIDIA CUDA 12.x minor-version
+# compatibility permits driver R525+; actual BF16 execution is smoke-tested
+# before the 64 GB Jeff checkpoint is downloaded.
+DRIVER_MAJOR="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits | awk -F. 'NR == 1 { print $1 }')"
+if [ "${DRIVER_MAJOR:-0}" -ge 580 ]; then
+  TORCH_PROFILE="cu130"
+elif [ "${DRIVER_MAJOR:-0}" -ge 525 ]; then
+  TORCH_PROFILE="cu128"
+else
+  echo "NVIDIA driver is too old for CUDA 12.x (requires at least R525)." >&2
   exit 1
 fi
+echo "[GPU] NVIDIA driver R$DRIVER_MAJOR; selecting local PyTorch $TORCH_PROFILE"
 
 JEFF_TAG="$("$PY" -c 'from tcmdiscern.jeff_config import JEFF_UPSTREAM_CODE_TAG; print(JEFF_UPSTREAM_CODE_TAG)')"
 MODEL_REVISION="$("$PY" -c 'from tcmdiscern.jeff_config import JEFF_MODEL_REVISION; print(JEFF_MODEL_REVISION)')"
@@ -158,9 +168,24 @@ if [ "$INSTALLED_JEFF_TAG" != "$JEFF_TAG" ]; then
   echo "Existing Jeff source is not the pinned release $JEFF_TAG: $JEFF_SRC" >&2
   exit 1
 fi
-echo "[SETUP] Installing original Jeff CUDA 13.0 dependencies and PEFT"
-"$UV_BIN" pip install --python "$PY" -r "$JEFF_SRC/requirements.txt" 'peft==0.21.1'
+if [ "$TORCH_PROFILE" = "cu128" ]; then
+  echo "[SETUP] Installing isolated torch 2.11.0 CUDA 12.8 (ARM64-capable) and Jeff dependencies"
+  # Jeff 1.3 declares torch>=2.11. The official CUDA 12.8 wheel meets that
+  # minimum without requiring the newer R580 host driver.
+  "$UV_BIN" pip install --python "$PY" \
+    --extra-index-url https://download.pytorch.org/whl/cu128 \
+    'torch==2.11.0+cu128' 'transformers==5.17.0' \
+    'safetensors==0.8.0' 'huggingface_hub==1.32.0' \
+    'accelerate==1.15.0' 'peft==0.21.1'
+else
+  echo "[SETUP] Installing official Jeff CUDA 13.0 dependencies and PEFT"
+  "$UV_BIN" pip install --python "$PY" -r "$JEFF_SRC/requirements.txt" 'peft==0.21.1'
+fi
 "$UV_BIN" pip install --python "$PY" --no-deps -e "$JEFF_SRC"
+
+# Catch CUDA runtime, driver-minor-compatibility and Hopper BF16 failures
+# before downloading ~64 GB of weights. This checks real device execution.
+"$PY" -c 'import torch; assert torch.cuda.is_available() and torch.cuda.is_bf16_supported(), "Hopper CUDA BF16 not available"; a=torch.ones((32,32), device="cuda", dtype=torch.bfloat16); assert torch.isfinite(a@a).all().item(), "BF16 GEMM failed"; torch.cuda.synchronize(); print(f"[GPU] BF16 GEMM PASS: torch={torch.__version__}, CUDA={torch.version.cuda}")'
 
 MODEL_DIR="${H200_MODEL_DIR:-$ROOT/data/models/Jeff-1.1-Large}"
 ARG_LIST=("$@")
