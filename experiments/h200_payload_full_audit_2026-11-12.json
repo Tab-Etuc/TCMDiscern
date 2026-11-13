@@ -1,0 +1,193 @@
+{
+  "status": "FULL_RECORD_SOURCE_AND_PAYLOAD_AUDIT_PASS",
+  "patient_text_exported": false,
+  "official_data": {
+    "train": {
+      "rows_scanned": 43180,
+      "schema_all_rows_checked": true,
+      "missing_input_fields": {},
+      "empty_input_values": {
+        "chief_complaint": 14,
+        "detection": 3
+      },
+      "nonstring_values": {},
+      "unicode_warnings": {
+        "unexpected_controls": 8
+      },
+      "unexpected_schema_fields_present_n": {},
+      "gold_literal_in_evidence_n": 1,
+      "input_length_chars": {
+        "median": 385,
+        "p99": 1188,
+        "max": 3762
+      },
+      "unique_evidence_groups": 38599,
+      "conflicting_evidence_groups": 252
+    },
+    "dev": {
+      "rows_scanned": 5486,
+      "schema_all_rows_checked": true,
+      "missing_input_fields": {},
+      "empty_input_values": {
+        "chief_complaint": 3,
+        "detection": 1
+      },
+      "nonstring_values": {},
+      "unicode_warnings": {
+        "unexpected_controls": 1
+      },
+      "unexpected_schema_fields_present_n": {},
+      "gold_literal_in_evidence_n": 0,
+      "input_length_chars": {
+        "median": 395,
+        "p99": 1471,
+        "max": 3762
+      },
+      "unique_evidence_groups": 5139,
+      "conflicting_evidence_groups": 29
+    },
+    "test": {
+      "rows_scanned": 5486,
+      "schema_all_rows_checked": true,
+      "missing_input_fields": {},
+      "empty_input_values": {
+        "chief_complaint": 2
+      },
+      "nonstring_values": {},
+      "unicode_warnings": {},
+      "unexpected_schema_fields_present_n": {},
+      "gold_literal_in_evidence_n": "SEALED_TEST_NO_REPORT",
+      "input_length_chars": {
+        "median": 393,
+        "p99": 1235,
+        "max": 2728
+      },
+      "unique_evidence_groups": "SEALED_TEST_NO_REPORT",
+      "conflicting_evidence_groups": "SEALED_TEST_NO_REPORT"
+    }
+  },
+  "syndrome_vocab_labels": 148,
+  "knowledge_rows": 1027,
+  "active_grouped_oof_rows_checked": 43180,
+  "s1_train": {
+    "file": "data/jeff/train_oof_k16_epoch02.jsonl",
+    "cases": 43180,
+    "k_distribution": {
+      "16": 43180
+    },
+    "gold_position_distribution": {
+      "0": 2731,
+      "1": 2680,
+      "2": 2705,
+      "3": 2708,
+      "4": 2673,
+      "5": 2700,
+      "6": 2687,
+      "7": 2724,
+      "8": 2677,
+      "9": 2681,
+      "10": 2658,
+      "11": 2693,
+      "12": 2718,
+      "13": 2722,
+      "14": 2715,
+      "15": 2708
+    },
+    "original_clinical_text_containing_gold_literal": 1,
+    "jeff_user_json_char_median": 1127,
+    "jeff_user_json_char_p99": 1929,
+    "jeff_user_json_char_max": 4504,
+    "all_cases_retained": true,
+    "train_targets_outside_jeff_prompt": true,
+    "gold_excluded_from_hard_negatives": true,
+    "alternative_gold_excluded_from_hard_negatives": true,
+    "prompt_schema": "Jeff direct-options-v1 / SemIf"
+  },
+  "s2_s3_s4_train": {
+    "total_verified_questions": 43180,
+    "total_original_train_cases": 43180,
+    "original_train_cases_removed": 0,
+    "observed_positive_counts_by_original_row": {
+      "1": 42360,
+      "2": 816,
+      "3": 4
+    },
+    "original_rows_with_more_than_one_observed_gold": 820,
+    "observed_positive_slot_counts": {
+      "0": 2692,
+      "1": 2724,
+      "2": 2711,
+      "3": 2710,
+      "4": 2752,
+      "5": 2732,
+      "6": 2754,
+      "7": 2735,
+      "8": 2710,
+      "9": 2816,
+      "10": 2735,
+      "11": 2730,
+      "12": 2843,
+      "13": 2869,
+      "14": 2790,
+      "15": 2701
+    },
+    "original_gold_position_counts": {
+      "0": 2646,
+      "1": 2671,
+      "2": 2654,
+      "3": 2651,
+      "4": 2703,
+      "5": 2680,
+      "6": 2694,
+      "7": 2690,
+      "8": 2658,
+      "9": 2767,
+      "10": 2697,
+      "11": 2675,
+      "12": 2788,
+      "13": 2815,
+      "14": 2738,
+      "15": 2653
+    },
+    "all_original_observed_labels_present": true,
+    "same_candidates_for_s2_s3_s4": true,
+    "train_gold_not_in_jeff_prompt": true,
+    "dev_test_loaded": false
+  },
+  "dev_retrieval_rows_checked": 5486,
+  "dev_prompts": {
+    "dev_k05.jsonl": {
+      "all_rows_matched_official_evidence_and_bm25": true,
+      "rows": 5486
+    },
+    "dev_k16.jsonl": {
+      "all_rows_matched_official_evidence_and_bm25": true,
+      "rows": 5486
+    },
+    "dev_k17.jsonl": {
+      "all_rows_matched_official_evidence_and_bm25": true,
+      "rows": 5486
+    }
+  },
+  "transfer_required": [
+    "data/jeff/train_oof_k16_epoch02.jsonl",
+    "data/jeff/train_oof_multipos_k16_epoch03.jsonl",
+    "data/tcm-sd/dev.json",
+    "data/candidates/bm25_dev.jsonl",
+    "data/jeff/dev_k16.jsonl"
+  ],
+  "transfer_only_if_rebuilding_provenance": [
+    "data/tcm-sd/train.json",
+    "data/candidates/bm25_train_text_grouped.jsonl",
+    "data/tcm-sd/syndrome_vocab.txt"
+  ],
+  "do_not_transfer_for_training": [
+    "data/tcm-sd/test.json",
+    "data/secondary/",
+    "data/TCM_SD_train_dev.zip",
+    "data/candidates/bm25_train_oof.jsonl",
+    "data/jeff/train_oof_k16_epoch00.jsonl",
+    "data/jeff/train_oof_k16_epoch01.jsonl"
+  ],
+  "validation_limitation": "Every row structurally and provenance-validated; physician clinical truth and semantic near-duplicate labels not independently adjudicated"
+}

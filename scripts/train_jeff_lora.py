@@ -73,6 +73,9 @@ def load_original_checkpoint(model_dir: Path):
         raise ValueError("Jeff-1.1-Large must use its released causal attention")
     if model.decider.max_tokens != JEFF_MAX_INPUT_TOKENS:
         raise ValueError("Unexpected released Jeff context length")
+    from tcmdiscern.jeff_attention import audit_released_jeff_attention
+
+    audit_released_jeff_attention(model.decider)
     return model
 
 

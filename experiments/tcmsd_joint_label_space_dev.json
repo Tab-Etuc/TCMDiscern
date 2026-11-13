@@ -1,0 +1,146 @@
+{
+  "dataset": "TCM-SD",
+  "splits": {
+    "train": 43180,
+    "dev": 5486
+  },
+  "evaluation_unit": "official original data row",
+  "test_used": false,
+  "label_spaces": {
+    "disease": {
+      "distribution": {
+        "train_classes": 403,
+        "dev_classes": 277,
+        "train_dev_classes": 433,
+        "dev_unseen_class_count": 30,
+        "dev_unseen_rows": 35,
+        "train_singleton_classes": 89,
+        "train_support_le_5_classes": 197,
+        "train_support_le_10_classes": 242,
+        "train_support_le_20_classes": 284,
+        "train_top10_class_coverage_rows": 0.491593330245484,
+        "train_top1_class_coverage_rows": 0.1080129689671144,
+        "dev_class_count_le_10_train_support": 246
+      },
+      "bm25": {
+        "accuracy_top1": 0.6073641997812614,
+        "macro_f1": 0.23137314323686367,
+        "oracle_at_k": {
+          "1": {
+            "hits": 3332,
+            "rate": 0.6073641997812614
+          },
+          "5": {
+            "hits": 5125,
+            "rate": 0.9341961356179366
+          },
+          "16": {
+            "hits": 5346,
+            "rate": 0.9744804958075101
+          },
+          "32": {
+            "hits": 5404,
+            "rate": 0.985052861830113
+          },
+          "50": {
+            "hits": 5422,
+            "rate": 0.988333940940576
+          }
+        },
+        "n": 5486,
+        "label_classes": 433,
+        "unseen_dev_gold_absent_from_train_index": 35
+      }
+    },
+    "pair": {
+      "distribution": {
+        "train_classes": 1782,
+        "dev_classes": 824,
+        "train_dev_classes": 1937,
+        "dev_unseen_class_count": 155,
+        "dev_unseen_rows": 167,
+        "train_singleton_classes": 748,
+        "train_support_le_5_classes": 1281,
+        "train_support_le_10_classes": 1444,
+        "train_support_le_20_classes": 1574,
+        "train_top10_class_coverage_rows": 0.3592172301991663,
+        "train_top1_class_coverage_rows": 0.05775822139879574,
+        "dev_class_count_le_10_train_support": 707
+      },
+      "bm25": {
+        "accuracy_top1": 0.5260663507109005,
+        "macro_f1": 0.11992505397793517,
+        "oracle_at_k": {
+          "1": {
+            "hits": 2886,
+            "rate": 0.5260663507109005
+          },
+          "5": {
+            "hits": 4621,
+            "rate": 0.8423259205249727
+          },
+          "16": {
+            "hits": 4998,
+            "rate": 0.9110462996718921
+          },
+          "32": {
+            "hits": 5114,
+            "rate": 0.932191031717098
+          },
+          "50": {
+            "hits": 5169,
+            "rate": 0.9422165512212906
+          }
+        },
+        "n": 5486,
+        "label_classes": 1937,
+        "unseen_dev_gold_absent_from_train_index": 167
+      }
+    },
+    "syndrome": {
+      "distribution": {
+        "train_classes": 148,
+        "dev_classes": 148,
+        "train_dev_classes": 148,
+        "dev_unseen_class_count": 0,
+        "dev_unseen_rows": 0,
+        "train_singleton_classes": 0,
+        "train_support_le_5_classes": 0,
+        "train_support_le_10_classes": 14,
+        "train_support_le_20_classes": 40,
+        "train_top10_class_coverage_rows": 0.6986336266790181,
+        "train_top1_class_coverage_rows": 0.17091245947197778,
+        "dev_class_count_le_10_train_support": 28
+      },
+      "bm25": {
+        "accuracy_top1": 0.7958439664600802,
+        "macro_f1": 0.5484957707533203,
+        "oracle_at_k": {
+          "1": {
+            "hits": 4366,
+            "rate": 0.7958439664600802
+          },
+          "5": {
+            "hits": 5237,
+            "rate": 0.9546117389719285
+          },
+          "16": {
+            "hits": 5409,
+            "rate": 0.9859642726941306
+          },
+          "32": {
+            "hits": 5450,
+            "rate": 0.993437841779074
+          },
+          "50": {
+            "hits": 5469,
+            "rate": 0.9969012030623405
+          }
+        },
+        "n": 5486,
+        "label_classes": 148,
+        "unseen_dev_gold_absent_from_train_index": 0
+      }
+    }
+  }
+}

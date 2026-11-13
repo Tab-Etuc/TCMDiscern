@@ -1,0 +1,60 @@
+{
+  "status": "EXPLORATORY_CPU_ONLY_KNOWLEDGE_FIXED_TOP16_DEV_PROBE",
+  "official_train_n": 43180,
+  "official_dev_n": 5486,
+  "official_classes": 148,
+  "base_retrieval": "frozen case BM25, original full Train index",
+  "knowledge_retrieval": "148 exact official syndrome definitions and typical performances; CaseBM25 k1=1.5,b=0.75,min_df=1, name+Definition+Typical_performance",
+  "knowledge_definitions_covered": 148,
+  "frozen_candidate_width": 16,
+  "rerank_scope": "the exact frozen BM25 Top16 labels, no candidate replacement",
+  "methods": {
+    "frozen_case_bm25_top1": {
+      "top1_correct": 4366,
+      "top1": 0.7958439664600802,
+      "macro_f1_148": 0.5484957707533203,
+      "unique_predicted_classes": 141,
+      "low_support_under20_correct": 36,
+      "low_support_under20_dev_n": 89
+    },
+    "knowledge_bm25_global_top1": {
+      "top1_correct": 120,
+      "top1": 0.02187386073641998,
+      "macro_f1_148": 0.014759749515934423,
+      "unique_predicted_classes": 93,
+      "low_support_under20_correct": 4,
+      "low_support_under20_dev_n": 89
+    },
+    "knowledge_bm25_within_frozen_top16": {
+      "top1_correct": 418,
+      "top1": 0.07619394823186293,
+      "macro_f1_148": 0.057964874306775827,
+      "unique_predicted_classes": 121,
+      "low_support_under20_correct": 6,
+      "low_support_under20_dev_n": 89
+    },
+    "rrf60_within_frozen_top16": {
+      "top1_correct": 832,
+      "top1": 0.15165876777251186,
+      "macro_f1_148": 0.1302800460280926,
+      "unique_predicted_classes": 118,
+      "low_support_under20_correct": 15,
+      "low_support_under20_dev_n": 89
+    }
+  },
+  "baseline_breakdown": {
+    "bm25_rank1_gold": 4366,
+    "bm25_rank2_to16_gold": 1043,
+    "bm25_gold_missing_top16": 77,
+    "missing_gold_recovered_by_independent_knowledge_top16": 18,
+    "knowledge_top1_within_original_16_hits_gold": 418,
+    "knowledge_vs_bm25_top1_disagreed": 5080,
+    "knowledge_reorder_rescued": 99,
+    "knowledge_reorder_broke": 4047
+  },
+  "gold_literal_appears_in_clinical_source_n": 0,
+  "selection_note": "Exploratory Dev comparison only; no model or K selected from it",
+  "test_opened": false,
+  "jeff_model_loaded": false,
+  "original_training_artifacts_modified": false
+}

@@ -27,6 +27,8 @@ hf download jgeuter/Jeff-1.1-Large \
 
 上面為**待在 H200 執行的指令**，目前尚未執行，也沒有對模型權重產生任何訓練。
 
+**正式 H200 訓練超參數、完整 Epoch 和三 Seed 命令以 [2026-11-12 預先定稿實驗規格](jeff_experiment_preregistration_2026-11-12.md) 為優先；本文的 400 updates 僅為診斷／小規模示範。**
+
 ## 1. 執行順序：先官方 Zero-shot
 
 ```bash
@@ -107,3 +109,43 @@ python -m scripts.run_jeff_zeroshot \
 **額外修正：** Checkpoint Manifest 的原版模型欄位統一為 `model_revision`，與可續訓檔的實際寫入格式一致；新評分端在載入模型前核對全量 Train、S1～S4 方法與正確的資料來源，避免正確訓練的 Adapter 因欄位不同而被拒絕。
 
 **停止條件：** 若發布版 Head 缺檔、模型載入不完整、Jeff v1.3.0 parity 未通過、GPU OOM、LoRA／Head 無梯度、Checkpoints 重載結果不同，立即停止；不能宣稱完成領域微調或使用現有 BM25 79.58% 充當 Jeff 成績。
+
+## 4. H200 前已補齊的 K=1～35 評估入口（2026-11-12）
+
+在本機已用完整官方 Dev 5,486 筆，對全部 K=1～35 做**合成 BM25 rank-1 logits** 的評估接線檢查，全部精確重現原 BM25 Top-1 = 4,366/5,486（79.5844%）和 Macro-F1 = 0.54849577。這**不是 Jeff 成績**，僅驗證候選對位、官方標籤、分類分母與 Macro-F1 計算。
+
+- `scripts/run_jeff_kgrid.py` 支援 K=1～35，K=1 直接採 BM25；K=2～16 用原生 Decision Head；K=17～35 用官方 `decider.decide_wide` 分組（例如 K=17 為 3 次前向）。
+- 在載入 31B 模型前檢查完整官方 Dev、全部候選順序與既有輸出檔；輸出受不覆寫政策保護。部分樣本僅作 smoke，不報正式診斷分數。
+- K>16 採用上游分組推論回傳的**候選對應 log-probabilities**，不可將其冒稱為一次前向的原始 16-slot logits。
+- 目前 K=1～35 的**真實 Jeff GPU 完整 Dev 分數仍全部待測**。
+
+本機驗證：
+
+```bash
+uv run python -m scripts.run_jeff_kgrid --dry-run --all-ks
+uv run pytest -q
+uv run ruff check .
+uv run ruff format --check .
+```
+
+H200 範例（先小樣本再正式評估）：
+
+```bash
+python -m scripts.run_jeff_kgrid --model-dir /models/Jeff-1.1-Large --ks 5 16 17 35 --limit 2
+python -m scripts.run_jeff_kgrid --model-dir /models/Jeff-1.1-Large --ks 5 16 17 35 --limit 5486
+# 需要逐一跑全部 K 才用 --all-ks；這會重複執行大量 31B 前向，務必事先估算 GPU 成本。
+```
+
+**仍需在 H200 首次訓練之前驗證的阻擋項目：** 上游 Gemma 4 31B 模型／PEFT 實際載入、Step-0 與官方全 16 logits 比對、BF16 backward、非零 LoRA/Head 梯度、Optimizer／Checkpoint 續訓一致性及顯存峰值。必須先通過 1 update，再決定完整訓練的 epoch、seed、warmup、checkpoint 評估頻率與等成本 S1～S4 比較；任何 Test 成績都不得用於選 K 或選模。
+
+## 5. 論文及全量輸入資料再次審查（2026-11-12）
+
+新增 [完整資料和論文比對報告](h200_final_data_and_paper_review_2026-11-12.md)，包括官方 Train/Dev 每筆證型、K=16 實際訓練輸入、Dev 預產 Prompt、已知 9 個 U+007F 主訴控制字元及原文實驗設定差異。**H200 訓練前先在目標主機實際執行：**
+
+```bash
+python -m scripts.audit_h200_payload --check-only
+```
+
+此命令預設**不開啟 Test**，僅從 Train/Dev 正式檔重新核對所有輸入。另已將 **合成前綴與完整前綴的 hidden states 因果一致性檢查**加在真實 Jeff 模型載入入口（`train_jeff_lora.py`、`run_jeff_zeroshot.py`、`run_jeff_kgrid.py`）中：H200 如遇到非因果注意力、輸入超長或 Step-0 logits 差異，立即中止。CPU 單元測試僅驗證檢測器能識別不一致；真正 BF16/GPU 注意力行為仍需 H200 實跑。
+
+**可用於投稿的 BM25 輸入消融**：主訴＋病史 Top-1 **78.673%**、Macro-F1 **0.532755**；再加入四診 Top-1 **79.584%**、Macro-F1 **0.548496**，使用完整官方 Dev，結果另存 `experiments/bm25_chief_history_vs_four_diagnoses_2026-11-12.json`。此為 BM25 對照，還不是 Jeff 改善成績。

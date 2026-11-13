@@ -1,0 +1,38 @@
+{
+  "n_cases": 5486,
+  "factorized_oracle16x16": 0.9644549763033176,
+  "factorized_oracle16x16_hits": 5291,
+  "train_pair_constrained_oracle16x16": 0.951148377688662,
+  "train_pair_constrained_oracle16x16_hits": 5218,
+  "unseen_pairs": 167,
+  "bm25_factorized_baselines": {
+    "unconstrained": {
+      "n_cases": 5486,
+      "label_classes": 1937,
+      "pair_top1": 0.5240612468100619,
+      "pair_macro_f1": 0.11992307339317793,
+      "disease_top1": 0.6073641997812614,
+      "syndrome_top1": 0.7958439664600802,
+      "model_forward_passes_per_case": 2,
+      "train_pair_constraint": false,
+      "predicted_train_unseen_pair_count": 17,
+      "gold_train_unseen_pair_count": 167,
+      "no_compatible_pair_fallback_count": 0
+    },
+    "train_constrained": {
+      "n_cases": 5486,
+      "label_classes": 1937,
+      "pair_top1": 0.525154939846883,
+      "pair_macro_f1": 0.11993781264546577,
+      "disease_top1": 0.6075464819540649,
+      "syndrome_top1": 0.7983959168793292,
+      "model_forward_passes_per_case": 2,
+      "train_pair_constraint": true,
+      "predicted_train_unseen_pair_count": 0,
+      "gold_train_unseen_pair_count": 167,
+      "no_compatible_pair_fallback_count": 0
+    }
+  },
+  "status": "FACTORIZED_BM25_DEV_ORACLE_AND_RANK_ONLY_BASELINES",
+  "gold_in_model_prompts": false
+}

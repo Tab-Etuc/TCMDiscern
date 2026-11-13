@@ -18,6 +18,12 @@ def main() -> None:
     parser.add_argument("--model-dir", required=True, type=Path)
     parser.add_argument("--method", required=True, choices=("s1", "s2", "s3", "s4"))
     parser.add_argument("--run-id", required=True)
+    parser.add_argument(
+        "--study-mode",
+        choices=("global", "conditioned", "pair", "disease16", "pair16"),
+    )
+    parser.add_argument("--pairwise-weight", type=float, default=0.0)
+    parser.add_argument("--pairwise-margin", type=float, default=0.2)
     parser.add_argument("--steps", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--accumulation", type=int, default=1)
@@ -30,6 +36,12 @@ def main() -> None:
     parser.add_argument("--clip-norm", type=float, default=1.0)
     parser.add_argument("--warmup-steps", type=int, default=0)
     parser.add_argument("--checkpoint-every", type=int, default=100)
+    parser.add_argument(
+        "--weighting",
+        choices=("uniform", "recoverable_oof_x2"),
+        default="uniform",
+        help="Exploratory Train-only OOF difficulty weighting; uniform is the primary protocol",
+    )
     parser.add_argument(
         "--resume",
         type=Path,

@@ -30,10 +30,12 @@ from .jeff_gpu_core import (
 )
 from .jeff_resume import restore_resume, save_resume
 from .jeff_schedule import (
+    checkpoint_due,
     epoch_batches,
     load_frozen_train,
     total_optimizer_steps,
 )
+from .jeff_weighting import WEIGHTING_CHOICES, load_train_oof_weights, normalized_batch_weights
 
 ROOT = Path(__file__).resolve().parents[2]
 TRAIN_FILE = {
@@ -42,12 +44,29 @@ TRAIN_FILE = {
     "s3": "train_oof_multipos_k16_epoch03.jsonl",
     "s4": "train_oof_multipos_k16_epoch03.jsonl",
 }
+STUDY_FILE = {
+    "global": "train_global_k5.jsonl",
+    "conditioned": "train_conditioned_k5.jsonl",
+    "pair": "train_pair_k5.jsonl",
+    "disease16": "train_disease_k16.jsonl",
+    "pair16": "train_pair_k16.jsonl",
+}
 
 
-def load_train(method: str) -> list[dict]:
-    """Load original Train only, and check all 43,180 rows before any GPU use."""
+def load_train(method: str, *, study_mode: str | None = None) -> list[dict]:
+    """Validate all 43,180 official Train rows before allocating GPU memory."""
     if method not in TRAIN_FILE:
         raise ValueError("Unknown Jeff Loss")
+    if study_mode is not None:
+        if study_mode not in STUDY_FILE or method != "s1":
+            raise ValueError("Disease study requires a registered mode and single-label CE")
+        candidate_width = 16 if study_mode in {"disease16", "pair16"} else 5
+        folder = "joint16" if candidate_width == 16 else "disease_study"
+        return load_frozen_train(
+            ROOT / "data" / folder / STUDY_FILE[study_mode],
+            multi=False, expected_count=43180, expected_k=candidate_width,
+            study_mode=study_mode,
+        )
     return load_frozen_train(
         ROOT / "data/jeff" / TRAIN_FILE[method],
         multi=method != "s1",
@@ -57,11 +76,16 @@ def load_train(method: str) -> list[dict]:
 
 def fixed_run_settings(args: Any) -> dict:
     """Only these exactly matching settings may be resumed together."""
-    return {
+    study_mode = getattr(args, "study_mode", None)
+    source = (
+        STUDY_FILE[study_mode] if study_mode is not None else TRAIN_FILE[args.method]
+    )
+    settings = {
         "run_id": args.run_id,
         "loss_method": args.method,
         "model_revision": JEFF_MODEL_REVISION,
-        "source": TRAIN_FILE[args.method],
+        "source": source,
+        "example_weighting": getattr(args, "weighting", "uniform"),
         "official_train_case_count": 43180,
         "seed": args.seed,
         "rank": args.rank,
@@ -74,13 +98,35 @@ def fixed_run_settings(args: Any) -> dict:
         "weight_decay": args.weight_decay,
         "clip_norm": args.clip_norm,
         "warmup_steps": args.warmup_steps,
+        "checkpoint_every": getattr(args, "checkpoint_every", 100),
     }
+    if study_mode is not None:
+        settings.update({
+            "study_mode": study_mode,
+            "study_k": 16 if study_mode in {"disease16", "pair16"} else 5,
+            "pairwise_weight": getattr(args, "pairwise_weight", 0.0),
+            "pairwise_margin": getattr(args, "pairwise_margin", 0.2),
+        })
+    return settings
 
 
 def validate_run_args(args: Any) -> Path:
     """Check inputs before loading a 31B checkpoint or allocating GPU memory."""
     if args.method not in TRAIN_FILE:
         raise ValueError("Unknown fine-tuning method")
+    study_mode = getattr(args, "study_mode", None)
+    pairwise_weight = getattr(args, "pairwise_weight", 0.0)
+    pairwise_margin = getattr(args, "pairwise_margin", 0.2)
+    if study_mode is not None and (study_mode not in STUDY_FILE or args.method != "s1"):
+        raise ValueError("Invalid disease-study training task")
+    if not math.isfinite(pairwise_weight) or pairwise_weight < 0:
+        raise ValueError("pairwise_weight must be nonnegative and finite")
+    if not math.isfinite(pairwise_margin) or pairwise_margin < 0:
+        raise ValueError("pairwise_margin must be nonnegative and finite")
+    if pairwise_weight and study_mode != "conditioned":
+        raise ValueError("Pairwise hard negatives require disease-conditioned training")
+    if getattr(args, "weighting", "uniform") not in WEIGHTING_CHOICES:
+        raise ValueError("Unknown example-weighting method")
     if not isinstance(args.run_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", args.run_id):
         raise ValueError("Use an ASCII alphanumeric run_id with optional dash/underscore")
     for key in ("steps", "epochs", "accumulation", "rank", "alpha"):
@@ -181,7 +227,15 @@ def run(args: Any) -> dict:
     ):
         raise RuntimeError("Jeff-1.1-Large training requires an H200-class CUDA BF16 GPU")
 
-    rows = load_train(args.method)
+    study_mode = getattr(args, "study_mode", None)
+    rows = load_train(args.method, study_mode=study_mode)
+    weighting_scheme = getattr(args, "weighting", "uniform")
+    oof_weights = None
+    weighting_report = {"policy": "uniform", "original_rows_removed": 0}
+    if weighting_scheme != "uniform":
+        oof_weights, weighting_report = load_train_oof_weights(
+            rows, source=ROOT / "data/candidates/bm25_train_text_grouped.jsonl"
+        )
     model_dir = args.model_dir.expanduser().resolve(strict=True)
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -246,19 +300,31 @@ def run(args: Any) -> dict:
         ):
             # The last update in an epoch can be shorter than accumulation.
             # Divide by actual size to avoid silently underweighting those rows.
-            divisor = len(batch)
+            scales = normalized_batch_weights(
+                batch, scheme=weighting_scheme, oof_weights=oof_weights
+            )
             optimizer.zero_grad(set_to_none=True)
             decider.model.train()
             decider.head.train()
-            for item in batch:
+            for item, scale in zip(batch, scales, strict=True):
                 tokens = encode_prompt(decider.tokenizer, item["row"], JEFF_MAX_INPUT_TOKENS)
                 logits = decision_logits(
                     decider.forward, decider.head, tokens, device=decider.device
                 )
-                loss = supervised_loss(logits, item, args.method)
+                if study_mode is None:
+                    loss = supervised_loss(logits, item, args.method)
+                elif study_mode in {"disease16", "pair16"}:
+                    loss = supervised_loss(logits, item, "s1")
+                else:
+                    from .disease_study import study_torch_loss
+                    loss = study_torch_loss(
+                        logits[:5], item,
+                        pairwise_weight=getattr(args, "pairwise_weight", 0.0),
+                        margin=getattr(args, "pairwise_margin", 0.2),
+                    )
                 if not torch.isfinite(loss).item():
                     raise RuntimeError("Jeff Head returned a non-finite supervised Loss")
-                (loss / divisor).backward()
+                (loss * scale).backward()
                 progress["microbatches"] += 1
                 progress["input_tokens"] += len(tokens)
                 progress["sum_microbatch_loss"] += float(loss.detach().item())
@@ -280,9 +346,11 @@ def run(args: Any) -> dict:
                 progress["cursor_epoch"] = epoch
                 progress["cursor_offset"] = next_offset
 
-            if (
-                progress["global_update"] % args.checkpoint_every == 0
-                or progress["global_update"] == args.steps
+            if checkpoint_due(
+                update=progress["global_update"],
+                cadence=args.checkpoint_every,
+                at_epoch_end=next_offset == len(rows),
+                target_updates=args.steps,
             ):
                 # save_resume() includes optimizer, scheduler, both trainable
                 # modules and the *next* complete update boundary.
@@ -309,6 +377,7 @@ def run(args: Any) -> dict:
         "status": "JEFF_LORA_CHECKPOINT_SAVED_DEV_EVALUATION_PENDING",
         **progress,
         "source_count_verified": len(rows),
+        "study_mode": study_mode,
         "model_pretrained_head_reinitialized": False,
         "original_model_revision": JEFF_MODEL_REVISION,
         "step0_max_logit_abs_difference": initial_delta,
@@ -322,6 +391,7 @@ def run(args: Any) -> dict:
         "final_checkpoint": str(most_recent_checkpoint.relative_to(ROOT)),
         "optimizer_and_scheduler_saved": True,
         "train_gold_outside_prompts": True,
+        "weighting_audit": weighting_report,
         "dev_test_used": False,
     }
     with (run_dir / "summary.json").open("x", encoding="utf-8") as stream:

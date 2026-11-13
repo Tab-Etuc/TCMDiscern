@@ -1,7 +1,7 @@
-"""Download the official TCM-SD train/dev package and labeled test split.
+"""Download official TCM-SD Train/Dev without opening the sealed Test split.
 
-Source: https://github.com/Borororo/ZY-BERT (CC BY-NC-SA 4.0 for dataset).
-The publisher uses .json for newline-delimited JSON records.
+Only an explicit --include-test may download final-evaluation data.
+Source: https://github.com/Borororo/ZY-BERT (CC BY-NC-SA 4.0).
 """
 
 from __future__ import annotations
@@ -77,13 +77,19 @@ def main() -> None:
         type=Path,
         default=Path(__file__).resolve().parents[1] / "data",
     )
+    parser.add_argument(
+        "--include-test",
+        action="store_true",
+        help="Final sealed Test download only after freezing all Dev decisions",
+    )
     args = parser.parse_args()
     archive = args.data_root / "TCM_SD_train_dev.zip"
     target = args.data_root / "tcm-sd"
     download(f"{REPO}/TCM_SD_train_dev.zip", archive)
     unpack_selected(archive, target)
-    download(f"{REPO}/test.json", target / "test.json")
-    print(f"Official TCM-SD train/dev/test + knowledge + vocab: {target}")
+    if args.include_test:
+        download(f"{REPO}/test.json", target / "test.json")
+    print(f"Official TCM-SD {'train/dev/test' if args.include_test else 'train/dev'}: {target}")
 
 
 if __name__ == "__main__":

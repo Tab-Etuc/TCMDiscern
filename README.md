@@ -1,6 +1,57 @@
 # TCMDiscern
 
+## 2026-11-13 主研究：中醫證型、中醫病名與病證配對（全部 Top-16）
+
+研究基於官方 TCM-SD 43,180 Train／5,486 Dev／5,486 Test，保留所有原始列。三個主要任務為：
+- 證型辨識：148 類；對照 S1 one-hot CE、S2 Masked CE、S3 Set Loss。
+- 中醫病名辨識：Train 403 類，其中 242 類樣本數不超過 10 筆。
+- 病名－證型配對：Train 1,782 類，其中 1,444 類樣本數不超過 10 筆；比較直接 Pair Top-16 和病名、證型各 Top-16 的因子化聯合決策。
+
+已完成官方 Dev 的三任務 BM25 基準、Top-16 候選、病名及配對五折 Train OOF。**目前仍待 H200 真實 Jeff 訓練與完整推論。** 實驗規格以 [三任務 H200 實驗定稿](docs/joint_disease_syndrome_experiment_protocol.md) 為準。
+
+```bash
+# 證型 148 類，三種損失函數共 9 組完整訓練
+bash run_h200.sh prepare
+bash run_h200.sh pilot
+bash run_h200.sh screen --confirm-screen
+bash run_h200.sh full --confirm-full
+
+# 中醫病名、病名－證型，兩項任務共 6 組完整訓練
+bash run_joint16_h200.sh prepare
+bash run_joint16_h200.sh pilot
+bash run_joint16_h200.sh screen --confirm
+bash run_joint16_h200.sh full --confirm
+bash run_joint16_h200.sh test --confirm
+```
+
+## 先前 Top-5 已知病名探索流程
+
+先前另建立 [已知病名 Top-5 實驗](docs/disease_h200_protocol.md)，目前保留作探索性比較。
+
+## 原始 Top-16 證型研究與 H200 環境
+
 中醫證型辨別研究：BM25 候選檢索、Jeff-1.1-Large 中醫 LoRA + Decision Head，**主要 K=16**、全 K=1～35 評估。
+
+## H200：Clone 後一鍵執行
+
+在 H200 上 clone **含有此版本程式碼**的倉庫後：
+
+```bash
+cd TCMDiscern
+bash run_h200.sh prepare                 # 自動建 Python 3.12，下載官方 Train/Dev，重建並驗證全部實驗輸入
+bash run_h200.sh pilot                   # 安裝 Jeff v1.3.0/CUDA 13.0、下載釘選 31B，執行 GPU 安全試跑
+bash run_h200.sh full --confirm-full     # 9 組主訓練、18 次 Dev 評估、依三 Seed 平均自動彙總
+bash run_h200.sh status                  # 顯示每個階段狀態；中斷後重跑原指令即可續訓
+```
+
+`full` 需明確的 `--confirm-full`，因為包含 18 model-epochs 的大規模訓練。另可加入 `--include-exploratory` 執行 S4 和困難病例權重消融；`bash run_h200.sh plan` 僅列出完整實驗表，`bash run_h200.sh full --dry-run` 可在沒有 H200 的主機上檢查指令而不執行。
+
+- **資料處理安全**：Train／Dev 自動取得；正式 Test 不下載、不用於模型選擇。每一筆候選／訓練資料都重新驗證，歷史 `experiments/` 快照不覆寫。
+- **可續跑**：階段狀態在 `data/h200/state/`，完整日誌在 `data/h200/logs/`，可續訓 Adapter／Head／Optimizer／Scheduler 在 `data/runs/`。
+- **成果**：完整 Dev 逐次評估寫入私有 `data/jeff/` 和公開彙整 `experiments/`，最終方法選擇寫入 `experiments/jeff_h200_dev_selection.json`。**正式 Test 必須等研究決策完全凍結後另外執行**。
+- **環境**：H200 Linux、可用的 NVIDIA Driver（須支援 CUDA 13）、Git、curl 和模型官方下載權限；若 Hugging Face 採 gated 存取，先在該主機登入 `hf auth login` 或設定個人 Token。可重跑安裝並續傳模型下載，實際 GPU 記憶體仍由 Pilot 驗證。
+- **資料授權**：TCM-SD 為 CC BY-NC-SA 4.0，僅依其授權用於研究；病歷、模型權重和運行紀錄均在 Git 忽略的 `data/`。
+- **單鍵操作與研究設計**：[H200 執行手冊](docs/h200_one_click.md)、[實驗預先定稿](docs/jeff_experiment_preregistration_2026-11-12.md)。
 
 ## 研究目標
 
@@ -15,7 +66,7 @@
 5. 多答案／標註歧義採預先固定的對照：安全單正解 CE、Masked CE、Multi-positive Set Loss，均勻 Soft-target CE 為次要消融。保持 K=16、相同 Train OOF 候選設定與完整官方評估。
 6. 使用官方完整 Dev 比較 **K=1～35** 的真實 Jeff Top-1、Macro-F1、延遲、顯存與統計不確定性，選擇最佳 K。
 
-> **2026-11-12 方法定稿：** Jeff 1.1 + BM25 K=16；主研究假設採 **Multi-positive Set Loss** 處理 Train 同文異標的標註歧義，安全單正解 CE 與 Masked CE 作對照，均勻 Soft CE 作次要消融。完整規格請先讀 [標註歧義與 Jeff 多正解方法定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md)。已完成原始 BM25 Dev 基準、Train Group-aware OOF 與安全單正解 K=16 43,180 筆資料 QA；**S2/S3/S4 共用 K=16 43,180 筆訓練題、Loss CPU 梯度與全量 QA 已完成；Jeff GPU LoRA 尚未訓練，沒有 Jeff 診斷成績。** 原始官方病例、標籤與切分完全保留。
+> **2026-11-12 歷史方法規格（2026-11-13 已由本頁最新三任務規範更新）：** [最新 H200 完整實驗預先定稿](docs/jeff_experiment_preregistration_2026-11-12.md) 固定 S1/S3 三 Seed／兩完整 Epoch、S2/S4 及 OOF 困難病例加權控制，並包含正式 Test 封存政策。Jeff 1.1 + BM25 K=16；主研究假設採 **Multi-positive Set Loss** 處理 Train 同文異標的標註歧義，安全單正解 CE 與 Masked CE 作對照，均勻 Soft CE 作次要消融。完整規格請先讀 [標註歧義與 Jeff 多正解方法定稿](docs/jeff_ambiguity_final_protocol_2026-11-12.md)。已完成原始 BM25 Dev 基準、Train Group-aware OOF 與安全單正解 K=16 43,180 筆資料 QA；**S2/S3/S4 共用 K=16 43,180 筆訓練題、Loss CPU 梯度與全量 QA 已完成；Jeff GPU LoRA 尚未訓練，沒有 Jeff 診斷成績。** 原始官方病例、標籤與切分完全保留。
 
 ## 開發環境
 

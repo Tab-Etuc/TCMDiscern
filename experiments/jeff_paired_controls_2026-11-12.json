@@ -1,0 +1,29 @@
+{
+  "status": "PAIRED_TRAIN_CONTROLS_AND_HARD_WEIGHTING_VALIDATED",
+  "source_cases": 43180,
+  "epochs_compared": 2,
+  "question_instances_checked": 172720,
+  "single_positive_cases_same_full_prompt_order_each_epoch": 42360,
+  "single_positive_case_epoch_pairs_verified": 84720,
+  "cases_with_multiple_observed_labels": 820,
+  "candidate_sets_different_for_multi_observed_cases_count_across_epochs": 1640,
+  "all_original_gold_labels_preserved": true,
+  "S2_S3_S4_same_source_options": true,
+  "oof_recoverable_weighting": {
+    "policy": "recoverable_oof_x2",
+    "source": "bm25_train_text_grouped.jsonl",
+    "original_train_rows": 43180,
+    "original_rows_removed": 0,
+    "rank_categories": {
+      "rank1": 34656,
+      "rank2_to_16": 7950,
+      "rank17_to_50": 434,
+      "rank_over50": 140
+    },
+    "upweighted_original_rows": 7950,
+    "rank2_to_16_multiplier": 2.0,
+    "mean_raw_weight": 1.184113015284854
+  },
+  "dev_test_opened": false,
+  "gpu_model_loaded": false
+}

@@ -1,0 +1,103 @@
+{
+  "status": "TRAIN_ONLY_GROUPED_OOF_DIFFERENTIAL_NEGATIVE_ANALYSIS",
+  "official_train_rows": 43180,
+  "baseline_bm25_rank1": 34656,
+  "bm25_rank2_16_recoverable": 7950,
+  "bm25_gold_missing_top16": 574,
+  "multi_observed_positive_rows": 820,
+  "recoverable_rows_in_multi_observed_group": 290,
+  "recoverable_bm25_winner_is_also_observed_positive": 233,
+  "recoverable_winner_valid_as_observed_negative": 7717,
+  "distinct_directed_all_error_pairs": 1707,
+  "distinct_directed_supervised_hard_pairs": 1412,
+  "directed_hard_pairs_with_at_least5_rows": 326,
+  "rows_in_top10_confusion_pairs": 1296,
+  "rows_in_top25_confusion_pairs": 2270,
+  "rows_in_top50_confusion_pairs": 3214,
+  "top10_share_of_valid_hard_cases": 0.16794090967992742,
+  "top25_share_of_valid_hard_cases": 0.2941557600103667,
+  "top50_share_of_valid_hard_cases": 0.4164830892834003,
+  "hard_negative_gold_labels_with_at_least_one_case": 147,
+  "gold_label_types_in_train": 148,
+  "top15_directed_confusions": [
+    {
+      "gold": "气虚血瘀证",
+      "bm25_top1": "风痰瘀阻证",
+      "n": 266
+    },
+    {
+      "gold": "风痰瘀阻证",
+      "bm25_top1": "气虚血瘀证",
+      "n": 212
+    },
+    {
+      "gold": "气阴两虚证",
+      "bm25_top1": "气虚血瘀证",
+      "n": 127
+    },
+    {
+      "gold": "气滞血瘀证",
+      "bm25_top1": "肝肾亏虚证",
+      "n": 121
+    },
+    {
+      "gold": "痰瘀痹阻证",
+      "bm25_top1": "气虚血瘀证",
+      "n": 118
+    },
+    {
+      "gold": "肝肾亏虚证",
+      "bm25_top1": "气滞血瘀证",
+      "n": 99
+    },
+    {
+      "gold": "风寒袭肺证",
+      "bm25_top1": "痰湿蕴肺证",
+      "n": 93
+    },
+    {
+      "gold": "气虚血瘀证",
+      "bm25_top1": "痰瘀痹阻证",
+      "n": 89
+    },
+    {
+      "gold": "风痰上扰证",
+      "bm25_top1": "风痰瘀阻证",
+      "n": 86
+    },
+    {
+      "gold": "气虚血瘀证",
+      "bm25_top1": "气阴两虚证",
+      "n": 85
+    },
+    {
+      "gold": "心脉痹阻证",
+      "bm25_top1": "气虚血瘀证",
+      "n": 84
+    },
+    {
+      "gold": "气虚血瘀证",
+      "bm25_top1": "阳虚水泛证",
+      "n": 80
+    },
+    {
+      "gold": "痰湿蕴肺证",
+      "bm25_top1": "风寒袭肺证",
+      "n": 73
+    },
+    {
+      "gold": "风痰瘀阻证",
+      "bm25_top1": "风痰上扰证",
+      "n": 68
+    },
+    {
+      "gold": "气阴两虚证",
+      "bm25_top1": "肝胃郁热证",
+      "n": 66
+    }
+  ],
+  "test_opened": false,
+  "dev_gold_opened": false,
+  "score_or_candidate_files_modified": false,
+  "annotation_note": "Observed-positive alternative is excluded from confirmed wrong-label training pairs, but other unannotated syndromes remain uncertain."
+}

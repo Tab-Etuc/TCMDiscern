@@ -1,0 +1,25 @@
+{
+  "split": "dev",
+  "train_rows": 43180,
+  "eval_rows": 5486,
+  "top_k": 16,
+  "modes": {
+    "disease": {
+      "train_label_classes": 403,
+      "eval_label_classes": 277,
+      "unseen_eval_gold_rows": 35,
+      "oracle16_hits": 5346,
+      "top1_hits": 3332,
+      "train_gold_injected_only_for_supervised_training": 621
+    },
+    "pair": {
+      "train_label_classes": 1782,
+      "eval_label_classes": 824,
+      "unseen_eval_gold_rows": 167,
+      "oracle16_hits": 4998,
+      "top1_hits": 2886,
+      "train_gold_injected_only_for_supervised_training": 2794
+    }
+  },
+  "test_used_for_train": false
+}

@@ -1,7 +1,7 @@
 # TCMDiscern：Jeff 多答案與訓練方法最終研究規範（2026-11-12）
 
 **文件性質：預先固定的研究方法與審稿檢核清單。已完成資料稽核；尚未訓練或測量 Jeff。**
-**適用範圍：TCM-SD 官方 Train 43,180／Dev 5,486／Test 5,486，148 類；主模型 Jeff-1.1-Large + LoRA + Decision Head，主要 K=16。**
+**適用範圍：TCM-SD 官方 Train 43,180／Dev 5,486／Test 5,486，148 類；主模型 Jeff-1.1-Large + LoRA + Decision Head，主要 K=16。完整 H200 Epoch／Seed／訓練預算與延伸難例消融以 [預先定稿實驗規格](jeff_experiment_preregistration_2026-11-12.md) 為準。**
 
 ## 0. 研究決策（優先於較早的候選規劃）
 

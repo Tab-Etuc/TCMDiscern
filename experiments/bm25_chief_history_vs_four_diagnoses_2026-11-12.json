@@ -1,0 +1,72 @@
+{
+  "status": "TCMSD_ORIGINAL_INPUT_FEATURE_ABLATION_COMPLETE",
+  "dataset": "original TCM-SD Train 43180 and Dev 5486",
+  "test_opened": false,
+  "query_labels_used_only_for_scoring": true,
+  "same_bm25_hyperparameters_and_class_aggregation": true,
+  "results": {
+    "chief_history": {
+      "feature_fields": [
+        "chief_complaint",
+        "description"
+      ],
+      "top1_correct": 4316,
+      "top1_accuracy": 0.7867298578199052,
+      "macro_f1": 0.5327554154336114,
+      "gold_covered_by_k_n": {
+        "1": 4316,
+        "5": 5229,
+        "16": 5402,
+        "17": 5408,
+        "35": 5458
+      },
+      "micro_recall": {
+        "1": 0.7867298578199052,
+        "5": 0.9531534815895005,
+        "16": 0.984688297484506,
+        "17": 0.985781990521327,
+        "35": 0.994896099161502
+      },
+      "macro_recall": {
+        "1": 0.5352676346711353,
+        "5": 0.7811672835214039,
+        "16": 0.8951963545430746,
+        "17": 0.8986631612449164,
+        "35": 0.9590723352719813
+      }
+    },
+    "chief_history_detection": {
+      "feature_fields": [
+        "chief_complaint",
+        "description",
+        "detection"
+      ],
+      "top1_correct": 4366,
+      "top1_accuracy": 0.7958439664600802,
+      "macro_f1": 0.5484957707533203,
+      "gold_covered_by_k_n": {
+        "1": 4366,
+        "5": 5237,
+        "16": 5409,
+        "17": 5412,
+        "35": 5461
+      },
+      "micro_recall": {
+        "1": 0.7958439664600802,
+        "5": 0.9546117389719285,
+        "16": 0.9859642726941306,
+        "17": 0.986511119212541,
+        "35": 0.9954429456799125
+      },
+      "macro_recall": {
+        "1": 0.5505670937947087,
+        "5": 0.7817912322819854,
+        "16": 0.8991164877419996,
+        "17": 0.9049203685458804,
+        "35": 0.9573173860663742
+      }
+    }
+  },
+  "published_ccl2022_reference": "CCL 2022 Table 4 uses chief complaint + medical history for 148-class classification",
+  "restriction": "This is a retrieval feature ablation, not the original paper's model reproduction"
+}

@@ -1,0 +1,120 @@
+{
+  "dataset": "TCM-SD",
+  "split": "official Dev 5486 rows",
+  "training_only_retriever": true,
+  "model_predictions_measured": false,
+  "fixed_candidates": 16,
+  "train_pair_classes": 1782,
+  "variants": {
+    "direct-pair-top16": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4998,
+      "oracle16": 0.9110462996718921,
+      "seen_pair_oracle16": 0.9396503102086858,
+      "tail_le10_oracle16": 0.49646393210749645,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hierarchy-1d-16s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4247,
+      "oracle16": 0.7741523878964637,
+      "seen_pair_oracle16": 0.7984583568339914,
+      "tail_le10_oracle16": 0.3917963224893918,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hierarchy-2d-8s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4708,
+      "oracle16": 0.8581844695588772,
+      "seen_pair_oracle16": 0.8851287836059409,
+      "tail_le10_oracle16": 0.45403111739745405,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hierarchy-4d-4s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4920,
+      "oracle16": 0.8968282901932191,
+      "seen_pair_oracle16": 0.924985899605189,
+      "tail_le10_oracle16": 0.48514851485148514,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hierarchy-8d-2s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4823,
+      "oracle16": 0.8791469194312796,
+      "seen_pair_oracle16": 0.9067493889828915,
+      "tail_le10_oracle16": 0.4780763790664781,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hierarchy-16d-1s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4377,
+      "oracle16": 0.7978490703609187,
+      "seen_pair_oracle16": 0.8228990411731528,
+      "tail_le10_oracle16": 0.3932107496463932,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hybrid-4flat-4d-3s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4985,
+      "oracle16": 0.9086766314254466,
+      "seen_pair_oracle16": 0.9372062417747697,
+      "tail_le10_oracle16": 0.504950495049505,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hybrid-8flat-4d-2s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4998,
+      "oracle16": 0.9110462996718921,
+      "seen_pair_oracle16": 0.9396503102086858,
+      "tail_le10_oracle16": 0.5007072135785007,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "hybrid-12flat-4d-1s": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4998,
+      "oracle16": 0.9110462996718921,
+      "seen_pair_oracle16": 0.9396503102086858,
+      "tail_le10_oracle16": 0.49646393210749645,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "crossed-0flat-16from-marginals": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4972,
+      "oracle16": 0.9063069631790011,
+      "seen_pair_oracle16": 0.9347621733408535,
+      "tail_le10_oracle16": 0.5205091937765205,
+      "pair_labels_not_seen_in_train": 167
+    },
+    "crossed-8flat-8from-marginals": {
+      "n": 5486,
+      "top1_correct": 2886,
+      "top1": 0.5260663507109005,
+      "oracle16_correct": 4989,
+      "oracle16": 0.9094057601166606,
+      "seen_pair_oracle16": 0.9379582628313593,
+      "tail_le10_oracle16": 0.5261669024045261,
+      "pair_labels_not_seen_in_train": 167
+    }
+  }
+}

@@ -8,6 +8,7 @@ import pytest
 
 from tcmdiscern.jeff_format import LETTERS
 from tcmdiscern.jeff_schedule import (
+    checkpoint_due,
     epoch_batches,
     epoch_order,
     load_frozen_train,
@@ -32,6 +33,24 @@ def example(i: int, *, multi: bool = True) -> dict:
         item["positive_mask"] = [j in (1, 4) for j in range(16)]
         item["target_distribution"] = [0.5 if j in (1, 4) else 0 for j in range(16)]
     return item
+
+
+def test_h200_checkpoint_every_epoch_and_periodic_updates() -> None:
+    cadence = 300
+    updates = 1350
+    saved = [
+        i
+        for i in range(1, updates + 1)
+        if checkpoint_due(
+            update=i,
+            cadence=cadence,
+            at_epoch_end=i == 675 or i == 1350,
+            target_updates=updates,
+        )
+    ]
+    assert saved == [300, 600, 675, 900, 1200, 1350]
+    with pytest.raises(ValueError):
+        checkpoint_due(update=0, cadence=300, at_epoch_end=False, target_updates=1350)
 
 
 def test_train_schedule_order_is_deterministic_and_complete() -> None:

@@ -1,0 +1,57 @@
+{
+  "status": "DISEASE_STUDY_PREPARED",
+  "split": "dev",
+  "train_rows": 43180,
+  "evaluation_rows": 5486,
+  "k": 5,
+  "model": "jgeuter/Jeff-1.1-Large",
+  "modes": [
+    "global",
+    "conditioned",
+    "pair"
+  ],
+  "train_sources": {
+    "global": 43180,
+    "conditioned": 43180,
+    "pair": 43180
+  },
+  "bm25_baselines": {
+    "global_bm25": {
+      "n": 5486,
+      "top1": 0.7958439664600802,
+      "macro_f1": 0.5484957707533203,
+      "oracle_at_5": 0.9546117389719285,
+      "classes": 148
+    },
+    "conditioned_bm25": {
+      "n": 5486,
+      "top1": 0.8131607728764126,
+      "macro_f1": 0.5743485113688427,
+      "oracle_at_5": 0.960991615020051,
+      "classes": 148
+    },
+    "pair_bm25": {
+      "n": 5486,
+      "top1": 0.5260663507109005,
+      "macro_f1": 0.11992505397793517,
+      "oracle_at_5": 0.8423259205249727,
+      "classes": 1937,
+      "disease_top1": 0.6073641997812614,
+      "syndrome_top1": 0.7994896099161501
+    },
+    "disease_only": {
+      "n": 5486,
+      "top1": 0.6378053226394459,
+      "macro_f1": 0.21933413934215445,
+      "classes": 148,
+      "uses_bm25_candidates": false
+    }
+  },
+  "retrieval_oracle_hits": {
+    "global": 5237,
+    "conditioned": 5272,
+    "pair": 4621
+  },
+  "benchmark_protocol": "official original Train/Dev/Test, row-level single-label",
+  "gold_in_inference_prompts": false
+}

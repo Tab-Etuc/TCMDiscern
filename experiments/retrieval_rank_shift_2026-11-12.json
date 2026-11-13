@@ -1,0 +1,50 @@
+{
+  "status": "RETRIEVAL_RANK_AND_OFFICIAL_DEV_OVERLAP_AUDIT_PASS",
+  "official_train": 43180,
+  "official_dev": 5486,
+  "train_gold_injected_into_each_s3_prompt": true,
+  "train_gold_prompt_slot_counts_1based": {
+    "1": 2646,
+    "2": 2671,
+    "3": 2654,
+    "4": 2651,
+    "5": 2703,
+    "6": 2680,
+    "7": 2694,
+    "8": 2690,
+    "9": 2658,
+    "10": 2767,
+    "11": 2697,
+    "12": 2675,
+    "13": 2788,
+    "14": 2815,
+    "15": 2738,
+    "16": 2653
+  },
+  "train_gold_prompt_first_slot_rate": 0.06127836961556276,
+  "original_oof_rank_1": 34656,
+  "original_oof_rank_2_to_16": 7950,
+  "original_oof_rank_over_16": 574,
+  "dev_gold_rank_1": 4366,
+  "dev_gold_rank_2_to_16": 1043,
+  "dev_gold_absent_top16": 77,
+  "dev_gold_rank1_rate": 0.7958439664600802,
+  "dev_exact_overlap": {
+    "overlap": {
+      "rows": 529,
+      "bm25_correct": 472,
+      "bm25_top1": 0.8922495274102079,
+      "bm25_recall16": 0.996219281663516
+    },
+    "no_exact_train_match": {
+      "rows": 4957,
+      "bm25_correct": 3894,
+      "bm25_top1": 0.785555779705467,
+      "bm25_recall16": 0.984869880976397
+    }
+  },
+  "exact_overlap_with_unseen_gold_label_n": 20,
+  "annotation_note": "Train prompts place the original gold in every 16-way choice; Dev candidates preserve the original BM25 order. Exposing a synthetic rank >16 for inserted gold would introduce target leakage.",
+  "no_patient_text_exported": true,
+  "test_opened": false
+}

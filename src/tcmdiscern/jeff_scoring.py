@@ -17,17 +17,21 @@ from sklearn.metrics import f1_score
 from .evaluation import Prediction
 
 
-def score_k16(
+def score_k(
     rows: Sequence[Prediction],
     raw_logits: Sequence[Sequence[float]] | np.ndarray,
     *,
+    k: int,
     all_classes: Sequence[str],
 ) -> dict:
+    """Score fixed BM25 candidate sets, including grouped Jeff decisions above K=16."""
+    if not isinstance(k, int) or isinstance(k, bool) or not 1 <= k <= 35:
+        raise ValueError("K must be an integer from 1 to 35")
     if not rows:
         raise ValueError("Need all official Dev rows")
     logits = np.asarray(raw_logits, dtype=np.float64)
-    if logits.shape != (len(rows), 16) or not np.isfinite(logits).all():
-        raise ValueError("Requires one finite 16-slot Jeff decision logit vector per Dev row")
+    if logits.shape != (len(rows), k) or not np.isfinite(logits).all():
+        raise ValueError(f"Requires one finite {k}-slot decision score vector per Dev row")
     if len({row.case_id for row in rows}) != len(rows):
         raise ValueError("Duplicate case IDs in model predictions")
     if len(set(all_classes)) != 148:
@@ -40,9 +44,9 @@ def score_k16(
     for i, row in enumerate(rows):
         if row.case_id != f"dev-{i:06d}":
             raise ValueError(f"Dev row {i} is out of official order")
-        if len(row.gold_labels) != 1 or len(row.candidate_labels) < 16:
-            raise ValueError("Requires original single gold and 16 BM25 candidates")
-        if len(set(row.candidate_labels[:16])) != 16:
+        if len(row.gold_labels) != 1 or len(row.candidate_labels) < k:
+            raise ValueError(f"Requires original single gold and {k} BM25 candidates")
+        if len(set(row.candidate_labels[:k])) != k:
             raise ValueError("Duplicate decision candidates")
         if row.predicted_label is not None:
             raise ValueError("Input retrieval predictions must not be prefilled")
@@ -50,7 +54,7 @@ def score_k16(
         pred.append(row.candidate_labels[int(np.argmax(logits[i]))])
         bm25.append(row.candidate_labels[0])
         gold.append(gold_label)
-        covered.append(gold_label in row.candidate_labels[:16])
+        covered.append(gold_label in row.candidate_labels[:k])
 
     n = len(rows)
     correct = np.array([a == b for a, b in zip(pred, gold, strict=True)])
@@ -65,21 +69,38 @@ def score_k16(
         "label_classes": len(all_classes),
         "top1_accuracy": int(correct.sum()) / n,
         "top1_correct_n": int(correct.sum()),
-        "macro_f1": float(f1_score(gold, pred, labels=list(all_classes), average="macro")),
+        "macro_f1": float(
+            f1_score(gold, pred, labels=list(all_classes), average="macro", zero_division=0)
+        ),
         "bm25_top1_accuracy": int(base_correct.sum()) / n,
         "bm25_top1_correct_n": int(base_correct.sum()),
-        "bm25_macro_f1": float(f1_score(gold, bm25, labels=list(all_classes), average="macro")),
+        "bm25_macro_f1": float(
+            f1_score(gold, bm25, labels=list(all_classes), average="macro", zero_division=0)
+        ),
         "bm25_to_jeff_rescued_cases": rescue,
         "bm25_to_jeff_broken_cases": broken,
         "net_correct_change": rescue - broken,
-        "gold_in_top16_n": int(covered_arr.sum()),
-        "gold_absent_top16_n": int((~covered_arr).sum()),
-        "conditional_top1_when_gold_in_top16": float(
-            correct[covered_arr].sum() / covered_arr.sum()
-        ),
+        "k": k,
+        "gold_in_topk_n": int(covered_arr.sum()),
+        "gold_absent_topk_n": int((~covered_arr).sum()),
+        "conditional_top1_when_gold_in_topk": float(correct[covered_arr].sum() / covered_arr.sum()),
         "predictions_from_supplied_candidates_only": True,
         "official_single_gold_scoring": True,
     }
+
+
+def score_k16(
+    rows: Sequence[Prediction],
+    raw_logits: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    all_classes: Sequence[str],
+) -> dict:
+    """Preserve the published K=16 scoring report interface."""
+    scored = score_k(rows, raw_logits, k=16, all_classes=all_classes)
+    for key in ("gold_in_topk_n", "gold_absent_topk_n", "conditional_top1_when_gold_in_topk"):
+        scored[key.replace("topk", "top16")] = scored.pop(key)
+    scored.pop("k")
+    return scored
 
 
 def read_model_logits(path: Path, *, num_cases: int) -> np.ndarray:

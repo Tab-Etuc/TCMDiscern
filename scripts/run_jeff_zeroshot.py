@@ -177,6 +177,9 @@ def run(
         raise ValueError("The pinned Jeff-1.1-Large must use causal attention")
     if jeff.decider.max_tokens != JEFF_MAX_INPUT_TOKENS:
         raise ValueError("Unexpected Jeff model input token limit")
+    from tcmdiscern.jeff_attention import audit_released_jeff_attention
+
+    audit_released_jeff_attention(jeff.decider)
 
     reload_info = None
     if checkpoint is not None:

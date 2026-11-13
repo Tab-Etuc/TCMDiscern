@@ -35,12 +35,13 @@ def reshuffle_training_example(
     except ValueError as exc:
         raise ValueError("Invalid original Train case ID") from exc
     options = row["options"]
-    if len(options) != MAX_DIRECT_OPTIONS:
-        raise ValueError("Epoch shuffling requires exactly 16 options")
-    if len({opt["id"] for opt in options}) != len(options):
+    width = len(options)
+    if not 2 <= width <= MAX_DIRECT_OPTIONS:
+        raise ValueError("Epoch shuffling requires 2..16 options")
+    if len({opt["id"] for opt in options}) != width:
         raise ValueError("Duplicate candidate labels")
     old_gold = copy["target_index"]
-    if not isinstance(old_gold, int) or isinstance(old_gold, bool) or not 0 <= old_gold < 16:
+    if not isinstance(old_gold, int) or isinstance(old_gold, bool) or not 0 <= old_gold < width:
         raise ValueError("Invalid original gold index")
 
     has_multi = "positive_indices" in copy
@@ -53,21 +54,31 @@ def reshuffle_training_example(
         old_distribution = copy["target_distribution"]
         if not old_pos or sorted(set(old_pos)) != old_pos:
             raise ValueError("Invalid multi-positive positions")
-        if len(old_mask) != 16 or len(old_distribution) != 16:
+        if len(old_mask) != width or len(old_distribution) != width:
             raise ValueError("Incomplete 16-slot mask/distribution")
-        if any(old_mask[i] != (i in old_pos) for i in range(16)):
+        if any(old_mask[i] != (i in old_pos) for i in range(width)):
             raise ValueError("Positive mask and positions disagree")
         if abs(sum(old_distribution) - 1) > 1e-12:
             raise ValueError("The soft targets must sum to one")
     elif any(k in copy for k in ("positive_mask", "target_distribution")):
         raise ValueError("Incomplete multi-positive supervision")
 
-    perm = list(range(MAX_DIRECT_OPTIONS))
-    Random(seed + epoch * 1_000_003 + index * 131 + 16 * 10_007).shuffle(perm)
+    # The frozen S1 and S2/S3/S4 files were produced with different initial
+    # option shuffles. Canonicalize by label identity before each epoch so
+    # identical candidate sets receive exactly the same prompt order for the
+    # same case, epoch and seed. This removes a position-order confound in
+    # paired loss ablations without rewriting either frozen source file.
+    perm = sorted(range(width), key=lambda i: options[i]["id"])
+    Random(seed + epoch * 1_000_003 + index * 131 + width * 10_007).shuffle(perm)
     row["options"] = [options[i] for i in perm]
     new_gold = perm.index(old_gold)
     copy["target_index"] = new_gold
     copy["target_letter"] = LETTERS[new_gold]
+    if "hard_negative_indices" in copy:
+        original_hard = copy["hard_negative_indices"]
+        if any(not isinstance(i, int) or i == old_gold or not 0 <= i < width for i in original_hard):
+            raise ValueError("Invalid hard-negative positions")
+        copy["hard_negative_indices"] = [perm.index(i) for i in original_hard]
     if has_multi:
         copy["positive_indices"] = sorted(perm.index(i) for i in old_pos)
         copy["positive_mask"] = [old_mask[i] for i in perm]

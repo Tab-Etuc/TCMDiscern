@@ -17,16 +17,21 @@ from .jeff_epoch import reshuffle_training_example
 from .jeff_format import LETTERS
 
 
-def check_training_example(item: dict, *, row_index: int, multi: bool) -> None:
+def check_training_example(
+    item: dict, *, row_index: int, multi: bool, expected_k: int = 16, study_mode: str | None = None
+) -> None:
     row = item["row"]
     if row["id"] != f"train-{row_index:06d}":
         raise ValueError(f"Wrong Train row order at index {row_index}")
     options = row["options"]
-    if len(options) != 16 or len({x["id"] for x in options}) != 16:
-        raise ValueError(f"Train row {row_index}: needs 16 distinct candidates")
-    if set(row["state"]) != {"chief_complaint", "description", "detection"}:
+    if len(options) != expected_k or len({x["id"] for x in options}) != expected_k:
+        raise ValueError(f"Train row {row_index}: needs {expected_k} distinct candidates")
+    fields = {"chief_complaint", "description", "detection"}
+    if study_mode == "conditioned":
+        fields.add("lcd_name")
+    if set(row["state"]) != fields:
         raise ValueError("Disallowed or incomplete patient evidence fields")
-    if item["target_index"] not in range(16):
+    if item["target_index"] not in range(expected_k):
         raise ValueError("Invalid target position")
     if item["target_letter"] != LETTERS[item["target_index"]]:
         raise ValueError("Incorrect target letter")
@@ -48,11 +53,24 @@ def check_training_example(item: dict, *, row_index: int, multi: bool) -> None:
             or abs(sum(dist) - 1) > 1e-12
         ):
             raise ValueError("Invalid multi-positive supervision")
+    elif study_mode is not None:
+        allowed = {"row", "target_index", "target_letter", "hard_negative_indices"}
+        if not set(item) <= allowed or not {"row", "target_index", "target_letter"} <= set(item):
+            raise ValueError("Invalid disease-study training metadata")
+        hard = item.get("hard_negative_indices", [])
+        if (
+            len(set(hard)) != len(hard)
+            or any(i not in range(expected_k) or i == item["target_index"] for i in hard)
+        ):
+            raise ValueError("Invalid disease-study hard negatives")
     elif set(item) != {"row", "target_index", "target_letter"}:
         raise ValueError("S1 must contain only single-target supervision")
 
 
-def load_frozen_train(file: Path, *, multi: bool, expected_count: int = 43180) -> list[dict]:
+def load_frozen_train(
+    file: Path, *, multi: bool, expected_count: int = 43180,
+    expected_k: int = 16, study_mode: str | None = None,
+) -> list[dict]:
     """Parse and validate immutable Train-only K16 rows into host RAM once."""
     items = []
     with file.open(encoding="utf-8") as stream:
@@ -60,7 +78,10 @@ def load_frozen_train(file: Path, *, multi: bool, expected_count: int = 43180) -
             if index >= expected_count:
                 raise ValueError("Train file has unexpected extra rows")
             item = json.loads(line)
-            check_training_example(item, row_index=index, multi=multi)
+            check_training_example(
+                item, row_index=index, multi=multi, expected_k=expected_k,
+                study_mode=study_mode,
+            )
             items.append(item)
     if len(items) != expected_count:
         raise ValueError(f"Expected {expected_count} Train rows, got {len(items)}")
@@ -98,6 +119,13 @@ def epoch_batches(
             reshuffle_training_example(items[index], epoch=epoch, seed=seed) for index in selected
         ]
         yield offset + len(selected), current
+
+
+def checkpoint_due(*, update: int, cadence: int, at_epoch_end: bool, target_updates: int) -> bool:
+    """Save at periodic updates, every complete epoch, and the final update."""
+    if update < 1 or cadence < 1 or target_updates < update:
+        raise ValueError("Invalid completed optimizer or checkpoint budget")
+    return update % cadence == 0 or at_epoch_end or update == target_updates
 
 
 def total_optimizer_steps(rows: int, accumulation: int, epochs: int) -> int:
