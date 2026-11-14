@@ -19,7 +19,9 @@ framework into the pinned Jeff environment.
 from __future__ import annotations
 
 import copy
+import json
 import os
+from pathlib import Path
 from typing import Any
 
 HYBRID_BACKEND = "axolotl_hybrid_fa2_sdpa"
@@ -39,7 +41,85 @@ def requested_attention_backend() -> str:
     return HYBRID_BACKEND if setting == "hybrid" else DEFAULT_BACKEND
 
 
-def preflight_hybrid_kernel() -> dict[str, str]:
+def inspect_hybrid_layer_geometry(config: Any) -> dict[str, Any]:
+    """Inspect the same resolved per-layer config as Gemma4TextAttention.
+
+    Transformers 5.17 consumes global_head_dim in __post_init__, storing the
+    result in per_layer_config. Reading config.global_head_dim on a loaded
+    model is invalid and previously caused a failure after 42 minutes.
+    """
+    layer_types = list(config.layer_types)
+    count = config.num_hidden_layers
+    if len(layer_types) != count or count != 60:
+        raise ValueError("Expected all 60 released Gemma 4 decoder layers")
+    if layer_types.count("sliding_attention") != 50 or layer_types.count("full_attention") != 10:
+        raise ValueError("Expected 50 sliding and 10 full Gemma 4 attention layers")
+    sliding_dims: set[int] = set()
+    full_dims: set[int] = set()
+    for index, kind in enumerate(layer_types):
+        try:
+            layer_head_dim = config.per_layer_config[index].head_dim
+        except (IndexError, KeyError, AttributeError, TypeError) as exc:
+            raise ValueError(f"Gemma 4 per-layer head dimension missing at {index}") from exc
+        if type(layer_head_dim) is not int or layer_head_dim <= 0:
+            raise ValueError(f"Invalid Gemma 4 head dimension in layer {index}")
+        if kind == "sliding_attention":
+            if layer_head_dim > 256:
+                raise ValueError(
+                    f"Sliding layer {index} head_dim={layer_head_dim} exceeds FA2 support"
+                )
+            sliding_dims.add(layer_head_dim)
+        else:
+            full_dims.add(layer_head_dim)
+    return {
+        "num_hidden_layers": count,
+        "sliding_flash2_layers": 50,
+        "global_sdpa_layers": 10,
+        "sliding_head_dims": sorted(sliding_dims),
+        "global_head_dims": sorted(full_dims),
+    }
+
+
+def inspect_release_hybrid_layout(model_dir: Path) -> dict[str, Any]:
+    """Resolve the released local JSON through official HF config before loading weights."""
+    from transformers.models.gemma4.configuration_gemma4 import Gemma4TextConfig
+
+    with (Path(model_dir) / "config.json").open(encoding="utf-8") as stream:
+        model_config = json.load(stream)
+    if not isinstance(model_config, dict):
+        raise TypeError("Released Gemma 4 config.json must contain an object")
+    text_config = model_config.get("text_config", model_config)
+    if not isinstance(text_config, dict):
+        raise TypeError("Released Gemma 4 text config must contain an object")
+    resolved = Gemma4TextConfig.from_dict(text_config)
+    return inspect_hybrid_layer_geometry(resolved)
+
+
+def preflight_hybrid_adapter(model_dir: Path) -> dict[str, Any]:
+    """Apply the real Hybrid patch to a tiny 60-layer Gemma 4 before 31B IO.
+
+    The tiny model carries the actual released sliding/full-layer ordering
+    but only 64 hidden channels. This catches Python integration errors in
+    set_attn_implementation, per-layer config and mask patching without
+    mapping any large released weight tensors.
+    """
+    from types import SimpleNamespace
+
+    from transformers.models.gemma4.modeling_gemma4 import Gemma4ForCausalLM
+
+    from scripts.smoke_tiny_jeff import miniature_text_config
+    from tcmdiscern.jeff_release_attention import inspect_release_attention
+
+    release = inspect_release_attention(model_dir)
+    tiny = Gemma4ForCausalLM(miniature_text_config(release, deep=True))
+    try:
+        report = enable_hybrid_attention(SimpleNamespace(model=tiny))
+    finally:
+        del tiny
+    return report
+
+
+def preflight_hybrid_kernel(model_dir: Path | None = None) -> dict[str, Any]:
     """Resolve the pre-built Hugging Face FA2 kernel *before* mapping 64GB.
 
     transformers 5.17 uses the kernels-community/flash-attn2 Hub artifact
@@ -51,15 +131,20 @@ def preflight_hybrid_kernel() -> dict[str, str]:
 
     if transformers.__version__ != "5.17.0":
         raise RuntimeError("Axolotl Gemma 4 patch is pinned to transformers 5.17.0")
+    geometry = inspect_release_hybrid_layout(model_dir) if model_dir is not None else None
     functions, _ = lazy_import_flash_attention(FLASH2_KERNEL)
     if functions[0] is None or functions[1] is None:
         raise RuntimeError("FlashAttention 2 forward/varlen kernels are unavailable")
-    return {
+    report: dict[str, Any] = {
         "attention_backend": HYBRID_BACKEND,
         "flash_attention": FLASH2_KERNEL,
         "kernel": "transformers 5.17.0 / Hub flash-attn2 v2",
         "global_attention": "sdpa",
     }
+    if geometry is not None:
+        report["release_geometry"] = geometry
+        report["tiny_adapter_preflight"] = preflight_hybrid_adapter(Path(model_dir))
+    return report
 
 
 def _patch_gemma4_mask() -> None:
@@ -116,12 +201,13 @@ def enable_hybrid_attention(decider: Any) -> dict[str, Any]:
         raise RuntimeError("Expected the Jeff 1.1 Gemma4TextModel decoder")
     layers = text.layers
     layer_types = list(text.config.layer_types)
-    if len(layers) != 60 or len(layer_types) != len(layers):
-        raise RuntimeError("Expected the 60-layer released Jeff 1.1 Large")
-    if layer_types.count("sliding_attention") != 50 or layer_types.count("full_attention") != 10:
-        raise RuntimeError("The released Jeff Gemma 4 attention layout changed")
-    if getattr(text.config, "global_head_dim", None) != 512:
-        raise RuntimeError("Expected Gemma 4 global attention head_dim=512")
+    geometry = inspect_hybrid_layer_geometry(text.config)
+    if len(layers) != geometry["num_hidden_layers"]:
+        raise RuntimeError("Loaded Jeff decoder depth differs from release config")
+    for index, layer in enumerate(layers):
+        expected_head_dim = text.config.per_layer_config[index].head_dim
+        if layer.self_attn.head_dim != expected_head_dim:
+            raise RuntimeError(f"Loaded Gemma 4 layer {index} head dimension differs from config")
 
     # Use the explicit, pinned Hub v2, never the default v3 that can
     # succeed in forward but fail GQA LoRA backward on CUDA 12.8.
@@ -145,7 +231,8 @@ def enable_hybrid_attention(decider: Any) -> dict[str, Any]:
         "enabled": True,
         "sliding_flash2_layers": len(layers) - global_layers,
         "global_sdpa_layers": global_layers,
-        "global_head_dim": 512,
+        "sliding_head_dims": geometry["sliding_head_dims"],
+        "global_head_dims": geometry["global_head_dims"],
         "flash_kernel": FLASH2_KERNEL,
         "sample_packing": False,
         "axolotl_patch_revision": "f2158ff1922b2bcf701854a17e47cc91ba26e7e9",

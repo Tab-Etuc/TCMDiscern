@@ -133,7 +133,7 @@ def load_original_checkpoint(model_dir: Path):
     print(f"[ATTENTION] Released model metadata: {contract}", flush=True)
     if requested_attention_backend() != "released_default":
         # Resolve the prebuilt FA2 kernel before mapping 64GB of original weights.
-        print(f"[AXOLOTL] {preflight_hybrid_kernel()}", flush=True)
+        print(f"[AXOLOTL] {preflight_hybrid_kernel(model_dir)}", flush=True)
         torch.set_float32_matmul_precision("high")
     model = JeffModel(
         model_dir,
