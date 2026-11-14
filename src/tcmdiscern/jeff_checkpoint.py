@@ -163,6 +163,13 @@ def restore_checkpoint(decider: Any, checkpoint_dir: Path) -> dict:
 
     manifest = json.loads((checkpoint_dir / "manifest.json").read_text(encoding="utf-8"))
     validate_checkpoint_manifest(manifest)
+    stored_backend = manifest.get("attention_backend", "released_default")
+    active_backend = getattr(decider, "attention_backend", "released_default")
+    if stored_backend != active_backend:
+        raise ValueError(
+            f"Checkpoint attention backend {stored_backend!r} differs from "
+            f"current Jeff {active_backend!r}; use the original backend"
+        )
 
     import numpy as np
     import torch

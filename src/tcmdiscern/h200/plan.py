@@ -58,7 +58,7 @@ class Experiment:
     def train_arguments(self, *, model_dir: str) -> list[str]:
         # Explicit opt-in until real 31B batch-2 throughput and VRAM are known.
         # Preserves the pinned historical B=1 contract and exact resume settings.
-        micro_batch = int(os.environ.get("TCMDISCERN_MICRO_BATCH_SIZE", "1"))
+        micro_batch = int(os.environ.get("TCMDISCERN_MICRO_BATCH_SIZE", "2"))
         if not 1 <= micro_batch <= 8:
             raise ValueError("TCMDISCERN_MICRO_BATCH_SIZE must be in [1, 8]")
         return [

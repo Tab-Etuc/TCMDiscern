@@ -139,9 +139,19 @@ def audit_with_safe_backend(decider, prompt_ids: Sequence[int]) -> dict:
         get_text = getattr(config, "get_text_config", None)
         text_config = get_text() if callable(get_text) else config
         active_backend = getattr(text_config, "_attn_implementation", None)
-        report["attention_backend"] = "eager" if active_backend == "eager" else "released_default"
+        if hasattr(decider, "_tcmdiscern_hybrid_attention"):
+            report["attention_backend"] = "axolotl_hybrid_fa2_sdpa"
+        else:
+            report["attention_backend"] = (
+                "eager" if active_backend == "eager" else "released_default"
+            )
         return report
     except RuntimeError as original_error:
+        if hasattr(decider, "_tcmdiscern_hybrid_attention"):
+            raise RuntimeError(
+                "Axolotl Gemma 4 hybrid FA2/SDPA failed the causal-prefix audit; "
+                "check the prebuilt kernel and attention masks"
+            ) from original_error
         # With torch 2.11 / CUDA 12.8, the default SDPA kernel on a GH200 may
         # violate text-prefix causality. Fail closed unless the actual released
         # backbone can switch to eager and independently passes the same audit.

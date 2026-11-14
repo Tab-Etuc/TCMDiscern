@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from tcmdiscern.jeff_axolotl_attention import VALID_BACKENDS, requested_attention_backend
+
 from .plan import (
     ACCUMULATION,
     DEV_ROWS,
@@ -330,7 +332,7 @@ class H200Runner:
         if (
             result.get("kind") != expected_kind
             or result.get("rows") != DEV_ROWS
-            or result.get("attention_backend") not in {"released_default", "eager"}
+            or result.get("attention_backend") not in VALID_BACKENDS
             or result.get("scores", {}).get("n_cases") != DEV_ROWS
         ):
             return False
@@ -410,6 +412,14 @@ class H200Runner:
                     "Completed run micro_batch_size differs from requested run; "
                     "cannot mix batch settings across methods or seeds"
                 )
+            if (
+                summary.get("attention_backend", "released_default")
+                != requested_attention_backend()
+            ):
+                raise ValueError(
+                    "Completed training uses a different attention backend; "
+                    "keep the original kernel setting for this run"
+                )
             return tuple(args)
         if not run_folder.exists():
             return tuple(args)
@@ -433,6 +443,11 @@ class H200Runner:
             raise ValueError(
                 "Existing checkpoint micro_batch_size differs from requested run; "
                 "select the original size before loading 31B"
+            )
+        if state.get("attention_backend", "released_default") != requested_attention_backend():
+            raise ValueError(
+                "Existing checkpoint was trained with another attention backend; "
+                "select its original backend before loading 31B"
             )
         if state.get("global_update", 0) >= updates:
             raise RuntimeError(

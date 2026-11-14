@@ -38,7 +38,8 @@ def test_pilot_cli_uses_registered_16_real_updates(tmp_path):
     assert args.resume is None
 
 
-def test_pilot_resumes_last_complete_optimizer_boundary(tmp_path):
+def test_pilot_resumes_last_complete_optimizer_boundary(tmp_path, monkeypatch):
+    monkeypatch.setenv("TCMDISCERN_GEMMA4_ATTENTION", "sdpa")
     run_dir = tmp_path / "data/runs" / pilot.RUN_ID
     target = run_dir / "resume-0000001"
     target.mkdir(parents=True)

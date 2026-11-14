@@ -229,7 +229,7 @@ def test_completed_results_cannot_mix_batch_protocols(tmp_path, monkeypatch):
         H200Runner(root=tmp_path)._preflight_resume_protocol(full=False)
 
 
-def test_registered_run_defaults_to_historical_batch_size(monkeypatch):
+def test_registered_run_defaults_to_fast_micro_batch_size_two(monkeypatch):
     monkeypatch.delenv("TCMDISCERN_MICRO_BATCH_SIZE", raising=False)
     command = Experiment("s3", SEEDS[0], epochs=2).train_arguments(model_dir="/release")
-    assert command[command.index("--micro-batch-size") + 1] == "1"
+    assert command[command.index("--micro-batch-size") + 1] == "2"

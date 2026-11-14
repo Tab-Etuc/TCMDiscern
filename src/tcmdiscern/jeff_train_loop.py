@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .jeff_axolotl_attention import requested_attention_backend
 from .jeff_config import JEFF_MAX_INPUT_TOKENS, JEFF_MODEL_REVISION
 from .jeff_gpu_core import (
     capture_first_update,
@@ -120,6 +121,9 @@ def fixed_run_settings(args: Any) -> dict:
         "warmup_steps": args.warmup_steps,
         "checkpoint_every": getattr(args, "checkpoint_every", 100),
     }
+    active_backend = requested_attention_backend()
+    if active_backend != "released_default":
+        settings["attention_backend"] = active_backend
     micro_batch_size = getattr(args, "micro_batch_size", 1)
     if micro_batch_size > 1:
         # Keep the completed historical single-sample Pilot checkpoints valid.

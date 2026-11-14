@@ -26,6 +26,7 @@ from tcmdiscern.h200.workflow import (
     complete_optimizer_checkpoint,
     verified_optimizer_learning_signal,
 )
+from tcmdiscern.jeff_axolotl_attention import VALID_BACKENDS
 from tcmdiscern.jeff_train_loop import expected_case_exposures
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +55,7 @@ def valid_eval_report(
                 result.get("split") != split,
                 result.get("run_id") != run_id,
                 result.get("k") != 16,
-                result.get("attention_backend") not in {"released_default", "eager"},
+                result.get("attention_backend") not in VALID_BACKENDS,
                 result.get("performance", {}).get("n_predictions") != rows,
             )
         ):
@@ -175,7 +176,7 @@ def train_args(
 ) -> tuple[str, ...]:
     updates = 1 if dry_pilot else EPOCHS * UPDATES_PER_EPOCH
     epochs = 1 if dry_pilot else EPOCHS
-    micro_batch = int(os.environ.get("TCMDISCERN_MICRO_BATCH_SIZE", "1"))
+    micro_batch = int(os.environ.get("TCMDISCERN_MICRO_BATCH_SIZE", "2"))
     if not 1 <= micro_batch <= 8:
         raise ValueError("TCMDISCERN_MICRO_BATCH_SIZE must be in [1, 8]")
     return (

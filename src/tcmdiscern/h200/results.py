@@ -10,6 +10,8 @@ import json
 import math
 from pathlib import Path
 
+from tcmdiscern.jeff_axolotl_attention import VALID_BACKENDS
+
 from .plan import DEV_ROWS, SEEDS, registered_exploratory
 
 
@@ -23,7 +25,7 @@ def _read_scores(path: Path, *, expected_method: str) -> dict:
         report.get("kind") != "FULL_DEV_FINETUNED"
         or report.get("rows") != DEV_ROWS
         or report.get("trained_lora") is not True
-        or report.get("attention_backend") not in {"released_default", "eager"}
+        or report.get("attention_backend") not in VALID_BACKENDS
         or not isinstance(checkpoint, dict)
         or checkpoint.get("method") != expected_method
         or metrics.get("n_cases") != DEV_ROWS
@@ -97,7 +99,7 @@ def summarize(root: Path, *, include_exploratory: bool = False) -> dict:
     if zero_shot.get("kind") != "FULL_DEV_ZERO_SHOT" or zero_shot.get("rows") != DEV_ROWS:
         raise ValueError("Zero-shot Dev result is not a complete 5,486-case evaluation")
     backend = zero_shot.get("attention_backend")
-    if backend not in {"released_default", "eager"} or any(
+    if backend not in VALID_BACKENDS or any(
         trial["attention_backend"] != backend
         for summary in primary
         for trial in summary["seed_trials"]

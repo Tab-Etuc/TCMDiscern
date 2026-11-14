@@ -22,6 +22,11 @@ import math
 from pathlib import Path
 
 from scripts.preflight_jeff_training import inspect_checkpoint
+from tcmdiscern.jeff_axolotl_attention import (
+    enable_hybrid_attention,
+    preflight_hybrid_kernel,
+    requested_attention_backend,
+)
 from tcmdiscern.jeff_config import (
     JEFF_BIDIRECTIONAL,
     JEFF_MAX_INPUT_TOKENS,
@@ -126,6 +131,10 @@ def load_original_checkpoint(model_dir: Path):
     if contract["release_jeff_bidirectional"] != JEFF_BIDIRECTIONAL:
         raise ValueError("The released Jeff bidirectional mode differs from the pinned study")
     print(f"[ATTENTION] Released model metadata: {contract}", flush=True)
+    if requested_attention_backend() != "released_default":
+        # Resolve the prebuilt FA2 kernel before mapping 64GB of original weights.
+        print(f"[AXOLOTL] {preflight_hybrid_kernel()}", flush=True)
+        torch.set_float32_matmul_precision("high")
     model = JeffModel(
         model_dir,
         device="cuda",
@@ -140,6 +149,7 @@ def load_original_checkpoint(model_dir: Path):
         raise ValueError("Unexpected released Jeff context length")
     from tcmdiscern.jeff_attention import audit_released_jeff_attention
 
+    print(f"[AXOLOTL] {enable_hybrid_attention(model.decider)}", flush=True)
     audit_released_jeff_attention(model.decider)
     return model
 

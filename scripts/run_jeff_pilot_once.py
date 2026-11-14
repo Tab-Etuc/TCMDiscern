@@ -25,6 +25,7 @@ from tcmdiscern.h200.workflow import (
     complete_optimizer_checkpoint,
     verified_optimizer_learning_signal,
 )
+from tcmdiscern.jeff_axolotl_attention import requested_attention_backend
 from tcmdiscern.jeff_checkpoint import reset_released_backbone, restore_checkpoint
 from tcmdiscern.jeff_config import JEFF_MODEL_REVISION
 from tcmdiscern.jeff_train_loop import run as train
@@ -57,7 +58,15 @@ def pilot_training_args(model_dir: Path, *, root: Path = ROOT):
         "1",
     ]
     run_dir = root / "data/runs" / RUN_ID
-    if not (run_dir / "summary.json").is_file() and run_dir.is_dir():
+    summary = run_dir / "summary.json"
+    if summary.is_file():
+        completed = json.loads(summary.read_text(encoding="utf-8"))
+        if completed.get("attention_backend", "released_default") != requested_attention_backend():
+            raise ValueError(
+                "Existing Pilot used a different attention backend; "
+                "keep TCMDISCERN_GEMMA4_ATTENTION=sdpa to reuse this Pilot"
+            )
+    if not summary.is_file() and run_dir.is_dir():
         snapshots = sorted(run_dir.glob("resume-*"))
         if not snapshots:
             if any(run_dir.iterdir()):
@@ -81,6 +90,10 @@ def pilot_training_args(model_dir: Path, *, root: Path = ROOT):
             }
             if any(state.get(field) != value for field, value in required.items()):
                 raise RuntimeError("Pilot resume checkpoint settings do not match this study")
+            if state.get("attention_backend", "released_default") != requested_attention_backend():
+                raise ValueError(
+                    "Pilot resume attention backend changed; select the original backend"
+                )
             if state["global_update"] >= PILOT_UPDATES:
                 raise RuntimeError(
                     "Pilot final checkpoint exists without summary; inspect before retry"

@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 
 from tcmdiscern.h200.plan import SEEDS
+from tcmdiscern.jeff_axolotl_attention import VALID_BACKENDS
 
 ROOT = Path(__file__).resolve().parents[1]
 MODES = ("disease", "pair")
@@ -43,7 +44,7 @@ def summarize(root: Path = ROOT) -> dict:
                     or data.get("split") != "dev"
                     or data.get("mode") != mode
                     or data.get("run_id") != rid
-                    or data.get("attention_backend") not in {"released_default", "eager"}
+                    or data.get("attention_backend") not in VALID_BACKENDS
                     or scores.get("n_cases") != 5486
                 ):
                     raise ValueError(f"Invalid full Dev run: {file}")
@@ -95,7 +96,7 @@ def summarize(root: Path = ROOT) -> dict:
             or baseline.get("split") != "dev"
             or baseline.get("mode") != mode
             or baseline.get("run_id") != "zero"
-            or baseline.get("attention_backend") not in {"released_default", "eager"}
+            or baseline.get("attention_backend") not in VALID_BACKENDS
             or baseline.get("scores", {}).get("n_cases") != 5486
         ):
             raise ValueError(f"Invalid original Jeff Dev baseline: {zero}")

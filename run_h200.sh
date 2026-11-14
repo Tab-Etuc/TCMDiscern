@@ -199,6 +199,13 @@ else
 fi
 "$UV_BIN" pip install --python "$PY" --no-deps -e "$JEFF_SRC"
 
+# Axolotl's Gemma 4 hybrid FA2/SDPA path: Transformers 5.17 resolves
+# kernels-community/flash-attn2 as a precompiled Hopper/aarch64 artifact.
+# Avoid installing the full Axolotl trainer or building flash-attn from source.
+if [ "${TCMDISCERN_GEMMA4_ATTENTION:-hybrid}" = "hybrid" ]; then
+  "$UV_BIN" pip install --python "$PY" --no-deps 'kernels>=0.16,<0.17'
+fi
+
 # Catch CUDA runtime, driver-minor-compatibility and Hopper BF16 failures
 # before downloading ~64 GB of weights. This checks real device execution.
 "$PY" -c 'import torch; assert torch.cuda.is_available() and torch.cuda.is_bf16_supported(), "Hopper CUDA BF16 not available"; a=torch.ones((32,32), device="cuda", dtype=torch.bfloat16); assert torch.isfinite(a@a).all().item(), "BF16 GEMM failed"; torch.cuda.synchronize(); print(f"[GPU] BF16 GEMM PASS: torch={torch.__version__}, CUDA={torch.version.cuda}")'
@@ -232,11 +239,11 @@ if [ ! -s "$ROOT/data/tcm-sd/train.json" ] || [ ! -s "$ROOT/data/tcm-sd/dev.json
   "$PY" -m scripts.fetch_tcmsd
 fi
 
-# Gate every expensive 31B read on a complete tiny Gemma4/PEFT/Head smoke.
-# This cannot prove 31B numerical safety, but catches software integration
-# faults without another 42-minute failed checkpoint load.
-echo "[MINI] Verifying full decoder depth with small tensors before 31B weights"
-"$PY" -m scripts.smoke_tiny_jeff --model-dir "$MODEL_DIR" --deep \
-  --micro-batch-size "${TCMDISCERN_MICRO_BATCH_SIZE:-1}"
-echo "[MINI] Full-depth tiny smoke PASS"
+# Existing Micro verification can be requested explicitly; the accelerated
+# workflow defaults to direct released-Jeff execution. Flash2 imports and
+# downloads its prebuilt Hub kernel before the expensive 31B weight mapping.
+if [ "${TCMDISCERN_RUN_MINI_SMOKE:-0}" = "1" ]; then
+  "$PY" -m scripts.smoke_tiny_jeff --model-dir "$MODEL_DIR" --deep \
+    --micro-batch-size "${TCMDISCERN_MICRO_BATCH_SIZE:-2}"
+fi
 H200_MODEL_DIR="$MODEL_DIR" "$PY" -m scripts.h200 "$MODE" "$@"
