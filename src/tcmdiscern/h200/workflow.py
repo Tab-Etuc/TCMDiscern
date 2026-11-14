@@ -372,6 +372,11 @@ class H200Runner:
             and result.get("microbatches") == 43180 * experiment.epochs
             and result.get("cursor_epoch") == experiment.epochs
             and result.get("cursor_offset") == 0
+            and (
+                result.get("micro_batch_size", 1) == 1
+                or (result.get("official_batch_parity") or {}).get("all_16_logits_within_tolerance")
+                is True
+            )
             and verified_optimizer_learning_signal(result)
             and complete_optimizer_checkpoint(
                 self.root / f"data/runs/{experiment.run_id}/resume-{experiment.updates:07d}"
@@ -391,7 +396,22 @@ class H200Runner:
         """Resume a registered run only from a complete matching optimizer checkpoint."""
         args = list(command)
         run_folder = self.root / "data/runs" / run_id
-        if (run_folder / "summary.json").exists() or not run_folder.exists():
+        desired_micro_batch = 1
+        if "--micro-batch-size" in args:
+            position = args.index("--micro-batch-size")
+            if position + 1 >= len(args):
+                raise ValueError("Missing registered micro-batch size")
+            desired_micro_batch = int(args[position + 1])
+        summary_path = run_folder / "summary.json"
+        if summary_path.exists():
+            summary = read_json(summary_path)
+            if summary.get("micro_batch_size", 1) != desired_micro_batch:
+                raise ValueError(
+                    "Completed run micro_batch_size differs from requested run; "
+                    "cannot mix batch settings across methods or seeds"
+                )
+            return tuple(args)
+        if not run_folder.exists():
             return tuple(args)
         checkpoints = sorted(run_folder.glob("resume-*"))
         if not checkpoints:
@@ -409,6 +429,11 @@ class H200Runner:
         }
         if any(state.get(key) != value for key, value in required.items()):
             raise ValueError("Saved checkpoint disagrees with the registered run")
+        if state.get("micro_batch_size", 1) != desired_micro_batch:
+            raise ValueError(
+                "Existing checkpoint micro_batch_size differs from requested run; "
+                "select the original size before loading 31B"
+            )
         if state.get("global_update", 0) >= updates:
             raise RuntimeError(
                 "Final checkpoint exists but summary is missing; inspect before restart"
@@ -515,6 +540,23 @@ class H200Runner:
             )
         )
 
+    @staticmethod
+    def _primary_experiments(*, full: bool, include_exploratory: bool = False) -> list[Experiment]:
+        first_seed = [Experiment(method, SEEDS[0], epochs=2) for method in ("s1", "s2", "s3")]
+        if not full:
+            return first_seed
+        first_seed.extend(e for e in registered_main() if e.seed != SEEDS[0])
+        if include_exploratory:
+            first_seed.extend(registered_exploratory())
+        return first_seed
+
+    def _preflight_resume_protocol(self, *, full: bool, include_exploratory: bool = False) -> None:
+        """Catch stale B=1/B=2 checkpoints before the 42-minute model load."""
+        for experiment in self._primary_experiments(
+            full=full, include_exploratory=include_exploratory
+        ):
+            self._training_command(experiment)
+
     def _primary_stages(self, *, session, full: bool, include_exploratory: bool = False) -> None:
         """One persistent 31B load for released Dev + all training and Dev stages."""
         report = self.root / "experiments/jeff_zero_shot_k16_dev.json"
@@ -529,19 +571,17 @@ class H200Runner:
                 else None,
             )
         )
-        first_seed = [Experiment(method, SEEDS[0], epochs=2) for method in ("s1", "s2", "s3")]
-        specs = first_seed
-        if full:
-            specs.extend(e for e in registered_main() if e.seed != SEEDS[0])
-            if include_exploratory:
-                specs.extend(registered_exploratory())
-        for experiment in specs:
+        for experiment in self._primary_experiments(
+            full=full, include_exploratory=include_exploratory
+        ):
             self.train(experiment, session=session)
             for epoch in range(1, experiment.epochs + 1):
                 self.evaluate(experiment, epoch, session=session)
 
     def screen(self) -> None:
         """First-seed syndrome experiments; all GPU stages share one model."""
+        if not self.dry_run:
+            self._preflight_resume_protocol(full=False)
         self.pilot()
         if self.dry_run:
             session = None
@@ -553,6 +593,8 @@ class H200Runner:
 
     def full(self, *, include_exploratory: bool = False) -> None:
         """Pre-registered all-seed experiment with a resident verified backbone."""
+        if not self.dry_run:
+            self._preflight_resume_protocol(full=True, include_exploratory=include_exploratory)
         self.pilot()
         if self.dry_run:
             session = None

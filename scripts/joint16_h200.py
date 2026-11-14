@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from pathlib import Path
 
 from scripts.prepare_joint16 import prepare
@@ -120,6 +121,9 @@ def valid_training_report(
                 result.get("expected_case_exposures")
                 == expected_case_exposures(43180, accumulation, steps),
                 result.get("microbatches") == expected_case_exposures(43180, accumulation, steps),
+                result.get("micro_batch_size", 1) == 1
+                or (result.get("official_batch_parity") or {}).get("all_16_logits_within_tolerance")
+                is True,
                 verified_optimizer_learning_signal(result),
                 complete_optimizer_checkpoint(checkpoint),
             )
@@ -171,6 +175,9 @@ def train_args(
 ) -> tuple[str, ...]:
     updates = 1 if dry_pilot else EPOCHS * UPDATES_PER_EPOCH
     epochs = 1 if dry_pilot else EPOCHS
+    micro_batch = int(os.environ.get("TCMDISCERN_MICRO_BATCH_SIZE", "1"))
+    if not 1 <= micro_batch <= 8:
+        raise ValueError("TCMDISCERN_MICRO_BATCH_SIZE must be in [1, 8]")
     return (
         "-m",
         "scripts.run_jeff_finetune",
@@ -188,6 +195,8 @@ def train_args(
         str(epochs),
         "--accumulation",
         "1" if dry_pilot else str(ACCUMULATION),
+        "--micro-batch-size",
+        "1" if dry_pilot else str(micro_batch),
         "--seed",
         str(seed),
         "--rank",
@@ -266,6 +275,18 @@ def run_study(
             runner.prepare()
             prepare(split="dev")
             runner.require_gpu()
+            if mode in {"screen", "full"}:
+                requested = (
+                    registered_runs() if mode == "full" else [(task, SEEDS[0]) for task in MODES]
+                )
+                for task, seed in requested:
+                    runner._resume_command(
+                        train_args(task, seed, model_dir),
+                        run_id=run_id(task, seed),
+                        method="s1",
+                        seed=seed,
+                        updates=EPOCHS * UPDATES_PER_EPOCH,
+                    )
 
         for task in MODES:
             path = ROOT / "experiments" / f"joint16_dev_{task}_pilot.json"

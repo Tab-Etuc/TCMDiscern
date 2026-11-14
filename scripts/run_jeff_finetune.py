@@ -28,6 +28,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--steps", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--accumulation", type=int, default=1)
+    parser.add_argument(
+        "--micro-batch-size",
+        type=int,
+        default=1,
+        help="Jeff's official padded hidden_batch size inside each fixed optimizer update; "
+        "start with 2 on GH200 and verify speed/VRAM before increasing",
+    )
     parser.add_argument("--seed", type=int, default=20261112)
     parser.add_argument("--rank", type=int, default=32)
     parser.add_argument("--alpha", type=int, default=64)

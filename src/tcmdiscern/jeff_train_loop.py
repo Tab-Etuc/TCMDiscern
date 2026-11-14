@@ -24,11 +24,13 @@ from .jeff_config import JEFF_MAX_INPUT_TOKENS, JEFF_MODEL_REVISION
 from .jeff_gpu_core import (
     capture_first_update,
     decision_logits,
+    decision_logits_batch,
     gradient_audit,
     parameter_audit,
     supervised_loss,
     trainable_parameters,
     verify_first_update,
+    verify_official_batched_logits,
 )
 from .jeff_resume import restore_resume, save_resume
 from .jeff_schedule import (
@@ -118,6 +120,12 @@ def fixed_run_settings(args: Any) -> dict:
         "warmup_steps": args.warmup_steps,
         "checkpoint_every": getattr(args, "checkpoint_every", 100),
     }
+    micro_batch_size = getattr(args, "micro_batch_size", 1)
+    if micro_batch_size > 1:
+        # Keep the completed historical single-sample Pilot checkpoints valid.
+        # Micro batching changes summation/rounding, so accelerated runs have
+        # their own explicit and resumable training contract.
+        settings["micro_batch_size"] = micro_batch_size
     if study_mode is not None:
         settings.update(
             {
@@ -159,6 +167,13 @@ def validate_run_args(args: Any) -> Path:
             raise ValueError(f"{key} must be a nonnegative integer")
     if args.checkpoint_every < 1:
         raise ValueError("checkpoint_every must be positive")
+    micro_batch_size = getattr(args, "micro_batch_size", 1)
+    if (
+        not isinstance(micro_batch_size, int)
+        or isinstance(micro_batch_size, bool)
+        or not 1 <= micro_batch_size <= min(args.accumulation, 8)
+    ):
+        raise ValueError("micro_batch_size must be 1-8 and no larger than accumulation")
     for key in ("lora_lr", "head_lr", "clip_norm"):
         v = getattr(args, key)
         if not math.isfinite(v) or v <= 0:
@@ -237,6 +252,65 @@ def iter_update_groups(
     )
 
 
+def prepared_microbatches(
+    items: list[dict],
+    weights: list[float],
+    *,
+    micro_batch_size: int,
+    encode,
+) -> list[list[tuple[dict, float, list[int]]]]:
+    """Length-bucket only *within* one unchanged optimizer accumulation.
+
+    Each example and its exact normalized weight remains paired. Sorting
+    reduces padding work and is deterministic across S1/S2/S3, seeds and
+    resume boundaries; it never changes epoch sampling or case exposures.
+    """
+    if not items or len(items) != len(weights) or micro_batch_size < 1:
+        raise ValueError("Invalid microbatch items, weights or size")
+    prepared = [
+        (item, scale, list(encode(item["row"]))) for item, scale in zip(items, weights, strict=True)
+    ]
+    if any(not tokens for _, _, tokens in prepared):
+        raise ValueError("Microbatch has an empty Jeff token sequence")
+    if micro_batch_size == 1:
+        return [[entry] for entry in prepared]
+    prepared.sort(key=lambda entry: len(entry[2]))
+    # Long, rare prompts should fall back to a single forward rather than
+    # cause an H200 OOM hundreds of updates into a multi-day experiment.
+    # The 1024-token-per-example cap is deliberately conservative; all
+    # cases still contribute to the same 64-example optimizer update.
+    max_padded_tokens = 1024 * micro_batch_size
+    grouped: list[list[tuple[dict, float, list[int]]]] = []
+    current: list[tuple[dict, float, list[int]]] = []
+    for entry in prepared:
+        length = len(entry[2])
+        if current and (
+            len(current) == micro_batch_size or length * (len(current) + 1) > max_padded_tokens
+        ):
+            grouped.append(current)
+            current = []
+        current.append(entry)
+    if current:
+        grouped.append(current)
+    return grouped
+
+
+def training_case_loss(logits: Any, item: dict, *, args: Any, study_mode: str | None):
+    """One unchanged supervised objective for individual or padded batched paths."""
+    if study_mode is None:
+        return supervised_loss(logits, item, args.method)
+    if study_mode in {"disease16", "pair16"}:
+        return supervised_loss(logits, item, "s1")
+    from .disease_study import study_torch_loss
+
+    return study_torch_loss(
+        logits[:5],
+        item,
+        pairwise_weight=getattr(args, "pairwise_weight", 0.0),
+        margin=getattr(args, "pairwise_margin", 0.2),
+    )
+
+
 def run(args: Any, *, released: Any | None = None) -> dict:
     """Train a registered run, optionally reusing one already-validated Jeff model.
 
@@ -291,6 +365,24 @@ def run(args: Any, *, released: Any | None = None) -> dict:
         decider, ids0, rank=args.rank, alpha=args.alpha
     )
     report_parameters = parameter_audit(adapter, decider.head)
+    batch_parity_report = None
+    if getattr(args, "micro_batch_size", 1) > 1:
+        audit_tokens = []
+        for example in rows[:64]:
+            candidate = encode_prompt(decider.tokenizer, example["row"], JEFF_MAX_INPUT_TOKENS)
+            if len(candidate) <= 1024:
+                audit_tokens.append(candidate)
+            if len(audit_tokens) == 2:
+                break
+        if len(audit_tokens) != 2:
+            raise RuntimeError(
+                "Need two real Train prompts within the conservative "
+                "1024-token batch-parity memory budget"
+            )
+        if len(audit_tokens[0]) == len(audit_tokens[1]):
+            audit_tokens[1] = audit_tokens[1][:-8]
+        batch_parity_report = verify_official_batched_logits(decider, audit_tokens)
+        print(f"[TRAIN] Published Jeff batch parity PASS: {batch_parity_report}", flush=True)
     lora_params, head_params = trainable_parameters(adapter, decider.head)
     decider.model.gradient_checkpointing_enable(
         gradient_checkpointing_kwargs={"use_reentrant": False}
@@ -332,6 +424,7 @@ def run(args: Any, *, released: Any | None = None) -> dict:
     most_recent_checkpoint = None
     session_started = time.perf_counter()
     updates_before_session = progress["global_update"]
+    cases_before_session = progress["microbatches"]
     initial_epoch = progress["cursor_epoch"]
     initial_offset = progress["cursor_offset"]
     for epoch in range(initial_epoch, args.epochs):
@@ -351,30 +444,39 @@ def run(args: Any, *, released: Any | None = None) -> dict:
             optimizer.zero_grad(set_to_none=True)
             decider.model.train()
             decider.head.train()
-            for item, scale in zip(batch, scales, strict=True):
-                tokens = encode_prompt(decider.tokenizer, item["row"], JEFF_MAX_INPUT_TOKENS)
-                logits = decision_logits(
-                    decider.forward, decider.head, tokens, device=decider.device
-                )
-                if study_mode is None:
-                    loss = supervised_loss(logits, item, args.method)
-                elif study_mode in {"disease16", "pair16"}:
-                    loss = supervised_loss(logits, item, "s1")
+            micro_batch_size = getattr(args, "micro_batch_size", 1)
+            microbatches = prepared_microbatches(
+                batch,
+                scales,
+                micro_batch_size=micro_batch_size,
+                encode=lambda row: encode_prompt(decider.tokenizer, row, JEFF_MAX_INPUT_TOKENS),
+            )
+            for microbatch in microbatches:
+                tokens_batch = [tokens for _, _, tokens in microbatch]
+                if len(microbatch) == 1:
+                    logits_batch = decision_logits(
+                        decider.forward,
+                        decider.head,
+                        tokens_batch[0],
+                        device=decider.device,
+                    ).unsqueeze(0)
                 else:
-                    from .disease_study import study_torch_loss
-
-                    loss = study_torch_loss(
-                        logits[:5],
-                        item,
-                        pairwise_weight=getattr(args, "pairwise_weight", 0.0),
-                        margin=getattr(args, "pairwise_margin", 0.2),
-                    )
-                if not torch.isfinite(loss).item():
-                    raise RuntimeError("Jeff Head returned a non-finite supervised Loss")
-                (loss * scale).backward()
-                progress["microbatches"] += 1
-                progress["input_tokens"] += len(tokens)
-                progress["sum_microbatch_loss"] += float(loss.detach().item())
+                    logits_batch = decision_logits_batch(decider, tokens_batch)
+                weighted_losses = []
+                for (item, scale, tokens), logits in zip(microbatch, logits_batch, strict=True):
+                    loss = training_case_loss(logits, item, args=args, study_mode=study_mode)
+                    if not torch.isfinite(loss).item():
+                        raise RuntimeError("Jeff Head returned a non-finite supervised Loss")
+                    weighted_losses.append(loss * scale)
+                    progress["microbatches"] += 1
+                    progress["input_tokens"] += len(tokens)
+                    progress["sum_microbatch_loss"] += float(loss.detach().item())
+                # Keep the historical B=1 backward exactly unchanged.
+                # Larger microbatches sum original normalized per-case losses.
+                if len(weighted_losses) == 1:
+                    weighted_losses[0].backward()
+                else:
+                    torch.stack(weighted_losses).sum().backward()
 
             if gradients is None:
                 gradients = gradient_audit(adapter, decider.head)
@@ -404,9 +506,15 @@ def run(args: Any, *, released: Any | None = None) -> dict:
                 elapsed = time.perf_counter() - session_started
                 completed_here = max(1, update - updates_before_session)
                 remaining = int((args.steps - update) * elapsed / completed_here)
+                cases_per_second = (progress["microbatches"] - cases_before_session) / max(
+                    elapsed, 1e-6
+                )
                 print(
                     f"[TRAIN] {args.run_id}: {update}/{args.steps} updates "
                     f"({update / args.steps:.1%}), "
+                    f"micro_batch={micro_batch_size}, "
+                    f"cases_per_second={cases_per_second:.2f}, "
+                    f"peak_cuda_gib={torch.cuda.max_memory_allocated() / (1024**3):.2f}, "
                     f"last_loss={float(loss.detach().item()):.5f}, "
                     f"elapsed={elapsed / 60:.1f}m, "
                     f"estimated_remaining={remaining / 60:.1f}m",
@@ -472,6 +580,12 @@ def run(args: Any, *, released: Any | None = None) -> dict:
         "first_optimizer_update_verified": first_parameter_update,
         "mean_training_loss": (progress["sum_microbatch_loss"] / progress["microbatches"]),
         "peak_cuda_bytes": int(torch.cuda.max_memory_allocated()),
+        "micro_batch_size": getattr(args, "micro_batch_size", 1),
+        "official_batch_parity": batch_parity_report,
+        "session_cases_per_second": (
+            (progress["microbatches"] - cases_before_session)
+            / max(time.perf_counter() - session_started, 1e-6)
+        ),
         "attention_backend": getattr(decider, "attention_backend", "unrecorded"),
         "elapsed_seconds": time.perf_counter() - began,
         "final_checkpoint": str(most_recent_checkpoint.relative_to(ROOT)),

@@ -236,6 +236,7 @@ fi
 # This cannot prove 31B numerical safety, but catches software integration
 # faults without another 42-minute failed checkpoint load.
 echo "[MINI] Verifying full decoder depth with small tensors before 31B weights"
-"$PY" -m scripts.smoke_tiny_jeff --model-dir "$MODEL_DIR" --deep
+"$PY" -m scripts.smoke_tiny_jeff --model-dir "$MODEL_DIR" --deep \
+  --micro-batch-size "${TCMDISCERN_MICRO_BATCH_SIZE:-1}"
 echo "[MINI] Full-depth tiny smoke PASS"
 H200_MODEL_DIR="$MODEL_DIR" "$PY" -m scripts.h200 "$MODE" "$@"

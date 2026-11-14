@@ -2,9 +2,10 @@
 
 Heavy imports are optional and lazy. This module deliberately runs the decoder
 stack, not the vocabulary language-model head. Official Jeff Decider reads
-post-final-norm last_hidden_state[:, -1] then evaluates the published
-DecisionHead on h.to(bfloat16).float(). Single-example forward avoids padding
-and incorrect last-token indexing.
+post-final-norm last_hidden_state and evaluates the published DecisionHead
+on h.to(bfloat16).float(). For throughput experiments, use the upstream
+Jeff Decider.hidden_batch implementation: it right-pads and gathers each
+example's last valid token instead of indexing the padding tail.
 
 Only the H200 entrypoints should import the official jeff package/PEFT.
 """
@@ -39,6 +40,86 @@ def decision_logits(backbone: Any, head: Any, token_ids: Sequence[int], *, devic
     if logits.shape != (1, MAX_DIRECT_JEFF_K):
         raise ValueError("Decision Head must return exactly 16 slot logits")
     return logits[0]
+
+
+def decision_logits_batch(decider: Any, token_batches: Sequence[Sequence[int]]):
+    """Official Jeff v1.3 batch path, with the same 16-slot Head as single scoring.
+
+    Uses Decider.hidden_batch, which right-pads, masks the padding and gathers
+    each example's *actual* final token; the single-item branch preserves the
+    original exact unpadded decision forward for numerical comparisons.
+    """
+    import torch
+
+    if not token_batches or any(not tokens for tokens in token_batches):
+        raise ValueError("Jeff batch must have nonempty token sequences")
+    if len(token_batches) == 1:
+        return decision_logits(
+            decider.forward, decider.head, token_batches[0], device=decider.device
+        ).unsqueeze(0)
+    hidden = decider.hidden_batch([list(tokens) for tokens in token_batches])
+    if hidden.ndim != 2 or hidden.shape[0] != len(token_batches):
+        raise ValueError("Upstream Jeff hidden_batch did not return [batch, hidden]")
+    logits = decider.head(hidden.to(torch.bfloat16).float())
+    if logits.shape != (len(token_batches), MAX_DIRECT_JEFF_K):
+        raise ValueError("Batched Jeff Head must return [batch, 16] logits")
+    return logits
+
+
+def verify_official_batched_logits(
+    decider: Any,
+    token_sequences: Sequence[Sequence[int]],
+    *,
+    atol: float = 0.1,
+    rtol: float = 0.05,
+) -> dict:
+    """Block accelerated training if Jeff's padded path changes the decisions.
+
+    Use two real prompts with different lengths, compare all 16 slots to the
+    published single-example forward and preserve the actual parity evidence.
+    The upstream Jeff authors explicitly support this hidden_batch path.
+    """
+    import torch
+
+    if len(token_sequences) < 2:
+        raise ValueError("Batch parity requires at least two examples")
+    was_training = bool(decider.model.training)
+    decider.model.eval()
+    decider.head.eval()
+    try:
+        with torch.inference_mode():
+            selected = token_sequences[:2]
+            reference = torch.stack(
+                [
+                    decision_logits(decider.forward, decider.head, tokens, device=decider.device)
+                    for tokens in selected
+                ]
+            )
+            batched = decision_logits_batch(decider, selected)
+            difference = (batched.float() - reference.float()).abs()
+            if (
+                not torch.isfinite(reference).all().item()
+                or not torch.isfinite(batched).all().item()
+            ):
+                raise RuntimeError("Batched Jeff decisions contain non-finite logits")
+            max_abs = float(difference.max().item())
+            if not torch.allclose(batched, reference, atol=atol, rtol=rtol):
+                raise RuntimeError(
+                    "Padded Jeff hidden_batch changed 16-slot decision logits "
+                    f"beyond tolerance (max_abs={max_abs:.6g}); "
+                    "retain micro_batch_size=1 until investigated"
+                )
+            return {
+                "two_real_examples": True,
+                "input_lengths": [len(tokens) for tokens in selected],
+                "max_abs_logit_difference": max_abs,
+                "all_16_logits_within_tolerance": True,
+                "atol": atol,
+                "rtol": rtol,
+            }
+    finally:
+        if was_training:
+            decider.model.train()
 
 
 def parameter_audit(adapter_model: Any, head: Any) -> dict:

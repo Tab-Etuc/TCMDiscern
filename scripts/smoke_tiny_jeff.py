@@ -110,7 +110,9 @@ def window_boundary_tokens(ids: list[int], window: int) -> list[int]:
     return [ids[index % len(ids)] for index in range(length)]
 
 
-def verify_mini_train_and_reload(decider, ids: list[int], example: dict, directory: Path) -> dict:
+def verify_mini_train_and_reload(
+    decider, ids: list[int], example: dict, directory: Path, *, micro_batch_size: int = 1
+) -> dict:
     """Train a real PEFT adapter and official Jeff Head on tiny weights."""
     import torch
     from jeff.head import DecisionHead
@@ -121,11 +123,13 @@ def verify_mini_train_and_reload(decider, ids: list[int], example: dict, directo
     from scripts.train_jeff_lora import inject_lora_and_assert_step_zero
     from tcmdiscern.jeff_gpu_core import (
         capture_first_update,
+        decision_logits_batch,
         gradient_audit,
         parameter_audit,
         supervised_loss,
         trainable_parameters,
         verify_first_update,
+        verify_official_batched_logits,
     )
 
     adapter, _, step0_max, counts, trainable = inject_lora_and_assert_step_zero(
@@ -135,7 +139,19 @@ def verify_mini_train_and_reload(decider, ids: list[int], example: dict, directo
         alpha=8,
     )
     print(f"[MINI] LoRA Step-0 PASS; modules={counts}; parameters={trainable}", flush=True)
+    batch_parity = None
+    if micro_batch_size > 1:
+        batch_parity = verify_official_batched_logits(decider, [ids, ids[:-17]])
+        print(f"[MINI] Batched logits PASS: {batch_parity}", flush=True)
     parameter_audit(adapter, decider.head)
+    if micro_batch_size > 1:
+        # Match the resident 31B training path, including non-reentrant
+        # activation checkpointing and LoRA gradient propagation.
+        decider.model.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False}
+        )
+        decider.model.enable_input_require_grads()
+        decider.model.config.use_cache = False
     lora_parameters, head_parameters = trainable_parameters(adapter, decider.head)
     optimizer = torch.optim.AdamW(
         [
@@ -151,15 +167,23 @@ def verify_mini_train_and_reload(decider, ids: list[int], example: dict, directo
         optimizer.zero_grad(set_to_none=True)
         decider.model.train()
         decider.head.train()
-        output = decider.forward(
-            input_ids=torch.tensor([ids], device=decider.device),
-            attention_mask=None,
-            use_cache=False,
-            return_dict=True,
-        )
-        hidden = output.last_hidden_state[:, -1]
-        logits = decider.head(hidden.to(torch.bfloat16).float())[0, :16]
-        loss = supervised_loss(logits, example, "s3")
+        if micro_batch_size == 1:
+            output = decider.forward(
+                input_ids=torch.tensor([ids], device=decider.device),
+                attention_mask=None,
+                use_cache=False,
+                return_dict=True,
+            )
+            hidden = output.last_hidden_state[:, -1]
+            logits = decider.head(hidden.to(torch.bfloat16).float())[0, :16]
+            loss = supervised_loss(logits, example, "s3")
+        else:
+            # Right-padding and last-real-token gathering are from Jeff v1.3.
+            variants = [
+                ids[: len(ids) - min(j * 17, len(ids) - 40)] for j in range(micro_batch_size)
+            ]
+            logits = decision_logits_batch(decider, variants)
+            loss = torch.stack([supervised_loss(one, example, "s3") for one in logits]).mean()
         if not torch.isfinite(loss).item():
             raise RuntimeError("Mini Gemma 4 Set Loss is non-finite")
         loss.backward()
@@ -241,11 +265,17 @@ def verify_mini_train_and_reload(decider, ids: list[int], example: dict, directo
         "first_optimizer_update_verified": first_update,
         "fresh_checkpoint_logits_match": True,
         "optimizer_state_saved": True,
+        "micro_batch_size": micro_batch_size,
+        "official_batch_parity": batch_parity,
     }
 
 
-def run(*, model_dir: Path, root: Path = ROOT, deep: bool = False) -> dict:
+def run(
+    *, model_dir: Path, root: Path = ROOT, deep: bool = False, micro_batch_size: int = 1
+) -> dict:
     """Run a tiny Gemma4 model; never map the released 31B weights."""
+    if not 1 <= micro_batch_size <= 8:
+        raise ValueError("Mini micro-batch size must be between 1 and 8")
     model_dir = model_dir.expanduser().resolve(strict=True)
     metadata = inspect_release_attention(model_dir)
     print("[MINI] Released config: " + json.dumps(metadata, ensure_ascii=False), flush=True)
@@ -328,6 +358,7 @@ def run(*, model_dir: Path, root: Path = ROOT, deep: bool = False) -> dict:
             ids,
             question,
             Path(folder) / "checkpoint",
+            micro_batch_size=micro_batch_size,
         )
     report = {
         "status": "MINI_JEFF_PIPELINE_PASS",
@@ -374,6 +405,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-dir", type=Path, default=ROOT / "data/models/Jeff-1.1-Large")
     parser.add_argument("--metadata-only", action="store_true")
+    parser.add_argument("--micro-batch-size", type=int, default=1)
     parser.add_argument(
         "--deep",
         action="store_true",
@@ -383,7 +415,7 @@ def main() -> None:
     if args.metadata_only:
         print(json.dumps(inspect_release_attention(args.model_dir), ensure_ascii=False, indent=2))
         return
-    run(model_dir=args.model_dir, deep=args.deep)
+    run(model_dir=args.model_dir, deep=args.deep, micro_batch_size=args.micro_batch_size)
 
 
 if __name__ == "__main__":

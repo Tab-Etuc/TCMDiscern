@@ -5,6 +5,7 @@ All run plans are data. Nothing in this module loads a GPU or starts work.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from math import ceil
 
@@ -55,6 +56,11 @@ class Experiment:
         return self.epochs * UPDATES_PER_EPOCH
 
     def train_arguments(self, *, model_dir: str) -> list[str]:
+        # Explicit opt-in until real 31B batch-2 throughput and VRAM are known.
+        # Preserves the pinned historical B=1 contract and exact resume settings.
+        micro_batch = int(os.environ.get("TCMDISCERN_MICRO_BATCH_SIZE", "1"))
+        if not 1 <= micro_batch <= 8:
+            raise ValueError("TCMDISCERN_MICRO_BATCH_SIZE must be in [1, 8]")
         return [
             "-m",
             "scripts.run_jeff_finetune",
@@ -70,6 +76,8 @@ class Experiment:
             str(self.epochs),
             "--accumulation",
             str(ACCUMULATION),
+            "--micro-batch-size",
+            str(micro_batch),
             "--seed",
             str(self.seed),
             "--rank",
@@ -94,7 +102,9 @@ class Experiment:
 
 
 def registered_main() -> tuple[Experiment, ...]:
-    return tuple(Experiment(method, seed, epochs=2) for method in ("s1", "s2", "s3") for seed in SEEDS)
+    return tuple(
+        Experiment(method, seed, epochs=2) for method in ("s1", "s2", "s3") for seed in SEEDS
+    )
 
 
 def registered_exploratory() -> tuple[Experiment, ...]:

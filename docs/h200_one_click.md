@@ -27,7 +27,25 @@ bash run_h200.sh full --confirm-full
 
 **GH200 Driver 550 / CUDA 12.8 的實際失敗紀錄：** 31B 權重完整載入後，舊版「短序列 vs 加長序列」檢查在預設 SDPA 出現 82,308 個 mismatch，切換 Eager 仍有 112,791 個 mismatch。**舊測試存在 BF16 不同序列長度可能使用不同 GEMM 核心的數值干擾**；60 層深度 Micro 已通過（256 tokens），新版 Micro 改成完整 743 tokens 和原始 1,024-token 視窗。正式 31B 因果性檢查則改用**固定相同序列長度、只替換後半段 Token**的方式，避免用輸入矩陣尺寸變化誤判注意力。新版先由輕量設定檔判斷模型預期是因果或雙向注意力；只有真正宣告雙向的發布模型才採用重複推論一致性檢查，因果模型則仍嚴格要求前綴不受後綴影響。下一次完整 31B 測試前，先讓 `micro` 重現同架構的注意力和 LoRA 路徑；如果小模型失敗，就直接停在前置驗收。若 31B 在固定長度測試仍失敗，會在**已載入模型的同一個程序**用相同長度的兩份輸入逐層比較，記錄最早受後綴影響的 Decoder 層、層類別與特徵差異。Gemma 4 31B 的全域層使用 K=V、後段 Shared-KV 層連 k_proj/v_proj 也沒有；LoRA 逐層按 Transformers 5.17 真實模組配置驗證，僅作用於文字 Decoder，保留 vision tower 原始權重。已下載模型和 CPU 資產保留；Pilot 中斷後可原命令續跑。此修正仍須經目標 GH200 重新測試驗證。
 
-## 2. 目錄及架構
+## 2. 加速（保留研究對照與續訓一致性）
+
+2026-11-14 GH200 實測：Jeff-1.1-Large 權重載入 42 分 36 秒；Pilot 2 次 Optimizer 更新、128 筆 Train 曝光耗時約 2.5 分鐘，折算約 0.85 cases/s。單組完整 2 Epoch 有 86,360 筆曝露；原單筆訓練路徑約需 28 小時（推估，未包含 Dev / Checkpoint 時間）。
+
+**第一優先：保留 31B 常駐 GPU。** `screen` / `full` 在同一個 Python Session 內完成多方法微調和 Dev 評估，總共只載入一次 31B（已完成的 Pilot 會跳過）。避免先分開執行 `screen` 再重啟 `full`，可直接使用 `full --confirm-full`。
+
+**第二優先：官方 Jeff 批次決策。** Jeff v1.3.0 的 `Decider.hidden_batch` 支援右 Padding / 注意力遮罩 / 各筆最後有效 Token。訓練新增可選 `--micro-batch-size 2` 或 `4`，每筆 Loss 權重、Train 抽樣、原本每次 64 筆累積、1350 Updates 和每 Epoch 43,180 筆都保持不變。僅在 64 筆累積區塊內做 Token 長度排序，減少 Padding；每個批次保守限制為 `1024 × micro_batch_size` 個補齊 Token，遇到超長題目會自動退回單筆計算，仍保留每筆 Loss 和 64 筆原始累積。正式 Checkpoint 固定記錄 `micro_batch_size`，拒絕不同設定混用續訓；新批次必須先通過 16-slot Logits 的逐筆／批次一致性檢查。可先在小模型做真實 GPU 反傳驗證：
+
+```bash
+bash run_h200.sh micro --deep --micro-batch-size 2
+# 小模型確認通過後，正式 Screen/Full 明確啟用；先從 2 開始觀察 HBM。
+TCMDISCERN_MICRO_BATCH_SIZE=2 bash run_h200.sh screen --confirm-screen
+```
+
+同樣的環境變數支援 `run_h200.sh full --confirm-full` 和 Joint16 的正式實驗。未設定時保持已驗證的逐筆 B=1 路徑。`Pilot` 延續歷史 B=1 設定；Micro/正式長訓練可使用 B=2 來驗證吞吐量。跑至首個 Update 後，日誌會記錄 `micro_batch`、`cases_per_second`、Loss、已用時間與預估剩餘時間。比較 B=2/B=4 以同一 GPU、同長度分布的實測 throughput 與 VRAM 為準，切勿將批次大小當成可保證的兩倍加速。
+
+第三優先是模型權重讀取 I/O：載入約 64GB 卻耗時 42 分鐘，表示需查核來源檔案系統的實際吞吐量。可用 `df -hT data/models/Jeff-1.1-Large` 確認儲存類型，再依 GH200 本機 NVMe 空間評估一次性搬移。模型搬移後需以 `H200_MODEL_DIR` 明確指定新目錄，保留原版完整模型與檢查。
+
+## 3. 目錄及架構
 
 | 位置 | 責任 |
 |---|---|
@@ -48,19 +66,19 @@ bash run_h200.sh full --confirm-full
 
 所有病例及逐筆 logits、Adapter、Optimizers 都在 `data/`（Git 忽略），僅可公開不含病例的彙總。Run 元資料與日誌在 `data/h200/state`、`data/h200/logs`。
 
-## 3. 重跑、暫停與資料遺失
+## 4. 重跑、暫停與資料遺失
 
 反覆執行同一個 `bash run_h200.sh full --confirm-full` 會依完成標記和完整輸出驗證跳過已通過階段。若訓練被中斷，先確認 `status`，原命令會自動選最新完整 `resume-NNNNNNN`；檔案沒有完成保存或設定不同，會停止並提示。不得直接刪除、編輯或覆寫 `data/runs/` 下的續訓檔。
 
 **限制：** 如果 process 在最近一次完整 checkpoint 後失敗，已完成但尚未 checkpoint 的 Optimizer 更新需要從上一個已保存 checkpoint 重做；依確定性 Seed 和 Cursor 保持同一資料順序。若出現 OOM、NaN、檔案缺漏、釘選模型版本不符或前綴遮罩失敗，將中止長訓練。重新下載或轉移模型時應確認磁碟容量及 Hugging Face 權限。
 
-## 4. 重要驗證界線
+## 5. 重要驗證界線
 
 - 本機可驗證：官方 Train/Dev 全量列數與每列來源、Group-aware OOF、S1～S4 金標／候選／Prompt、A～P 排列、K=1～35 模擬打分及研究統計。
 - **只有 GH200 能驗證：** 已知 Driver 550/CUDA12.8 能載入完整 31B 權重，但先前的預設 SDPA 前綴因果檢查失敗；新的 eager 回退、全量 BF16 Backward、真正 LoRA/Head 梯度、Checkpoint 重載、GPU 峰值顯存及實際效能須在 H200 再次驗證。
 - 模型來源與提示格式對齊 Jeff 官方 v1.3.0 和〈Releasing the Inner Jev〉所述 16-slot Decision Head、BF16 Backbone、LoRA rank32/alpha64。GH200 CUDA12.8 分支是相容性配置；每個模型輸出包含 `attention_backend`，後續彙整會拒絕混用後端。模型是否可完成單張 GH200 微調，仍以實際 Pilot 為準。
 
-## 5. 直接查問題
+## 6. 直接查問題
 
 ```bash
 bash run_h200.sh status

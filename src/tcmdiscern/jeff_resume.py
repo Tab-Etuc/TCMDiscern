@@ -63,6 +63,17 @@ def save_resume(
     return target
 
 
+def verify_resume_settings(state: dict, expected: dict) -> None:
+    """CPU-verifiable guard against changes to optimizer or micro-batch protocol."""
+    if not isinstance(state, dict) or not isinstance(expected, dict):
+        raise TypeError("Expected JSON checkpoint state and frozen settings")
+    for key, required in expected.items():
+        if state.get(key) != required:
+            raise ValueError(f"Resume checkpoint does not match fixed {key}")
+    if state.get("micro_batch_size", 1) != expected.get("micro_batch_size", 1):
+        raise ValueError("Resume checkpoint micro_batch_size differs from requested run")
+
+
 def restore_resume(
     directory: Path,
     *,
@@ -84,9 +95,7 @@ def restore_resume(
     if not directory.is_dir() or not (directory / "training_state.json").is_file():
         raise FileNotFoundError("Missing training-resume metadata")
     state = json.loads((directory / "training_state.json").read_text(encoding="utf-8"))
-    for key, required in expected.items():
-        if state.get(key) != required:
-            raise ValueError(f"Resume checkpoint does not match fixed {key}")
+    verify_resume_settings(state, expected)
     if not isinstance(state.get("global_update"), int) or state["global_update"] < 1:
         raise ValueError("Invalid resume optimizer step")
     for key in ("cursor_epoch", "cursor_offset"):
