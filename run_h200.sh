@@ -235,7 +235,7 @@ fi
 # Gate every expensive 31B read on a complete tiny Gemma4/PEFT/Head smoke.
 # This cannot prove 31B numerical safety, but catches software integration
 # faults without another 42-minute failed checkpoint load.
-echo "[MINI] Verifying miniature Gemma 4 pipeline before 31B weights"
-"$PY" -m scripts.smoke_tiny_jeff --model-dir "$MODEL_DIR"
-echo "[MINI] End-to-end tiny smoke PASS"
+echo "[MINI] Verifying full decoder depth with small tensors before 31B weights"
+"$PY" -m scripts.smoke_tiny_jeff --model-dir "$MODEL_DIR" --deep
+echo "[MINI] Full-depth tiny smoke PASS"
 H200_MODEL_DIR="$MODEL_DIR" "$PY" -m scripts.h200 "$MODE" "$@"

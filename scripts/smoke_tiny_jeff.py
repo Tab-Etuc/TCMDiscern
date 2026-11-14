@@ -45,30 +45,49 @@ def read_training_probe(root: Path) -> dict:
     raise RuntimeError("Cannot find an original multi-positive Train example")
 
 
-def miniature_text_config(metadata: dict):
-    """Preserve Gemma 4 attention varieties, PLE and shared K/V in 4 layers."""
+def miniature_layout(metadata: dict, *, deep: bool) -> tuple[list[str], int]:
+    """Validate the release's exact decoder depth and per-layer attention pattern."""
+    if not deep:
+        return list(MINI_LAYER_TYPES), 1  # Dedicated shared-KV module-selection branch.
+    count = metadata["num_hidden_layers"]
+    types = metadata["layer_types"]
+    shared = metadata["num_kv_shared_layers"]
+    if not isinstance(count, int) or not 4 <= count <= 120:
+        raise ValueError("Release 31B decoder depth is invalid")
+    if not isinstance(types, list) or len(types) != count:
+        raise ValueError("Release decoder attention types are incomplete")
+    if set(types) - {"full_attention", "sliding_attention"} or types[-1] != "full_attention":
+        raise ValueError("Unexpected Gemma 4 attention layout")
+    if not isinstance(shared, int) or not 0 <= shared < count:
+        raise ValueError("Release shared-KV layer count is invalid")
+    return list(types), shared
+
+
+def miniature_text_config(metadata: dict, *, deep: bool = False):
+    """Shrink width while optionally preserving every released attention layer."""
     from transformers.models.gemma4.configuration_gemma4 import Gemma4TextConfig
 
     if metadata["release_jeff_bidirectional"] != JEFF_BIDIRECTIONAL:
         raise RuntimeError("Unexpected Jeff release bidirectional setting")
+    layers, shared = miniature_layout(metadata, deep=deep)
     return Gemma4TextConfig(
         vocab_size=MINI_VOCAB_SIZE,
         hidden_size=MINI_HIDDEN_SIZE,
         intermediate_size=128,
-        num_hidden_layers=len(MINI_LAYER_TYPES),
+        num_hidden_layers=len(layers),
         num_attention_heads=4,
         num_key_value_heads=2,
         head_dim=16,
         global_head_dim=16,
         num_global_key_value_heads=2,
-        layer_types=list(MINI_LAYER_TYPES),
-        num_kv_shared_layers=1,
+        layer_types=layers,
+        num_kv_shared_layers=shared,
         attention_k_eq_v=metadata["attention_k_eq_v"],
         hidden_size_per_layer_input=8 if metadata["has_per_layer_embeddings"] else 0,
         vocab_size_per_layer_input=MINI_VOCAB_SIZE,
         use_bidirectional_attention=metadata["gemma4_native_attention"],
-        max_position_embeddings=256,
-        sliding_window=32,
+        max_position_embeddings=1024 if deep else 256,
+        sliding_window=96 if deep else 32,
         attention_dropout=0.0,
         pad_token_id=0,
         bos_token_id=1,
@@ -217,7 +236,7 @@ def verify_mini_train_and_reload(decider, ids: list[int], example: dict, directo
     }
 
 
-def run(*, model_dir: Path, root: Path = ROOT) -> dict:
+def run(*, model_dir: Path, root: Path = ROOT, deep: bool = False) -> dict:
     """Run a tiny Gemma4 model; never map the released 31B weights."""
     model_dir = model_dir.expanduser().resolve(strict=True)
     metadata = inspect_release_attention(model_dir)
@@ -241,9 +260,9 @@ def run(*, model_dir: Path, root: Path = ROOT) -> dict:
     question = read_training_probe(root)
     encoder = AutoTokenizer.from_pretrained(model_dir, local_files_only=True)
     original_ids = encode_prompt(encoder, question["row"], JEFF_MAX_INPUT_TOKENS)
-    ids = miniature_token_ids(original_ids)
+    ids = miniature_token_ids(original_ids, width=min(len(original_ids), 256) if deep else 64)
     model = (
-        Gemma4ForCausalLM(miniature_text_config(metadata))
+        Gemma4ForCausalLM(miniature_text_config(metadata, deep=deep))
         .to(
             device=device,
             dtype=torch.bfloat16 if device.type == "cuda" else torch.float32,
@@ -255,7 +274,7 @@ def run(*, model_dir: Path, root: Path = ROOT) -> dict:
         model,
         encoder,
         head,
-        max_tokens=256,
+        max_tokens=512 if deep else 256,
         bidirectional=metadata["release_jeff_bidirectional"],
         long_input="refuse",
     )
@@ -271,7 +290,7 @@ def run(*, model_dir: Path, root: Path = ROOT) -> dict:
     print(f"[MINI] {contract} attention PASS", flush=True)
     output_dir = root / "data/h200"
     output_dir.mkdir(parents=True, exist_ok=True)
-    report_file = output_dir / "micro_smoke.json"
+    report_file = output_dir / ("micro_deep.json" if deep else "micro_smoke.json")
     report_file.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix=".mini-jeff-", dir=output_dir) as folder:
         trained = verify_mini_train_and_reload(
@@ -283,7 +302,8 @@ def run(*, model_dir: Path, root: Path = ROOT) -> dict:
     report = {
         "status": "MINI_JEFF_PIPELINE_PASS",
         "model_weight_loads": 0,
-        "model_type": "four_layer_random_gemma4",
+        "model_type": "release_depth_random_gemma4" if deep else "four_layer_random_gemma4",
+        "miniature_layers": metadata["num_hidden_layers"] if deep else len(MINI_LAYER_TYPES),
         "non_benchmark": True,
         "test_opened": False,
         "attention_contract": contract,
@@ -314,11 +334,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-dir", type=Path, default=ROOT / "data/models/Jeff-1.1-Large")
     parser.add_argument("--metadata-only", action="store_true")
+    parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="Retain the released 60-layer attention layout with tiny weights",
+    )
     args = parser.parse_args()
     if args.metadata_only:
         print(json.dumps(inspect_release_attention(args.model_dir), ensure_ascii=False, indent=2))
         return
-    run(model_dir=args.model_dir)
+    run(model_dir=args.model_dir, deep=args.deep)
 
 
 if __name__ == "__main__":

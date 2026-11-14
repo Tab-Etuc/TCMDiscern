@@ -41,6 +41,9 @@ def inspect_release_attention(folder: Path) -> dict:
         "attention_k_eq_v": bool(text_config.get("attention_k_eq_v", False)),
         "num_kv_shared_layers": int(text_config.get("num_kv_shared_layers", 0)),
         "has_per_layer_embeddings": bool(text_config.get("hidden_size_per_layer_input", 0)),
+        "num_hidden_layers": int(text_config.get("num_hidden_layers", 0)),
+        "layer_types": text_config.get("layer_types"),
+        "sliding_window": int(text_config.get("sliding_window", 0)),
         "base_model": jeff_config.get("base_model"),
     }
 

@@ -8,7 +8,11 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from scripts.smoke_tiny_jeff import miniature_token_ids, read_training_probe
+from scripts.smoke_tiny_jeff import (
+    miniature_layout,
+    miniature_token_ids,
+    read_training_probe,
+)
 from tcmdiscern.jeff_release_attention import (
     inspect_release_attention,
     runtime_attention_contract,
@@ -110,6 +114,37 @@ def test_runtime_contract_matches_config(native, jeff):
     assert runtime_attention_contract(decider) == (
         "bidirectional" if native == "all" or jeff else "causal"
     )
+
+
+def test_release_depth_micro_preserves_exact_all_60_attention_layer_types():
+    types = [
+        "full_attention" if (index + 1) % 6 == 0 else "sliding_attention" for index in range(60)
+    ]
+    metadata = {
+        "num_hidden_layers": 60,
+        "layer_types": types,
+        "num_kv_shared_layers": 0,
+    }
+    actual, shared = miniature_layout(metadata, deep=True)
+    assert len(actual) == 60
+    assert actual == types
+    assert shared == 0
+    assert miniature_layout(metadata, deep=False) == (
+        ["sliding_attention", "full_attention", "sliding_attention", "full_attention"],
+        1,
+    )
+
+
+def test_release_depth_micro_rejects_incomplete_layout():
+    with pytest.raises(ValueError, match="incomplete"):
+        miniature_layout(
+            {
+                "num_hidden_layers": 60,
+                "layer_types": ["full_attention"] * 4,
+                "num_kv_shared_layers": 0,
+            },
+            deep=True,
+        )
 
 
 def test_miniature_token_mapping_is_bounded_without_reordered_tokens():

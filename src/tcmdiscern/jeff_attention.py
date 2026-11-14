@@ -136,14 +136,92 @@ def audit_with_safe_backend(decider, prompt_ids: Sequence[int]) -> dict:
         try:
             report = audit_official_causal_attention(decider, prompt_ids)
         except Exception as fallback_error:
+            # One 31B load takes 42 minutes on GH200. Preserve useful
+            # evidence from the same resident weights before stopping.
+            try:
+                diagnostic = first_divergent_decoder_layer(decider, prompt_ids)
+            except (
+                RuntimeError,
+                ValueError,
+                TypeError,
+                AttributeError,
+                OSError,
+                ImportError,
+            ) as debug_error:
+                diagnostic = {"diagnostic_error": str(debug_error)}
             raise RuntimeError(
                 "Neither default nor eager attention passed causal-prefix safety; "
+                f"decoder_layer_diagnostic={diagnostic}. "
                 "LoRA and evaluation remain blocked"
             ) from fallback_error
         report["attention_backend"] = "eager"
         report["default_backend_causal_pass"] = False
         print("[ATTENTION] Eager backend causal-prefix PASS", flush=True)
         return report
+
+
+def first_divergent_decoder_layer(decider, prompt_ids: Sequence[int]) -> dict:
+    """Diagnose the earliest layer leaking suffix tokens in an already loaded 31B.
+
+    This runs only after both attention backends fail. It reuses resident model
+    weights and retains CPU copies of only the short prefix at each layer.
+    """
+    import torch
+
+    backbone = decider.base
+    text = getattr(backbone, "language_model", backbone)
+    layers = getattr(text, "layers", None)
+    if layers is None or len(layers) == 0:
+        raise RuntimeError("Cannot identify Gemma 4 text decoder layers")
+    n = max(32, len(prompt_ids) // 2)
+    records: dict[str, dict[int, torch.Tensor]] = {}
+    for label, ids in (
+        ("short", list(prompt_ids[:n])),
+        ("extended", list(prompt_ids)),
+    ):
+        records[label] = {}
+        handles = []
+
+        def collect(index: int, phase: str):
+            def hook(module, inputs, output):
+                tensor = output[0] if isinstance(output, tuple) else output
+                if isinstance(tensor, torch.Tensor):
+                    records[phase][index] = tensor[:, :n, :].detach().float().cpu()
+
+            return hook
+
+        try:
+            for index, layer in enumerate(layers):
+                handles.append(layer.register_forward_hook(collect(index, label)))
+            with torch.inference_mode():
+                decider.forward(
+                    input_ids=torch.tensor([ids], device=decider.device, dtype=torch.long),
+                    attention_mask=None,
+                    use_cache=False,
+                    return_dict=True,
+                )
+        finally:
+            for handle in handles:
+                handle.remove()
+
+    if len(records["short"]) != len(layers) or len(records["extended"]) != len(layers):
+        raise RuntimeError("Decoder did not execute every expected layer")
+    for index in range(len(layers)):
+        shorter = records["short"][index]
+        extended = records["extended"][index]
+        if shorter.shape != extended.shape:
+            raise RuntimeError(f"Decoder layer {index} changed prefix tensor shape")
+        diff = (shorter - extended).abs()
+        mask = diff > 0.1 + 0.05 * shorter.abs()
+        if bool(mask.any()):
+            return {
+                "first_divergent_layer": index,
+                "layer_type": text.config.layer_types[index],
+                "mismatched_features": int(mask.sum().item()),
+                "max_abs": float(diff.max().item()),
+                "total_decoder_layers": len(layers),
+            }
+    return {"first_divergent_layer": None, "total_decoder_layers": len(layers)}
 
 
 def audit_official_causal_attention(decider, prompt_ids: Sequence[int]) -> dict:
