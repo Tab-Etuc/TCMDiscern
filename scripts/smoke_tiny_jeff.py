@@ -86,8 +86,8 @@ def miniature_text_config(metadata: dict, *, deep: bool = False):
         hidden_size_per_layer_input=8 if metadata["has_per_layer_embeddings"] else 0,
         vocab_size_per_layer_input=MINI_VOCAB_SIZE,
         use_bidirectional_attention=metadata["gemma4_native_attention"],
-        max_position_embeddings=1024 if deep else 256,
-        sliding_window=96 if deep else 32,
+        max_position_embeddings=max(2048, metadata["sliding_window"] + 256) if deep else 256,
+        sliding_window=metadata["sliding_window"] if deep else 32,
         attention_dropout=0.0,
         pad_token_id=0,
         bos_token_id=1,
@@ -100,6 +100,14 @@ def miniature_token_ids(real_ids: list[int], width: int = 64) -> list[int]:
     if len(real_ids) < 40 or width < 40:
         raise ValueError("The official prompt or miniature window is too short")
     return [1 + int(token) % (MINI_VOCAB_SIZE - 1) for token in real_ids[-width:]]
+
+
+def window_boundary_tokens(ids: list[int], window: int) -> list[int]:
+    """Make a synthetic sequence crossing the released sliding-window boundary."""
+    if len(ids) < 40 or window < 40:
+        raise ValueError("Window-boundary probe requires valid sequence and window")
+    length = window + 32
+    return [ids[index % len(ids)] for index in range(length)]
 
 
 def verify_mini_train_and_reload(decider, ids: list[int], example: dict, directory: Path) -> dict:
@@ -260,7 +268,7 @@ def run(*, model_dir: Path, root: Path = ROOT, deep: bool = False) -> dict:
     question = read_training_probe(root)
     encoder = AutoTokenizer.from_pretrained(model_dir, local_files_only=True)
     original_ids = encode_prompt(encoder, question["row"], JEFF_MAX_INPUT_TOKENS)
-    ids = miniature_token_ids(original_ids, width=min(len(original_ids), 256) if deep else 64)
+    ids = miniature_token_ids(original_ids, width=len(original_ids) if deep else 64)
     model = (
         Gemma4ForCausalLM(miniature_text_config(metadata, deep=deep))
         .to(
@@ -274,7 +282,7 @@ def run(*, model_dir: Path, root: Path = ROOT, deep: bool = False) -> dict:
         model,
         encoder,
         head,
-        max_tokens=512 if deep else 256,
+        max_tokens=max(len(ids) + 16, 1024) if deep else 256,
         bidirectional=metadata["release_jeff_bidirectional"],
         long_input="refuse",
     )
@@ -288,6 +296,28 @@ def run(*, model_dir: Path, root: Path = ROOT, deep: bool = False) -> dict:
         attention["attention_backend"] = "released_default"
     decider.attention_backend = attention["attention_backend"]
     print(f"[MINI] {contract} attention PASS", flush=True)
+    window_report = None
+    if deep:
+        boundary_ids = window_boundary_tokens(ids, metadata["sliding_window"])
+        if contract == "causal":
+            window_report = audit_with_safe_backend(decider, boundary_ids)
+        else:
+            window_report = audit_bidirectional_determinism(decider, boundary_ids)
+            window_report["attention_backend"] = "released_default"
+        if window_report["attention_backend"] != decider.attention_backend:
+            # If the sliding-window probe requires eager, revalidate the
+            # original training-length probe with the same final backend.
+            if contract == "causal":
+                attention = audit_with_safe_backend(decider, ids)
+            else:
+                attention = audit_bidirectional_determinism(decider, ids)
+                attention["attention_backend"] = "released_default"
+        decider.attention_backend = window_report["attention_backend"]
+        print(
+            f"[MINI] Sliding-window boundary PASS: {len(boundary_ids)} tokens "
+            f"(window={metadata['sliding_window']})",
+            flush=True,
+        )
     output_dir = root / "data/h200"
     output_dir.mkdir(parents=True, exist_ok=True)
     report_file = output_dir / ("micro_deep.json" if deep else "micro_smoke.json")
@@ -307,9 +337,19 @@ def run(*, model_dir: Path, root: Path = ROOT, deep: bool = False) -> dict:
         "non_benchmark": True,
         "test_opened": False,
         "attention_contract": contract,
-        "attention_backend": attention["attention_backend"],
+        "attention_backend": decider.attention_backend,
+        "sliding_window_boundary_probe": (
+            {
+                "tokens": metadata["sliding_window"] + 32,
+                "window": metadata["sliding_window"],
+                "passed": True,
+            }
+            if deep
+            else None
+        ),
         "real_train_prompt_tokens": len(original_ids),
         "miniature_prompt_tokens": len(ids),
+        "sliding_window": metadata["sliding_window"] if deep else 32,
         "train_observed_positives": len(question["positive_indices"]),
         "device": str(device),
         "elapsed_seconds": round(time.perf_counter() - start, 2),

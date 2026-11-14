@@ -1,9 +1,9 @@
-"""H200 preflight for unexpected noncausal Gemma 4 attention behavior.
+"""H200 preflight for noncausal Gemma 4 attention behavior.
 
-Compare hidden states for identical prefix tokens with and without a suffix.
-A properly causal decoder cannot let later tokens alter earlier states. The
-check uses a synthetic fixed prompt, never patient data. This directly guards
-the attention-backend failure mode described in newer decision-model work.
+Compare prefix states from two equal-length prompts that differ only in
+suffix tokens. This avoids false alarms from BF16 GEMM kernel changes when
+short and long sequences use different matrix shapes. The probe is synthetic,
+contains no patient data, and runs before 31B training.
 """
 
 from __future__ import annotations
@@ -11,6 +11,29 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import numpy as np
+
+
+def perturb_suffix_tokens(prompt_ids: Sequence[int]) -> tuple[list[int], int]:
+    """Replace only the suffix while keeping the *sequence shape* unchanged.
+
+    Shape changes can select different BF16 GEMM kernels and magnify rounding
+    differences across 60 layers, even with a correct causal mask. A fixed
+    input shape isolates the causal question from that numerical confound.
+    """
+    if len(prompt_ids) < 40:
+        raise ValueError("Fixed-length causal probe needs at least 40 tokens")
+    original = list(prompt_ids)
+    split = max(32, len(original) // 2)
+    changed = original.copy()
+    changed[split:] = original[split + 1 :] + original[split : split + 1]
+    if changed == original:
+        alternative = next((token for token in original[:split] if token != original[-1]), None)
+        if alternative is None:
+            raise ValueError("Synthetic prompt cannot create a distinct suffix")
+        changed[-1] = alternative
+    if changed[:split] != original[:split]:
+        raise RuntimeError("Causal audit altered prefix tokens")
+    return changed, split
 
 
 def compare_causal_prefix(
@@ -44,7 +67,7 @@ def compare_causal_prefix(
     }
     if violations:
         raise RuntimeError(
-            "Gemma 4 attention backend changed earlier hidden states after appending tokens: "
+            "Gemma 4 attention backend changed earlier hidden states after suffix perturbation: "
             f"{violations} mismatched features (max_abs={result['max_hidden_absolute_difference']:.5g}); "
             "verify truly causal attention or switch to verified eager backend before H200 training"
         )
@@ -112,7 +135,11 @@ def audit_with_safe_backend(decider, prompt_ids: Sequence[int]) -> dict:
     """Use the released attention if causal; otherwise verify eager in-place."""
     try:
         report = audit_official_causal_attention(decider, prompt_ids)
-        report["attention_backend"] = "released_default"
+        config = getattr(decider.model, "config", None)
+        get_text = getattr(config, "get_text_config", None)
+        text_config = get_text() if callable(get_text) else config
+        active_backend = getattr(text_config, "_attn_implementation", None)
+        report["attention_backend"] = "eager" if active_backend == "eager" else "released_default"
         return report
     except RuntimeError as original_error:
         # With torch 2.11 / CUDA 12.8, the default SDPA kernel on a GH200 may
@@ -175,9 +202,11 @@ def first_divergent_decoder_layer(decider, prompt_ids: Sequence[int]) -> dict:
         raise RuntimeError("Cannot identify Gemma 4 text decoder layers")
     n = max(32, len(prompt_ids) // 2)
     records: dict[str, dict[int, torch.Tensor]] = {}
+    changed_ids, split = perturb_suffix_tokens(prompt_ids)
+    n = split
     for label, ids in (
-        ("short", list(prompt_ids[:n])),
-        ("extended", list(prompt_ids)),
+        ("short", list(prompt_ids)),
+        ("extended", changed_ids),
     ):
         records[label] = {}
         handles = []
@@ -225,28 +254,34 @@ def first_divergent_decoder_layer(decider, prompt_ids: Sequence[int]) -> dict:
 
 
 def audit_official_causal_attention(decider, prompt_ids: Sequence[int]) -> dict:
-    """Run two true Jeff decoder forwards before LoRA injection or scoring."""
+    """Check fixed-length suffix perturbations in true Jeff decoder forwards."""
     import torch
 
     if getattr(decider, "bidirectional", None):
         raise ValueError("This H200 causal test only applies to Jeff-1.1-Large")
     if len(prompt_ids) < 40:
         raise ValueError("Synthetic prompt needs >=40 tokens for prefix audit")
-    n = max(32, len(prompt_ids) // 2)
-    if n >= len(prompt_ids):
-        raise ValueError("Synthetic causal test has no appended suffix")
+    changed_ids, n = perturb_suffix_tokens(prompt_ids)
     dev = decider.device
-    ids_short = torch.tensor([list(prompt_ids[:n])], dtype=torch.long, device=dev)
-    ids_extended = torch.tensor([list(prompt_ids)], dtype=torch.long, device=dev)
+    # Both forwards have the same length, GEMM shapes and attention-mask shape.
+    # Only tokens strictly after n change.
+    ids_original = torch.tensor([list(prompt_ids)], dtype=torch.long, device=dev)
+    ids_changed = torch.tensor([changed_ids], dtype=torch.long, device=dev)
     with torch.inference_mode():
-        prefix = decider.forward(
-            input_ids=ids_short, attention_mask=None, use_cache=False, return_dict=True
+        original = decider.forward(
+            input_ids=ids_original, attention_mask=None, use_cache=False, return_dict=True
         ).last_hidden_state
-        extended = decider.forward(
-            input_ids=ids_extended, attention_mask=None, use_cache=False, return_dict=True
+        changed = decider.forward(
+            input_ids=ids_changed, attention_mask=None, use_cache=False, return_dict=True
         ).last_hidden_state
     result = compare_causal_prefix(
-        prefix.detach().float().cpu().numpy(), extended.detach().float().cpu().numpy()
+        original[:, :n, :].detach().float().cpu().numpy(),
+        changed.detach().float().cpu().numpy(),
     )
     result["synthetic_probe_only"] = True
+    result["audit_type"] = "fixed_length_suffix_perturbation"
+    result["input_sequence_tokens"] = len(prompt_ids)
+    result["mutated_suffix_tokens"] = sum(
+        a != b for a, b in zip(prompt_ids[n:], changed_ids[n:], strict=True)
+    )
     return result

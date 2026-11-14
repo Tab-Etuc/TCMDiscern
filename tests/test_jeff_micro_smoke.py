@@ -10,8 +10,10 @@ import pytest
 
 from scripts.smoke_tiny_jeff import (
     miniature_layout,
+    miniature_text_config,
     miniature_token_ids,
     read_training_probe,
+    window_boundary_tokens,
 )
 from tcmdiscern.jeff_release_attention import (
     inspect_release_attention,
@@ -135,6 +137,32 @@ def test_release_depth_micro_preserves_exact_all_60_attention_layer_types():
     )
 
 
+def test_deep_micro_config_preserves_released_sliding_window_when_installed():
+    import importlib.util
+
+    if (
+        importlib.util.find_spec("transformers") is None
+        or importlib.util.find_spec("torch") is None
+    ):
+        pytest.skip("Gemma 4 is installed only in the isolated GH200 .venv")
+    metadata = {
+        "release_jeff_bidirectional": None,
+        "gemma4_native_attention": "vision",
+        "attention_k_eq_v": True,
+        "has_per_layer_embeddings": False,
+        "num_hidden_layers": 60,
+        "layer_types": [
+            "full_attention" if (i + 1) % 6 == 0 else "sliding_attention" for i in range(60)
+        ],
+        "num_kv_shared_layers": 0,
+        "sliding_window": 1024,
+    }
+    cfg = miniature_text_config(metadata, deep=True)
+    assert cfg.num_hidden_layers == 60
+    assert cfg.sliding_window == 1024
+    assert cfg.max_position_embeddings >= 1024
+
+
 def test_release_depth_micro_rejects_incomplete_layout():
     with pytest.raises(ValueError, match="incomplete"):
         miniature_layout(
@@ -145,6 +173,13 @@ def test_release_depth_micro_rejects_incomplete_layout():
             },
             deep=True,
         )
+
+
+def test_window_boundary_probe_is_longer_than_released_window():
+    ids = [11, 23, 41, 57] * 16
+    sequence = window_boundary_tokens(ids, 1024)
+    assert len(sequence) == 1056
+    assert sequence[: len(ids)] == ids
 
 
 def test_miniature_token_mapping_is_bounded_without_reordered_tokens():

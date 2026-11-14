@@ -25,6 +25,19 @@ def test_attention_keeps_verified_default_backend(monkeypatch):
     assert result["attention_backend"] == "released_default"
 
 
+def test_attention_reports_eager_when_already_active(monkeypatch):
+    decider = SimpleNamespace(
+        model=SimpleNamespace(config=SimpleNamespace(_attn_implementation="eager"))
+    )
+    monkeypatch.setattr(
+        jeff_attention,
+        "audit_official_causal_attention",
+        lambda decider, ids: {"mismatched_features": 0},
+    )
+    report = jeff_attention.audit_with_safe_backend(decider, list(range(50)))
+    assert report["attention_backend"] == "eager"
+
+
 def test_attention_falls_back_only_after_failing_prefix_audit(monkeypatch):
     class Model:
         backend = "sdpa"
