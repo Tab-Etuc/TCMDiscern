@@ -59,9 +59,53 @@ def audit_released_jeff_attention(decider) -> dict:
     from .jeff_config import JEFF_MAX_INPUT_TOKENS
 
     ids = encode_prompt(decider.tokenizer, checkpoint_probe(), JEFF_MAX_INPUT_TOKENS)
-    report = audit_with_safe_backend(decider, ids)
+    from .jeff_release_attention import runtime_attention_contract
+
+    contract = runtime_attention_contract(decider)
+    if contract == "bidirectional":
+        # The released decision model intentionally lets later options affect
+        # earlier hidden states. Prefix equality is the WRONG invariant there.
+        report = audit_bidirectional_determinism(decider, ids)
+        report["attention_backend"] = "released_default"
+    else:
+        report = audit_with_safe_backend(decider, ids)
+    report["attention_contract"] = contract
     decider.attention_backend = report["attention_backend"]
     return report
+
+
+def audit_bidirectional_determinism(decider, prompt_ids: Sequence[int]) -> dict:
+    """Check a released bidirectional decision twice with the exact Jeff mask.
+
+    A bidirectional model is expected to change earlier states after a suffix
+    is appended, so never use a causal-prefix test on that configuration.
+    """
+    import torch
+
+    if len(prompt_ids) < 40:
+        raise ValueError("Bidirectional audit requires a realistic synthetic prompt")
+    a = list(prompt_ids)
+    b = a.copy()
+    b[-1] = 1 if b[-1] != 1 else 2
+    with torch.inference_mode():
+        first = decider.hidden(a).float()
+        second = decider.hidden(a).float()
+        changed = decider.hidden(b).float()
+    if (
+        not torch.isfinite(first).all().item()
+        or not torch.isfinite(second).all().item()
+        or not torch.isfinite(changed).all().item()
+        or not torch.allclose(first, second, rtol=1e-4, atol=1e-3)
+    ):
+        raise RuntimeError("Released bidirectional Jeff is not deterministic or finite")
+    if torch.allclose(first, changed, rtol=1e-6, atol=1e-6):
+        raise RuntimeError("Released Jeff did not react to a changed prompt token")
+    return {
+        "attention_contract": "bidirectional",
+        "same_prompt_repeatable": True,
+        "different_prompt_response": True,
+        "synthetic_probe_only": True,
+    }
 
 
 def audit_with_safe_backend(decider, prompt_ids: Sequence[int]) -> dict:

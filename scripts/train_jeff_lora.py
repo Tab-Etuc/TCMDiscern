@@ -22,9 +22,14 @@ import math
 from pathlib import Path
 
 from scripts.preflight_jeff_training import inspect_checkpoint
-from tcmdiscern.jeff_config import JEFF_MAX_INPUT_TOKENS, JEFF_UPSTREAM_CODE_TAG
+from tcmdiscern.jeff_config import (
+    JEFF_BIDIRECTIONAL,
+    JEFF_MAX_INPUT_TOKENS,
+    JEFF_UPSTREAM_CODE_TAG,
+)
 from tcmdiscern.jeff_epoch import reshuffle_training_example
 from tcmdiscern.jeff_losses import torch_loss
+from tcmdiscern.jeff_release_attention import inspect_release_attention
 
 LORA_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
 METHODS = ("s1", "s2", "s3", "s4")
@@ -115,6 +120,12 @@ def load_original_checkpoint(model_dir: Path):
         raise FileNotFoundError("Missing original pinned Jeff merged backbone or head.safetensors")
     if checkpoint["release_metadata_matches"] is not True:
         raise ValueError("Released Jeff metadata does not match the pinned model")
+    # Read only small config files and refuse a wrong attention contract
+    # BEFORE the 31B safetensors are mapped (42 minutes on this host).
+    contract = inspect_release_attention(model_dir)
+    if contract["release_jeff_bidirectional"] != JEFF_BIDIRECTIONAL:
+        raise ValueError("The released Jeff bidirectional mode differs from the pinned study")
+    print(f"[ATTENTION] Released model metadata: {contract}", flush=True)
     model = JeffModel(
         model_dir,
         device="cuda",

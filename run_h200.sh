@@ -9,9 +9,9 @@ cd "$ROOT"
 MODE="${1:-prepare}"
 if [ "$#" -gt 0 ]; then shift; fi
 case "$MODE" in
-  prepare|pilot|screen|full|plan|status) ;;
+  prepare|micro|pilot|screen|full|plan|status) ;;
   *)
-    echo "Usage: ./run_h200.sh {prepare|pilot|screen|full|plan|status} [options]" >&2
+    echo "Usage: ./run_h200.sh {prepare|micro|pilot|screen|full|plan|status} [options]" >&2
     echo "To train all 3 seeds: ./run_h200.sh full --confirm-full" >&2
     exit 2
     ;;
@@ -50,7 +50,7 @@ if command -v uv >/dev/null 2>&1; then
   UV_BIN="$(command -v uv)"
 elif [ -x "$HOME/.local/bin/uv" ]; then
   UV_BIN="$HOME/.local/bin/uv"
-elif [ "$MODE" != "plan" ] && [ "$MODE" != "status" ] && [ "$DRY_RUN" -eq 0 ]; then
+elif [ "$MODE" != "plan" ] && [ "$MODE" != "status" ] && [ "$MODE" != "micro" ] && [ "$DRY_RUN" -eq 0 ]; then
   if ! command -v curl >/dev/null 2>&1; then
     echo "curl is required for the official uv installer." >&2
     exit 1
@@ -65,6 +65,22 @@ elif [ "$MODE" != "plan" ] && [ "$MODE" != "status" ] && [ "$DRY_RUN" -eq 0 ]; t
 fi
 
 PY="$ROOT/.venv/bin/python"
+
+# Fast real tiny Gemma 4 pipeline: no large checkpoint read, no package installation.
+if [ "$MODE" = "micro" ]; then
+  if [ ! -x "$PY" ]; then
+    echo "Project .venv is missing. Run prepare before micro." >&2
+    exit 1
+  fi
+  mkdir -p "$ROOT/data/h200"
+  exec 9>"$ROOT/data/h200/runner.lock"
+  if ! flock -n 9; then
+    echo "Another H200 experiment is already running." >&2
+    exit 1
+  fi
+  "$PY" -m scripts.smoke_tiny_jeff "$@"
+  exit 0
+fi
 
 if [ "$MODE" = "plan" ] || [ "$MODE" = "status" ] || [ "$DRY_RUN" -eq 1 ]; then
   if [ ! -x "$PY" ]; then
@@ -215,4 +231,11 @@ fi
 if [ ! -s "$ROOT/data/tcm-sd/train.json" ] || [ ! -s "$ROOT/data/tcm-sd/dev.json" ] || [ ! -s "$ROOT/data/tcm-sd/syndrome_vocab.txt" ]; then
   "$PY" -m scripts.fetch_tcmsd
 fi
+
+# Gate every expensive 31B read on a complete tiny Gemma4/PEFT/Head smoke.
+# This cannot prove 31B numerical safety, but catches software integration
+# faults without another 42-minute failed checkpoint load.
+echo "[MINI] Verifying miniature Gemma 4 pipeline before 31B weights"
+"$PY" -m scripts.smoke_tiny_jeff --model-dir "$MODEL_DIR"
+echo "[MINI] End-to-end tiny smoke PASS"
 H200_MODEL_DIR="$MODEL_DIR" "$PY" -m scripts.h200 "$MODE" "$@"
