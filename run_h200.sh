@@ -199,11 +199,13 @@ else
 fi
 "$UV_BIN" pip install --python "$PY" --no-deps -e "$JEFF_SRC"
 
-# Axolotl's Gemma 4 hybrid FA2/SDPA path: Transformers 5.17 resolves
-# kernels-community/flash-attn2 as a precompiled Hopper/aarch64 artifact.
-# Avoid installing the full Axolotl trainer or building flash-attn from source.
+# Transformers 5.17 supports kernels 0.16.x. Install its declared runtime
+# dependencies (kernels-data, sigstore, tomlkit, etc.) in the existing venv;
+# --no-deps caused ModuleNotFoundError: No module named 'kernels_data'.
+# No FlashAttention source compilation or separate Axolotl installation.
 if [ "${TCMDISCERN_GEMMA4_ATTENTION:-hybrid}" = "hybrid" ]; then
-  "$UV_BIN" pip install --python "$PY" --no-deps 'kernels>=0.16,<0.17'
+  "$UV_BIN" pip install --python "$PY" 'kernels==0.16.2'
+  "$PY" -c 'import kernels, kernels_data; from importlib.metadata import version; assert version("kernels") == "0.16.2"; print("[AXOLOTL] kernels 0.16.2 + kernels-data imports PASS")'
 fi
 
 # Catch CUDA runtime, driver-minor-compatibility and Hopper BF16 failures

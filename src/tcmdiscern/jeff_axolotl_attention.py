@@ -25,6 +25,10 @@ from typing import Any
 HYBRID_BACKEND = "axolotl_hybrid_fa2_sdpa"
 DEFAULT_BACKEND = "released_default"
 VALID_BACKENDS = frozenset({HYBRID_BACKEND, DEFAULT_BACKEND, "eager"})
+# Hub v3 on CUDA 12.8 has a documented GQA backward failure. Pin the v2
+# CXX11 kernel compatible with the GH200 torch 2.11.0+cu128 runtime.
+# https://github.com/huggingface/kernels-community/issues/1085
+FLASH2_KERNEL = "kernels-community/flash-attn2@v2"
 _TARGET = "transformers.models.gemma4.modeling_gemma4"
 
 
@@ -47,13 +51,13 @@ def preflight_hybrid_kernel() -> dict[str, str]:
 
     if transformers.__version__ != "5.17.0":
         raise RuntimeError("Axolotl Gemma 4 patch is pinned to transformers 5.17.0")
-    functions, _ = lazy_import_flash_attention("flash_attention_2")
+    functions, _ = lazy_import_flash_attention(FLASH2_KERNEL)
     if functions[0] is None or functions[1] is None:
         raise RuntimeError("FlashAttention 2 forward/varlen kernels are unavailable")
     return {
         "attention_backend": HYBRID_BACKEND,
-        "flash_attention": "flash_attention_2",
-        "kernel": "transformers 5.17.0 / flash-attn2 (installed or Hub)",
+        "flash_attention": FLASH2_KERNEL,
+        "kernel": "transformers 5.17.0 / Hub flash-attn2 v2",
         "global_attention": "sdpa",
     }
 
@@ -119,14 +123,15 @@ def enable_hybrid_attention(decider: Any) -> dict[str, Any]:
     if getattr(text.config, "global_head_dim", None) != 512:
         raise RuntimeError("Expected Gemma 4 global attention head_dim=512")
 
-    # set_attn_implementation registers/validates the HF prebuilt FA2 kernel.
-    model.set_attn_implementation("flash_attention_2")
+    # Use the explicit, pinned Hub v2, never the default v3 that can
+    # succeed in forward but fail GQA LoRA backward on CUDA 12.8.
+    model.set_attn_implementation(FLASH2_KERNEL)
     _patch_gemma4_mask()
     _patch_sdpa_large_head_gqa()
     global_layers = 0
     for index, layer in enumerate(layers):
         if layer_types[index] != "full_attention":
-            if layer.self_attn.config._attn_implementation != "flash_attention_2":
+            if layer.self_attn.config._attn_implementation != FLASH2_KERNEL:
                 raise RuntimeError("Gemma 4 sliding attention did not enable FA2")
             continue
         attn = layer.self_attn
@@ -141,6 +146,7 @@ def enable_hybrid_attention(decider: Any) -> dict[str, Any]:
         "sliding_flash2_layers": len(layers) - global_layers,
         "global_sdpa_layers": global_layers,
         "global_head_dim": 512,
+        "flash_kernel": FLASH2_KERNEL,
         "sample_packing": False,
         "axolotl_patch_revision": "f2158ff1922b2bcf701854a17e47cc91ba26e7e9",
     }
