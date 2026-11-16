@@ -1,0 +1,98 @@
+{
+  "scope": "Exploratory; original official TCM-SD Train Fit index -> grouped Cal, fixed BM25 Top16",
+  "cal_previously_explored": true,
+  "train": 30226,
+  "cal": 6477,
+  "labels": 148,
+  "label_count_min_max": [
+    4,
+    5150
+  ],
+  "model": "same original BM25 IDF, k1, b, bigrams; only class pooling changed",
+  "null_quantile": "query-specific empirical F^-1(1-1/n_c) over all Fit case BM25 scores",
+  "variants": {
+    "bm25_max": {
+      "top1_percent": 79.1107,
+      "macro_f1_percent": 50.6443,
+      "rescued": 0,
+      "broken": 0,
+      "tail_macro_f1_percent": 34.3287,
+      "mid_macro_f1_percent": 46.3052,
+      "head_macro_f1_percent": 72.8658
+    },
+    "mean_top3": {
+      "top1_percent": 82.2603,
+      "macro_f1_percent": 52.7227,
+      "rescued": 329,
+      "broken": 125,
+      "tail_macro_f1_percent": 34.418,
+      "mid_macro_f1_percent": 47.7532,
+      "head_macro_f1_percent": 77.9112
+    },
+    "mean_top5": {
+      "top1_percent": 81.967,
+      "macro_f1_percent": 49.2177,
+      "rescued": 366,
+      "broken": 181,
+      "tail_macro_f1_percent": 23.8426,
+      "mid_macro_f1_percent": 45.166,
+      "head_macro_f1_percent": 76.9205
+    },
+    "logmeanexp_t4": {
+      "top1_percent": 75.5442,
+      "macro_f1_percent": 50.6087,
+      "rescued": 158,
+      "broken": 389,
+      "tail_macro_f1_percent": 33.6138,
+      "mid_macro_f1_percent": 46.0859,
+      "head_macro_f1_percent": 73.7631
+    },
+    "logmeanexp_t12": {
+      "top1_percent": 67.8709,
+      "macro_f1_percent": 46.0753,
+      "rescued": 247,
+      "broken": 975,
+      "tail_macro_f1_percent": 26.1356,
+      "mid_macro_f1_percent": 41.5344,
+      "head_macro_f1_percent": 71.2949
+    },
+    "null_sub_025": {
+      "top1_percent": 65.0301,
+      "macro_f1_percent": 46.5902,
+      "rescued": 160,
+      "broken": 1072,
+      "tail_macro_f1_percent": 30.358,
+      "mid_macro_f1_percent": 42.9348,
+      "head_macro_f1_percent": 67.0163
+    },
+    "null_sub_050": {
+      "top1_percent": 52.9875,
+      "macro_f1_percent": 38.7842,
+      "rescued": 163,
+      "broken": 1855,
+      "tail_macro_f1_percent": 20.9288,
+      "mid_macro_f1_percent": 35.5417,
+      "head_macro_f1_percent": 59.273
+    },
+    "null_sub_075": {
+      "top1_percent": 41.9176,
+      "macro_f1_percent": 34.3208,
+      "rescued": 163,
+      "broken": 2572,
+      "tail_macro_f1_percent": 16.9605,
+      "mid_macro_f1_percent": 31.706,
+      "head_macro_f1_percent": 52.8742
+    },
+    "null_sub_100": {
+      "top1_percent": 30.755,
+      "macro_f1_percent": 30.805,
+      "rescued": 148,
+      "broken": 3280,
+      "tail_macro_f1_percent": 14.3793,
+      "mid_macro_f1_percent": 29.2635,
+      "head_macro_f1_percent": 45.9883
+    }
+  },
+  "seconds": 21.51,
+  "dev_test_used": false
+}
