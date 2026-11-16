@@ -137,6 +137,8 @@ def test_real_preflight_checks_all_checkpoints_and_kernel_before_gpu(tmp_path, m
     calls = []
     published = tmp_path / "experiments"
     published.mkdir()
+    raw = tmp_path / "data/jeff"
+    raw.mkdir(parents=True)
     checkpoints = {}
     for method in paper.METHODS:
         path = tmp_path / method
@@ -145,6 +147,9 @@ def test_real_preflight_checks_all_checkpoints_and_kernel_before_gpu(tmp_path, m
             json.dumps({"run_id": f"{method}-seed20261112-e2"}), encoding="utf-8"
         )
         checkpoints[method] = path
+        (raw / f"dev_{method}-seed20261112-e2-epoch2_k16_5486.jsonl").write_text(
+            "[]\n", encoding="utf-8"
+        )
         (published / f"jeff_{method}-seed20261112-e2-epoch2_k16_dev.json").write_text(
             json.dumps(
                 {
@@ -154,6 +159,7 @@ def test_real_preflight_checks_all_checkpoints_and_kernel_before_gpu(tmp_path, m
                         "source_run_id": f"{method}-seed20261112-e2",
                     },
                     "attention_backend": "axolotl_hybrid_fa2_sdpa",
+                    "scores": {"top1_correct_n": 4408},
                 }
             ),
             encoding="utf-8",
@@ -177,6 +183,11 @@ def test_real_preflight_checks_all_checkpoints_and_kernel_before_gpu(tmp_path, m
     )
     monkeypatch.setattr(paper, "expected_run_identity", lambda *args, **kwargs: {})
     monkeypatch.setattr(scoring, "read_model_logits", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        paper,
+        "evaluate",
+        lambda method, *, root, strict: {"cases": 5486, "methods": {"baseline": {"correct": 4408}}},
+    )
     _, selected = paper.preflight(tmp_path, tmp_path / "model")
     assert [item["method"] for item in selected] == ["s2", "s1", "s3"]
     assert [item["pending"] for item in selected] == [

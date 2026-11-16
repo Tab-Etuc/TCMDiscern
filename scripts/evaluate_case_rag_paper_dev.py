@@ -14,6 +14,7 @@ from sklearn.metrics import f1_score
 from scripts.prepare_case_rag_paper_ablation import ROOT, TAG
 from scripts.run_case_rag_jeff import read_condition_logits
 from tcmdiscern.case_rag import transitive_group_ids
+from tcmdiscern.case_rag_artifacts import frozen_paths
 from tcmdiscern.datasets import clinical_text, load_records
 from tcmdiscern.jeff_scoring import read_model_logits
 
@@ -88,7 +89,7 @@ def evaluate(method: str, *, root: Path = ROOT, strict: bool = False) -> dict:
     folder = root / "data/case_rag" / TAG
     if not (folder / "paper_ablations.json").is_file():
         raise FileNotFoundError("Full Dev paper ablations are not prepared")
-    published = root / f"experiments/jeff_{method}-{EPOCH_RUN}-epoch2_k16_dev.json"
+    published, ref = frozen_paths(root, method)
     study = json.loads(published.read_text(encoding="utf-8"))
     if (
         study["rows"] != 5486
@@ -96,7 +97,6 @@ def evaluate(method: str, *, root: Path = ROOT, strict: bool = False) -> dict:
         or study["attention_backend"] != "axolotl_hybrid_fa2_sdpa"
     ):
         raise ValueError("Frozen Jeff study metadata changed")
-    ref = root / f"data/jeff/dev_{method}-{EPOCH_RUN}-epoch2_k16_5486.jsonl"
     saved = read_model_logits(ref, num_cases=5486)
     collection = load_inputs(folder)
     original = collection["baseline"]

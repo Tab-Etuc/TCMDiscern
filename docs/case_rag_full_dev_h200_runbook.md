@@ -2,6 +2,8 @@
 
 本次固定使用官方 TCM-SD Train／Dev（Train 43,180、Dev 5,486），BM25 Top-16，Jeff-1.1-Large S2／S1／S3 Epoch 2 checkpoint。官方 Test 保持封存。
 
+**H200 目錄統一：** `/home/quanta/TCMDiscern-git` 是唯一程式入口與新實驗輸出目錄；`/home/quanta/TCMDiscern-main` 是早期訓練資產目錄，當中既有的 LoRA、Head、原始全 Dev logits 可直接以唯讀方式引用。啟動器會在模型載入前掃描兩個位置、逐模型核對 5,486 筆原始結果與 checkpoint；不必複製模型權重或重跑 Baseline。若原始資產在其他路徑，可設定 `TCMDISCERN_LEGACY_ROOT=/絕對路徑`。
+
 ## 啟動（直接在 H200 上執行）
 
 ```bash

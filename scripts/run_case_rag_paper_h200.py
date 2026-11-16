@@ -20,6 +20,7 @@ from scripts.evaluate_case_rag_paper_dev import evaluate
 from scripts.prepare_case_rag_paper_ablation import ARMS, ROOT, TAG, prepare, transform
 from scripts.run_case_rag_h200 import choose_checkpoint
 from scripts.run_case_rag_jeff import load_inputs, read_condition_logits
+from tcmdiscern.case_rag_artifacts import checkpoint_path, frozen_paths
 from tcmdiscern.case_rag_identity import expected_run_identity, validate_saved_identity
 from tcmdiscern.jeff_checkpoint import restore_checkpoint
 from tcmdiscern.jeff_config import JEFF_MAX_INPUT_TOKENS
@@ -191,32 +192,46 @@ def preflight(root: Path = ROOT, model_dir: Path = MODEL_PATH) -> tuple[dict, li
     from tcmdiscern.jeff_scoring import read_model_logits
 
     collection = _load_inputs(root)
+    # Check *all* original S1/S2/S3 artifacts first. The H200 training folder
+    # may be TCMDiscern-main while this writable checkout is TCMDiscern-git.
+    originals = {method: frozen_paths(root, method) for method in METHODS}
+    checkpoints = {method: checkpoint_path(root, method, choose_checkpoint) for method in METHODS}
+    for method, (study, logits) in originals.items():
+        print(f"[FULL DEV SOURCE] {method}: report={study}; logits={logits}", flush=True)
     _verify_frozen_prompts(root, model_dir, collection)
     selected = []
     for index, method in enumerate(METHODS):
-        checkpoint = choose_checkpoint(root, method, None)
-        contract = batch.preflight_checkpoint_contract(
-            model_dir,
-            checkpoint,
-            method,
-            require_baseline_parity=(method == "s2"),
-            check_kernel=(index == 0),
-        )
-        study = json.loads(
-            (root / f"experiments/jeff_{method}-seed20261112-e2-epoch2_k16_dev.json").read_text(
-                encoding="utf-8"
-            )
-        )
+        checkpoint = checkpoints[method]
+        study_path, reference = originals[method]
+        study = json.loads(study_path.read_text(encoding="utf-8"))
         metadata = json.loads((checkpoint / "manifest.json").read_text(encoding="utf-8"))
         if (
             study["rows"] != 5486
             or study["checkpoint"]["method"] != method
             or study["checkpoint"]["source_run_id"] != metadata["run_id"]
-            or study["attention_backend"] != contract["checkpoint_attention_backend"]
         ):
             raise ValueError(f"{method}: trained checkpoint and original full Dev differ")
-        reference = root / f"data/jeff/dev_{method}-seed20261112-e2-epoch2_k16_5486.jsonl"
         read_model_logits(reference, num_cases=5486)
+        # CPU scorer recomputes Top-1 AND 148-class Macro-F1 from raw logits
+        # against published reference. This prevents mixing unrelated checkouts.
+        baseline_report = evaluate(method, root=root, strict=False)
+        if (
+            baseline_report.get("cases") != 5486
+            or baseline_report["methods"]["baseline"]["correct"]
+            != study["scores"]["top1_correct_n"]
+        ):
+            raise ValueError(f"{method}: reference logits and full-Dev report disagree")
+        contract = batch.preflight_checkpoint_contract(
+            model_dir,
+            checkpoint,
+            method,
+            # Already validated the frozen original 5486 logits via CPU scorer;
+            # the generic 300-pilot helper hardcodes a different checkout root.
+            require_baseline_parity=False,
+            check_kernel=(index == 0),
+        )
+        if study["attention_backend"] != contract["checkpoint_attention_backend"]:
+            raise ValueError(f"{method}: attention backend differs from training")
         directory = _scores_path(root, method)
         expected = expected_run_identity(
             collection,
