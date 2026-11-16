@@ -1,0 +1,143 @@
+{
+  "study": "S1/S2/S3 identical fixed listwise calibration and group cross-fit",
+  "data": {
+    "official_dev_rows": 5486,
+    "exact_train_text_overlap_dev_rows": 529,
+    "candidate_count": 16,
+    "official_test_opened": false
+  },
+  "configuration": {
+    "fold_count": 5,
+    "group": "normalized complete clinical text",
+    "seed": 20261115,
+    "classifier": "StandardScaler + LogisticRegression(C=0.05,max_iter=400)",
+    "training_weight": "clip(sqrt(100/train_class_count),0.5,3)",
+    "rank_k": 16,
+    "margin": 0.2,
+    "features": "S2 calibration option_features, no gold in inference features",
+    "origin": "All hyperparameters taken unchanged from the previously explored S2 listwise calibration"
+  },
+  "scores": {
+    "s1": {
+      "all_dev": {
+        "n": 5486,
+        "correct": 4568,
+        "top1": 0.8326649653663871,
+        "macro_f1": 0.5772574647648842,
+        "head_f1": 0.7319290392394462,
+        "mid_f1": 0.5371754194812766,
+        "tail_f1": 0.3151515151515152
+      },
+      "no_exact_train_text": {
+        "n": 4957,
+        "correct": 4073,
+        "top1": 0.8216663304417995,
+        "macro_f1": 0.5696946023670116,
+        "head_f1": 0.729317748235621,
+        "mid_f1": 0.5264624607395676,
+        "tail_f1": 0.3151515151515152
+      },
+      "rescue_vs_bm25": 280,
+      "break_vs_bm25": 78
+    },
+    "s2": {
+      "all_dev": {
+        "n": 5486,
+        "correct": 4584,
+        "top1": 0.8355814801312431,
+        "macro_f1": 0.5839181702233187,
+        "head_f1": 0.7267567083013401,
+        "mid_f1": 0.542227135490357,
+        "tail_f1": 0.38181818181818183
+      },
+      "no_exact_train_text": {
+        "n": 4957,
+        "correct": 4084,
+        "top1": 0.8238854145652612,
+        "macro_f1": 0.5753708543598364,
+        "head_f1": 0.7227740492468957,
+        "mid_f1": 0.532364563769212,
+        "tail_f1": 0.36666666666666664
+      },
+      "rescue_vs_bm25": 281,
+      "break_vs_bm25": 63
+    },
+    "s3": {
+      "all_dev": {
+        "n": 5486,
+        "correct": 4587,
+        "top1": 0.8361283266496536,
+        "macro_f1": 0.5727074558446557,
+        "head_f1": 0.7281995108043281,
+        "mid_f1": 0.5228523883023716,
+        "tail_f1": 0.3909090909090909
+      },
+      "no_exact_train_text": {
+        "n": 4957,
+        "correct": 4086,
+        "top1": 0.8242888844058907,
+        "macro_f1": 0.5650454093964717,
+        "head_f1": 0.7232339610088135,
+        "mid_f1": 0.5148332652549522,
+        "tail_f1": 0.37575757575757573
+      },
+      "rescue_vs_bm25": 296,
+      "break_vs_bm25": 75
+    }
+  },
+  "comparisons": {
+    "s2_minus_s1": {
+      "first_only_correct": 75,
+      "second_only_correct": 91,
+      "net_more_correct_second": 16,
+      "mcnemar_exact_two_sided_p": 0.24424992712067178,
+      "bootstrap_95_delta_pp": {
+        "top1_delta_pp": [
+          -0.18140346979258093,
+          0.7446760805071135
+        ],
+        "macro_f1_delta_pp": [
+          -0.7899528576827538,
+          1.980978558121842
+        ]
+      }
+    },
+    "s3_minus_s1": {
+      "first_only_correct": 77,
+      "second_only_correct": 96,
+      "net_more_correct_second": 19,
+      "mcnemar_exact_two_sided_p": 0.17097186370126682,
+      "bootstrap_95_delta_pp": {
+        "top1_delta_pp": [
+          -0.0923507949778826,
+          0.8410239202709123
+        ],
+        "macro_f1_delta_pp": [
+          -2.0332147430861798,
+          1.5515202859812367
+        ]
+      }
+    },
+    "s3_minus_s2": {
+      "first_only_correct": 71,
+      "second_only_correct": 74,
+      "net_more_correct_second": 3,
+      "mcnemar_exact_two_sided_p": 0.8681591543092659,
+      "bootstrap_95_delta_pp": {
+        "top1_delta_pp": [
+          -0.4015331264829336,
+          0.49489530565544404
+        ],
+        "macro_f1_delta_pp": [
+          -2.420498931330743,
+          0.7168489086596699
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "The model is cross-fitted on Dev and does not represent a deployable independent Train-fitted calibrator.",
+    "S2-derived settings were previously selected on the same Dev, so relative performance is exploratory.",
+    "S1/S2/S3 LoRA trained with one completed seed; no confirmatory test or independent 3-seed selection."
+  ]
+}
