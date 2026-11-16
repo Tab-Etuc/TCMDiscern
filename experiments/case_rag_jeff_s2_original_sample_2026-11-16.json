@@ -1,0 +1,13 @@
+{
+  "scope": "Original, previously frozen real Jeff S2 logits; no Case-RAG inference yet",
+  "sample": 300,
+  "selection_seed": 20261116,
+  "sample_no_train_exact_text_overlap": 267,
+  "bm25_top1_percent": 80.6667,
+  "jeff_s2_raw_top1_percent": 81.6667,
+  "jeff_s2_raw_macro_f1_148_percent": 22.2322,
+  "jeff_s2_raw_no_train_overlap_top1_percent": 79.7753,
+  "source": "data/jeff/dev_s2-seed20261112-e2-epoch2_k16_5486.jsonl",
+  "new_condition_scores": "Not yet measured; requires original H200 checkpoint",
+  "test_used": false
+}

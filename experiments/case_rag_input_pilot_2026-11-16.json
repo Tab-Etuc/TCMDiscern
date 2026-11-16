@@ -1,0 +1,24 @@
+{
+  "scope": "Original official Train -> 300 preselected official Dev inputs",
+  "condition_samples": 300,
+  "paired_differs_from_independent_balanced_cases": 192,
+  "paired_differs_percent": 64.0,
+  "support_label_count_mean": {
+    "global4": 1.45,
+    "balanced4": 2.0,
+    "paired4": 2.0,
+    "random4": 2.0
+  },
+  "support_bm25_score_mean": {
+    "global4": 334.292,
+    "balanced4": 280.431,
+    "paired4": 278.921,
+    "random4": 174.547
+  },
+  "across_label_patient_similarity": {
+    "independent_top2_balanced_mean_jaccard": 0.4887,
+    "matched_top2_paired_mean_jaccard": 0.5254
+  },
+  "metric_status": "retrieval and prompt diagnostics only; no new model scores",
+  "test_used": false
+}
