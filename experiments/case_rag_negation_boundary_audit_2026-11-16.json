@@ -1,0 +1,39 @@
+{
+  "scope": "300 Dev / 2 historical Train cases × 3 clinical fields",
+  "patterns": {
+    "budget2_0300_20261116": {
+      "source_field_exposures": 1800,
+      "truncated_count": 1198,
+      "before_count": 0,
+      "after_count": 12,
+      "short_context_count": 0,
+      "ambiguous_position_count": 0
+    },
+    "focused2_0300_20261116": {
+      "source_field_exposures": 1800,
+      "truncated_count": 1198,
+      "before_count": 3,
+      "after_count": 2,
+      "short_context_count": 11,
+      "ambiguous_position_count": 0
+    },
+    "excerpt2_0300_20261116": {
+      "source_field_exposures": 1800,
+      "truncated_count": 1198,
+      "before_count": 0,
+      "after_count": 2,
+      "short_context_count": 2,
+      "ambiguous_position_count": 0
+    },
+    "excerpt2_0300_20261116:random": {
+      "source_field_exposures": 1800,
+      "truncated_count": 1198,
+      "before_count": 0,
+      "after_count": 5,
+      "short_context_count": 4,
+      "ambiguous_position_count": 1
+    }
+  },
+  "interpretation": "Boundary proxies include duplicate substring ambiguity and cannot prove a clinical contradiction",
+  "test_used": false
+}

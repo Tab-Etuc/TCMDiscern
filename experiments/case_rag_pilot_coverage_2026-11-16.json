@@ -1,0 +1,40 @@
+{
+  "status": "CPU_PILOT_LABEL_COVERAGE_AUDIT",
+  "pilot_tag": "budget2_0300_20261116",
+  "protocol": "fixed random 300-case Dev sample; not prevalence-stratified",
+  "label_coverage": {
+    "cases": 300,
+    "class_count_reference": 148,
+    "observed_gold_classes": 56,
+    "absent_gold_classes": 92,
+    "classes_with_one_gold_case": 25,
+    "classes_with_two_or_fewer_gold_cases": 33,
+    "maximum_possible_fixed_148_macro_f1_percent": 37.8378,
+    "train_dev_normalized_text_overlap_cases": 33,
+    "train_dev_same_text_different_gold_cases": 2,
+    "train_dev_patient_id_overlap_cases": 2,
+    "reference_split": "official Dev, sampled without replacement",
+    "gold_usage": "metrics and data-audit only; never retrieval or model input",
+    "interpretation": "Small non-stratified pilot: within-sample paired Top-1/rescue-break is exploratory; fixed-148 macro-F1 cannot be directly compared to full-Dev macro-F1. Evaluate the locked full 5,486 Dev for 148-class and long-tail claims.",
+    "official_test_used": false
+  },
+  "train_frequency_strata": {
+    "tail_train_support_le_23": {
+      "total_reference_classes": 49,
+      "observed_in_pilot_classes": 4,
+      "pilot_case_count": 4
+    },
+    "mid_train_support_24_to_79": {
+      "total_reference_classes": 49,
+      "observed_in_pilot_classes": 13,
+      "pilot_case_count": 14
+    },
+    "head_train_support_ge_80": {
+      "total_reference_classes": 50,
+      "observed_in_pilot_classes": 39,
+      "pilot_case_count": 282
+    }
+  },
+  "recommendation": "Pilot: paired rescue/break, Top-1, CPU/Jeff feasibility. Locked full 5486 Dev: primary full-148 macro-F1 and head/mid/tail.",
+  "test_used": false
+}

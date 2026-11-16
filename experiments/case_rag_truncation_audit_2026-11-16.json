@@ -1,0 +1,30 @@
+{
+  "scope": "Frozen 300 Dev × four 4-case arms; official Train support only",
+  "total_support_occurrences": 4800,
+  "unique_source_cases": 2641,
+  "per_field": {
+    "chief_complaint": {
+      "support_occurrences": 4800,
+      "truncated_percent": 0.08,
+      "mean_original_chars": 14.1,
+      "mean_excerpt_chars": 13.9
+    },
+    "description": {
+      "support_occurrences": 4800,
+      "truncated_percent": 99.56,
+      "mean_original_chars": 315.3,
+      "mean_excerpt_chars": 90.0
+    },
+    "detection": {
+      "support_occurrences": 4800,
+      "truncated_percent": 99.79,
+      "mean_original_chars": 132.8,
+      "mean_excerpt_chars": 69.9
+    }
+  },
+  "supports_losing_query_lexical_overlap_percent": 100.0,
+  "query_bigrams_matching_original_support_sum": 777832,
+  "query_bigrams_matching_excerpt_support_sum": 379486,
+  "note": "Token overlap is a surrogate for information loss, not clinical diagnostic usefulness",
+  "test_used": false
+}

@@ -1,0 +1,12 @@
+{
+  "frozen_tag": "pilotclean_0300_20261116",
+  "cases": 300,
+  "conditions": 5,
+  "compared_source_selections": 1500,
+  "source_mismatches": 0,
+  "mismatch_examples": [],
+  "retrieval_mean_ms": 7.163,
+  "retrieval_p50_ms": 7.163,
+  "retrieval_p95_ms": 8.42,
+  "scope": "CPU reference-only; no Jeff inference; official Test untouched"
+}

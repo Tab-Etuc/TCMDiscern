@@ -1,0 +1,15 @@
+{
+  "source_tag": "budget2_0300_20261116",
+  "excerpt_tag": "excerpt2_0300_20261116",
+  "patients": 300,
+  "source_exposures_per_arm": {
+    "querywindow2": 600,
+    "randomwindow2": 600,
+    "fullcase2": 600
+  },
+  "original_patient_and_candidates_equal": true,
+  "all_source_cases_and_labels_verified": true,
+  "all_original_clinical_excerpts_verified": true,
+  "query_gold_used": false,
+  "official_test_used": false
+}

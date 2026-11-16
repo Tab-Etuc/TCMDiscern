@@ -1,0 +1,63 @@
+{
+  "status": "INPUT_AUDITED_NO_RAG_JEFF_INFERENCE",
+  "scope": "Official TCM-SD Train supports and existing original Dev 300-case prompt set",
+  "samples": 300,
+  "evidence_budget": 4,
+  "sample_seed": 20261116,
+  "paired_vs_balanced_source_changed_n": 192,
+  "paired_vs_balanced_source_changed_percent": 64.0,
+  "gold_in_bm25_top2": 272,
+  "gold_in_bm25_top16": 297,
+  "same_text_as_train_samples": 33,
+  "saved_existing_jeff_s2_baseline_correct": 245,
+  "saved_existing_jeff_s2_baseline_top1_percent": 81.6667,
+  "saved_existing_bm25_baseline_correct": 242,
+  "saved_jeff_s2_wrong_but_gold_top2": 37,
+  "saved_jeff_s2_wrong_but_gold_rank3to16": 15,
+  "support_groups_distinct": true,
+  "support_gold_from_original_train": true,
+  "baseline_equals_frozen_original_jeff_input": true,
+  "same_decision_candidates_all_conditions": true,
+  "no_prompt_gold_injection": true,
+  "condition_summaries": {
+    "global4": {
+      "gold_support_rate_percent": 91.0,
+      "top1_support_rate_percent": 98.3333,
+      "top2_support_rate_percent": 35.3333,
+      "mean_distinct_support_labels": 1.45,
+      "mean_train_support_bm25": 334.2918,
+      "mean_prompt_tokens": 1524.0
+    },
+    "balanced4": {
+      "gold_support_rate_percent": 90.6667,
+      "top1_support_rate_percent": 100.0,
+      "top2_support_rate_percent": 100.0,
+      "mean_distinct_support_labels": 2.0,
+      "mean_train_support_bm25": 280.4309,
+      "mean_cross_label_pair_jaccard": 0.482404,
+      "mean_prompt_tokens": 1522.9
+    },
+    "paired4": {
+      "gold_support_rate_percent": 90.6667,
+      "top1_support_rate_percent": 100.0,
+      "top2_support_rate_percent": 100.0,
+      "mean_distinct_support_labels": 2.0,
+      "mean_train_support_bm25": 278.921,
+      "mean_cross_label_pair_jaccard": 0.519247,
+      "mean_prompt_tokens": 1522.9
+    },
+    "random4": {
+      "gold_support_rate_percent": 90.6667,
+      "top1_support_rate_percent": 100.0,
+      "top2_support_rate_percent": 100.0,
+      "mean_distinct_support_labels": 2.0,
+      "mean_train_support_bm25": 174.5469,
+      "mean_cross_label_pair_jaccard": 0.375548,
+      "mean_prompt_tokens": 1521.6
+    }
+  },
+  "mean_baseline_prompt_tokens": 742.5,
+  "input_token_limit_verified_by_preparation": true,
+  "official_dev_score_comparison_possible": false,
+  "test_used": false
+}

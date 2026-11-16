@@ -1,0 +1,19 @@
+{
+  "study": "TCM-SD official Train 43180, frozen 300 Dev paired support cases, Jeff 8192-token count",
+  "case_rag_full_case_2": {
+    "mean_tokens": 1691.2,
+    "p95_tokens": 2945.1,
+    "max_tokens": 5526,
+    "exceeds_8192": 0,
+    "samples": 300
+  },
+  "case_rag_full_case_4": {
+    "mean_tokens": 2555.5,
+    "p95_tokens": 4634.6,
+    "max_tokens": 8231,
+    "exceeds_8192": 1,
+    "samples": 300
+  },
+  "no_new_jeff_inference": true,
+  "test_used": false
+}

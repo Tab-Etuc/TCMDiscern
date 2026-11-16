@@ -1,0 +1,40 @@
+{
+  "source": "TCM-SD official Train index and frozen 300 sampled Dev inputs",
+  "n": 300,
+  "index_initialize_seconds": 3.737,
+  "bm25_candidate_parity_failures": 0,
+  "stages": {
+    "bm25_rank": {
+      "mean_ms": 4.114,
+      "p50_ms": 4.027,
+      "p95_ms": 4.854
+    },
+    "support_retrieval": {
+      "mean_ms": 6.894,
+      "p50_ms": 6.927,
+      "p95_ms": 8.444
+    },
+    "paired_selection": {
+      "mean_ms": 4.843,
+      "p50_ms": 4.565,
+      "p95_ms": 8.291
+    },
+    "shared_rank_and_support": {
+      "mean_ms": 7.222,
+      "p50_ms": 7.157,
+      "p95_ms": 8.847
+    }
+  },
+  "incremental_rag_retrieval_plus_pair": {
+    "mean_ms": 11.736,
+    "p50_ms": 11.547,
+    "p95_ms": 15.78
+  },
+  "shared_rank_and_support_plus_pair": {
+    "mean_ms": 12.064,
+    "p50_ms": 11.832,
+    "p95_ms": 16.517
+  },
+  "interpretation": "CPU single-request wall time; independent of 31B Jeff GPU forward",
+  "test_used": false
+}

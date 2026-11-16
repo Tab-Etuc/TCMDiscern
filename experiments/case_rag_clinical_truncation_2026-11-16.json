@@ -1,0 +1,35 @@
+{
+  "source_tag": "budget2_0300_20261116",
+  "n_queries": 300,
+  "n_support_exposures_balanced_plus_paired": 1200,
+  "supports_with_any_field_truncated": 1200,
+  "supports_with_any_field_truncated_percent": 100.0,
+  "fields": {
+    "chief_complaint": {
+      "prefix_char_limit": 58,
+      "truncated_percent_of_supports": 0.1667,
+      "lost_query_overlap_percent_of_supports": 0.1667,
+      "lost_unique_query_bigram_total": 152,
+      "mean_removed_chars_per_support": 0.33,
+      "mean_raw_field_chars": 14.14
+    },
+    "description": {
+      "prefix_char_limit": 90,
+      "truncated_percent_of_supports": 99.5,
+      "lost_query_overlap_percent_of_supports": 99.5,
+      "lost_unique_query_bigram_total": 70793,
+      "mean_removed_chars_per_support": 233.424,
+      "mean_raw_field_chars": 323.389
+    },
+    "detection": {
+      "prefix_char_limit": 70,
+      "truncated_percent_of_supports": 99.9167,
+      "lost_query_overlap_percent_of_supports": 99.9167,
+      "lost_unique_query_bigram_total": 40172,
+      "mean_removed_chars_per_support": 62.962,
+      "mean_raw_field_chars": 132.953
+    }
+  },
+  "note": "Overlap is a lexical bigram diagnostic, not a verified clinical finding or downstream model gain.",
+  "test_used": false
+}

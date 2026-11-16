@@ -1,0 +1,60 @@
+{
+  "study": "Query-grounded verbatim evidence excerpt vs naive prefix under fixed case selection",
+  "source_tag": "budget2_0300_20261116",
+  "excerpt_audit": true,
+  "samples": 300,
+  "seed": 20261116,
+  "evidence_budget": 2,
+  "conditions": [
+    "baseline",
+    "paired2",
+    "querywindow2",
+    "randomwindow2",
+    "fullcase2"
+  ],
+  "candidate_top16_parity": true,
+  "baseline_prompt_parity": true,
+  "source_positions_and_labels_fixed": true,
+  "support_fields_are_verbatim_substrings": true,
+  "all_within_8192": true,
+  "input_tokens": {
+    "baseline": {
+      "mean": 742.47,
+      "minimum": 559,
+      "maximum": 2100
+    },
+    "paired2": {
+      "mean": 1160.63,
+      "minimum": 967,
+      "maximum": 2533
+    },
+    "querywindow2": {
+      "mean": 1183.44,
+      "minimum": 990,
+      "maximum": 2553
+    },
+    "randomwindow2": {
+      "mean": 1178.48,
+      "minimum": 980,
+      "maximum": 2549
+    },
+    "fullcase2": {
+      "mean": 1691.16,
+      "minimum": 1133,
+      "maximum": 5526
+    }
+  },
+  "query_bigram_coverage_per_support_mean": {
+    "paired2": 82.328,
+    "querywindow2": 93.655,
+    "randomwindow2": 82.475,
+    "fullcase2": 170.868
+  },
+  "supports_changed_from_prefix": {
+    "paired2": 0,
+    "querywindow2": 600,
+    "randomwindow2": 598,
+    "fullcase2": 600
+  },
+  "test_used": false
+}

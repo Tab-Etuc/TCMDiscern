@@ -19,8 +19,10 @@ from .jeff_format import decision_row
 from .retrieval import CaseBM25, chinese_bigrams
 
 CONDITIONS = ("baseline", "global4", "balanced4", "paired4", "random4")
+CONDITIONS_2 = ("baseline", "global2", "balanced2", "paired2", "random2")
 CASE_CHARS = {"chief_complaint": 58, "description": 90, "detection": 70}
 TOP_SUPPORTS = 16
+MAX_POOL_PER_LABEL = 32  # Covers random4's 32-case pool and every other arm.
 N_EVIDENCE = 4
 RETRIEVAL_INSTRUCTION = (
     "以下為從訓練庫檢索的已標註歷史醫案，標註可能包含雜訊。"
@@ -91,6 +93,18 @@ class CaseRAGIndex:
         for pos in self.indices:
             group_labels[self.groups[pos]].add(str(train_rows[pos]["norm_syndrome"]))
         self.ambiguous_groups = {g for g, names in group_labels.items() if len(names) > 1}
+        self._positions = np.asarray(self.indices, dtype=np.int32)
+        label_to_code = {name: j for j, name in enumerate(self.model.label_names)}
+        self._label_codes = np.asarray([label_to_code[name] for name in self.labels], dtype=np.int16)
+        self._groups = np.asarray([self.groups[pos] for pos in self.indices], dtype=np.int32)
+        by_label: dict[str, list[int]] = defaultdict(list)
+        for index, label in enumerate(self.labels):
+            if int(self._groups[index]) not in self.ambiguous_groups:
+                by_label[label].append(index)
+        self._eligible_by_label = {
+            label: np.asarray(positions, dtype=np.int32)
+            for label, positions in by_label.items()
+        }
         self.text_groups = {
             normalized_input(train_rows[i], full=True): self.groups[i] for i in self.indices
         }
@@ -107,17 +121,41 @@ class CaseRAGIndex:
             self._lexical[pos] = set(chinese_bigrams(text))
         return self._lexical[pos]
 
+    def _case_scores(self, query: dict) -> np.ndarray:
+        source = "\n".join(f"{f}: {str(query.get(f) or '').strip()}" for f in CLINICAL_FIELDS)
+        q = self.model.vectorizer.transform([source])
+        q.data[:] = 1
+        return np.asarray((q @ self.model.weights_t).toarray()).ravel()
+
+    def rank_and_supports(
+        self, query: dict, *, max_k: int = 16,
+        query_train_index: int | None = None,
+    ) -> tuple[list[str], list[Support]]:
+        """Share one BM25 query pass between the original shortlist and Case-RAG."""
+        if not 2 <= max_k <= len(self.model.label_names):
+            raise ValueError("Invalid shortlist width")
+        scores = self._case_scores(query)
+        label_scores = np.maximum.reduceat(
+            scores[self.model.ordered_doc_ids], self.model.group_starts,
+        )
+        ranked = np.argsort(-label_scores, kind="stable")[:max_k]
+        names = [self.model.label_names[int(i)] for i in ranked]
+        return names, self._supports(
+            query, names, query_train_index=query_train_index,
+            case_scores=scores,
+        )
+
     def _supports(
         self,
         query: dict,
         candidates: Sequence[str],
         *,
         query_train_index: int | None = None,
+        case_scores: np.ndarray | None = None,
     ) -> list[Support]:
-        source = "\n".join(f"{f}: {str(query.get(f) or '').strip()}" for f in CLINICAL_FIELDS)
-        q = self.model.vectorizer.transform([source])
-        q.data[:] = 1
-        scores = np.asarray((q @ self.model.weights_t).toarray()).ravel()
+        scores = self._case_scores(query) if case_scores is None else case_scores
+        if scores.shape != (len(self.indices),):
+            raise ValueError("BM25 case score alignment failed")
         allowed = set(candidates)
         forbidden_groups = set()
         if query_train_index is not None:
@@ -128,32 +166,55 @@ class CaseRAGIndex:
         patient_group = self.patient_groups.get(str(query.get("user_id") or "").strip())
         if patient_group is not None:
             forbidden_groups.add(patient_group)
-        # The natural BM25 shortlist remains unchanged; only retrieved exemplar
-        # documents exclude same-patient and exact-input copies of the query.
-        best: dict[tuple[int, str], Support] = {}
-        for j, (pos, label) in enumerate(zip(self.indices, self.labels, strict=True)):
-            group = self.groups[pos]
-            if (label not in allowed or group in self.ambiguous_groups
-                    or group in forbidden_groups):
-                continue
-            key = (group, label)
-            old = best.get(key)
-            if old is None or scores[j] > old.score:
-                best[key] = Support(pos, label, group, float(scores[j]))
-        return sorted(best.values(), key=lambda x: (-x.score, x.position))
+        # Preserve the original per-(patient group, label) maximum exactly,
+        # including stable source-position tie-breaking. Vectorized sorting
+        # avoids scanning/sorting tens of thousands of Python Support objects.
+        eligible = [self._eligible_by_label[label] for label in allowed
+                    if label in self._eligible_by_label]
+        if not eligible:
+            return []
+        doc_ids = np.concatenate(eligible)
+        if forbidden_groups:
+            doc_ids = doc_ids[~np.isin(self._groups[doc_ids], list(forbidden_groups))]
+        if doc_ids.size == 0:
+            return []
+        # Primary sort: group. Within group: score descending, position ascending.
+        by_group = np.lexsort((
+            self._positions[doc_ids], -scores[doc_ids], self._groups[doc_ids],
+        ))
+        sorted_ids = doc_ids[by_group]
+        unique = np.r_[True, self._groups[sorted_ids[1:]] != self._groups[sorted_ids[:-1]]]
+        winners = sorted_ids[unique]
+        # Global order remains identical to the original sorted(best.values()).
+        by_score = np.lexsort((self._positions[winners], -scores[winners]))
+        ranked = winners[by_score]
+        # Only 32 unique supports per syndrome can ever affect these five arms.
+        # Filter *after* group de-duplication and global score ordering, so all
+        # selected source cases remain byte-for-byte identical to the legacy run.
+        codes = self._label_codes[ranked]
+        keep = np.zeros(len(ranked), dtype=np.bool_)
+        for code in np.unique(codes):
+            keep[np.flatnonzero(codes == code)[:MAX_POOL_PER_LABEL]] = True
+        return [
+            Support(
+                int(self._positions[j]), self.labels[int(j)],
+                int(self._groups[j]), float(scores[j]),
+            )
+            for j in ranked[keep]
+        ]
 
     @staticmethod
     def _top_by_label(items: list[Support], label: str, n: int = TOP_SUPPORTS) -> list[Support]:
         return [item for item in items if item.label == label][:n]
 
     @staticmethod
-    def _unique(items: Sequence[Support]) -> bool:
-        return len(items) == N_EVIDENCE and len({s.group for s in items}) == N_EVIDENCE
+    def _unique(items: Sequence[Support], required: int = N_EVIDENCE) -> bool:
+        return len(items) == required and len({s.group for s in items}) == required
 
-    def _paired(self, items: list[Support], first: str, second: str) -> list[Support]:
+    def _paired(self, items: list[Support], first: str, second: str, *, n_pairs: int = 2) -> list[Support]:
         a = self._top_by_label(items, first)
         b = self._top_by_label(items, second)
-        if len(a) < 2 or len(b) < 2:
+        if len(a) < n_pairs or len(b) < n_pairs:
             raise ValueError("Insufficient support groups for a paired comparison")
         max_score = max(1.0, items[0].score)
         ranked: list[tuple[float, int, int, Support, Support]] = []
@@ -174,7 +235,7 @@ class CaseRAGIndex:
             if left.group not in used_groups and right.group not in used_groups:
                 result.extend((left, right))
                 used_groups.update((left.group, right.group))
-                if len(result) == 4:
+                if len(result) == 2 * n_pairs:
                     return result
         raise ValueError("Cannot select two independent matched pairs")
 
@@ -188,40 +249,45 @@ class CaseRAGIndex:
         query_train_index: int | None = None,
         precomputed_items: list[Support] | None = None,
     ) -> list[Support]:
-        if condition not in CONDITIONS:
+        if condition not in CONDITIONS and condition not in CONDITIONS_2:
             raise ValueError(f"Unknown RAG condition: {condition}")
         if len(candidates) != 16 or len(set(candidates)) != 16:
             raise ValueError("Expected original distinct 16 candidates")
         if condition == "baseline":
             return []
+        evidence_budget = int(condition[-1])
+        pairs = evidence_budget // 2
         top2 = candidates[:2]
         items = (
             precomputed_items if precomputed_items is not None
             else self._supports(query, candidates, query_train_index=query_train_index)
         )
-        if condition == "global4":
+        if condition.startswith("global"):
             chosen = []
             used = set()
             for item in items:
                 if item.group not in used:
                     chosen.append(item)
                     used.add(item.group)
-                if len(chosen) == 4:
+                if len(chosen) == evidence_budget:
                     break
-        elif condition == "balanced4":
-            first = self._top_by_label(items, top2[0], 2)
-            second = self._top_by_label(items, top2[1], 2)
+        elif condition.startswith("balanced"):
+            first = self._top_by_label(items, top2[0], pairs)
+            second = self._top_by_label(items, top2[1], pairs)
             chosen = [item for pair in zip(first, second) for item in pair]
-        elif condition == "paired4":
-            chosen = self._paired(items, *top2)
+        elif condition.startswith("paired"):
+            chosen = self._paired(items, *top2, n_pairs=pairs)
         else:
             rnd = Random(seed)
-            first = self._top_by_label(items, top2[0], 32)
-            second = self._top_by_label(items, top2[1], 32)
-            if len(first) < 2 or len(second) < 2:
+            first = self._top_by_label(items, top2[0], MAX_POOL_PER_LABEL)
+            second = self._top_by_label(items, top2[1], MAX_POOL_PER_LABEL)
+            if len(first) < pairs or len(second) < pairs:
                 raise ValueError("Insufficient support for the random control")
-            chosen = [item for pair in zip(rnd.sample(first, 2), rnd.sample(second, 2)) for item in pair]
-        if not self._unique(chosen):
+            chosen = [
+                item for pair in zip(rnd.sample(first, pairs), rnd.sample(second, pairs))
+                for item in pair
+            ]
+        if not self._unique(chosen, evidence_budget):
             raise ValueError("RAG support groups are missing or repeated")
         return chosen
 

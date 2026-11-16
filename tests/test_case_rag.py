@@ -2,6 +2,7 @@
 from collections import Counter
 
 from tcmdiscern.case_rag import CONDITIONS, CaseRAGIndex, transitive_group_ids
+from tcmdiscern.datasets import clinical_text
 from tcmdiscern.jeff_format import decision_row, semif_messages
 
 
@@ -65,6 +66,18 @@ def test_source_gold_field_cannot_change_retrieval():
         )
         assert row_a == row_b
         assert trace_a == trace_b
+
+
+
+
+def test_shared_bm25_ranking_and_supports_match_separate_passes():
+    index, labels = index_fixture()
+    query = sample("隱藏的查詢正解", 900)
+    independent = index.model.rank([clinical_text(query)], max_k=16)[0]
+    combined, pool = index.rank_and_supports(query, max_k=16)
+    assert combined == independent
+    assert set(combined) == set(labels)
+    assert pool == index._supports(query, combined)
 
 
 def test_same_patient_and_same_text_are_excluded_from_supports():

@@ -1,0 +1,115 @@
+{
+  "scope": "Frozen 300 sampled official Dev, official Train supports, lexical only",
+  "data": {
+    "balanced2:prefix": {
+      "n_pairs": 300,
+      "mean_shared": 65.9767,
+      "mean_unique_a": 22.98,
+      "mean_unique_b": 9.1267,
+      "mean_both_sides_have_distinct_query_terms": 0.9067,
+      "mean_query_coverage": 98.0833,
+      "mean_source_jaccard": 0.5087
+    },
+    "paired2:prefix": {
+      "n_pairs": 300,
+      "mean_shared": 67.21,
+      "mean_unique_a": 21.7333,
+      "mean_unique_b": 8.5033,
+      "mean_both_sides_have_distinct_query_terms": 0.8967,
+      "mean_query_coverage": 97.4467,
+      "mean_source_jaccard": 0.5375
+    },
+    "balanced2:focused": {
+      "n_pairs": 300,
+      "mean_shared": 66.79,
+      "mean_unique_a": 31.7767,
+      "mean_unique_b": 19.0667,
+      "mean_both_sides_have_distinct_query_terms": 0.9333,
+      "mean_query_coverage": 117.6333,
+      "mean_source_jaccard": 0.4864
+    },
+    "paired2:focused": {
+      "n_pairs": 300,
+      "mean_shared": 67.7733,
+      "mean_unique_a": 30.69,
+      "mean_unique_b": 18.54,
+      "mean_both_sides_have_distinct_query_terms": 0.9233,
+      "mean_query_coverage": 117.0033,
+      "mean_source_jaccard": 0.503
+    },
+    "balanced2:full": {
+      "n_pairs": 300,
+      "mean_shared": 141.6833,
+      "mean_unique_a": 47.3833,
+      "mean_unique_b": 11.0967,
+      "mean_both_sides_have_distinct_query_terms": 0.74,
+      "mean_query_coverage": 200.1633,
+      "mean_source_jaccard": 0.5139
+    },
+    "paired2:full": {
+      "n_pairs": 300,
+      "mean_shared": 142.97,
+      "mean_unique_a": 45.7933,
+      "mean_unique_b": 10.0033,
+      "mean_both_sides_have_distinct_query_terms": 0.7133,
+      "mean_query_coverage": 198.7667,
+      "mean_source_jaccard": 0.5408
+    },
+    "balanced4:prefix": {
+      "n_pairs": 600,
+      "mean_shared": 63.5967,
+      "mean_unique_a": 23.365,
+      "mean_unique_b": 9.5567,
+      "mean_both_sides_have_distinct_query_terms": 0.9233,
+      "mean_query_coverage": 96.5183,
+      "mean_source_jaccard": 0.4826
+    },
+    "paired4:prefix": {
+      "n_pairs": 600,
+      "mean_shared": 64.8133,
+      "mean_unique_a": 22.165,
+      "mean_unique_b": 8.975,
+      "mean_both_sides_have_distinct_query_terms": 0.8983,
+      "mean_query_coverage": 95.9533,
+      "mean_source_jaccard": 0.5141
+    },
+    "balanced4:focused": {
+      "n_pairs": 600,
+      "mean_shared": 62.88,
+      "mean_unique_a": 33.9333,
+      "mean_unique_b": 20.7283,
+      "mean_both_sides_have_distinct_query_terms": 0.955,
+      "mean_query_coverage": 117.5417,
+      "mean_source_jaccard": 0.4478
+    },
+    "paired4:focused": {
+      "n_pairs": 600,
+      "mean_shared": 64.7083,
+      "mean_unique_a": 32.0383,
+      "mean_unique_b": 19.355,
+      "mean_both_sides_have_distinct_query_terms": 0.9433,
+      "mean_query_coverage": 116.1017,
+      "mean_source_jaccard": 0.4761
+    },
+    "balanced4:full": {
+      "n_pairs": 600,
+      "mean_shared": 134.8583,
+      "mean_unique_a": 49.3,
+      "mean_unique_b": 12.4217,
+      "mean_both_sides_have_distinct_query_terms": 0.795,
+      "mean_query_coverage": 196.58,
+      "mean_source_jaccard": 0.4824
+    },
+    "paired4:full": {
+      "n_pairs": 600,
+      "mean_shared": 136.5167,
+      "mean_unique_a": 47.1267,
+      "mean_unique_b": 10.7467,
+      "mean_both_sides_have_distinct_query_terms": 0.7433,
+      "mean_query_coverage": 194.39,
+      "mean_source_jaccard": 0.5192
+    }
+  },
+  "interpretation": "Shared and distinct bigram proxies; require Jeff outcome evidence",
+  "test_used": false
+}

@@ -143,6 +143,7 @@ def test_deep_micro_config_preserves_released_sliding_window_when_installed():
     if (
         importlib.util.find_spec("transformers") is None
         or importlib.util.find_spec("torch") is None
+        or importlib.util.find_spec("transformers.models.gemma4") is None
     ):
         pytest.skip("Gemma 4 is installed only in the isolated GH200 .venv")
     metadata = {

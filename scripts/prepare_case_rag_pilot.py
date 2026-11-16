@@ -8,7 +8,8 @@ from random import Random
 from statistics import mean
 from time import perf_counter
 
-from tcmdiscern.case_rag import CONDITIONS, CaseRAGIndex
+from tcmdiscern.case_rag import CONDITIONS, CONDITIONS_2, CaseRAGIndex
+from tcmdiscern.case_rag_tokenizer import load_jeff_token_counter
 from tcmdiscern.datasets import clinical_text, load_records
 from tcmdiscern.jeff_format import semif_messages
 
@@ -35,8 +36,10 @@ def make_selection(size: int, seed: int) -> list[int]:
     return sorted(Random(seed).sample(range(5486), size))
 
 
-def run(size: int, seed: int, tag: str) -> dict:
-    from transformers import PreTrainedTokenizerFast
+def run(size: int, seed: int, tag: str, *, evidence_budget: int = 4) -> dict:
+    if evidence_budget not in (2, 4):
+        raise ValueError("Evidence budget must be two or four cases")
+    conditions = CONDITIONS if evidence_budget == 4 else CONDITIONS_2
 
     started = perf_counter()
     selected = make_selection(size, seed)
@@ -57,17 +60,13 @@ def run(size: int, seed: int, tag: str) -> dict:
     output.mkdir(parents=True, exist_ok=False)
     streams = {
         name: (output / f"{name}.jsonl").open("x", encoding="utf-8")
-        for name in CONDITIONS
+        for name in conditions
     }
     trace = (output / "provenance.jsonl").open("x", encoding="utf-8")
-    lengths: dict[str, list[int]] = {name: [] for name in CONDITIONS}
+    lengths: dict[str, list[int]] = {name: [] for name in conditions}
     original_texts = {clinical_text(row) for row in train}
     duplicate_count = 0
-    assets = ROOT / "data/models/Jeff-1.1-Large-tokenizer"
-    tok = PreTrainedTokenizerFast(
-        tokenizer_file=str(assets / "tokenizer.json"),
-        chat_template=(assets / "chat_template.jinja").read_text(encoding="utf-8"),
-    )
+    tok, _ = load_jeff_token_counter(ROOT)
     try:
         for count, i in enumerate(selected, 1):
             row = dev[i]
@@ -75,7 +74,7 @@ def run(size: int, seed: int, tag: str) -> dict:
             pool = index._supports(row, options)
             duplicate_count += int(clinical_text(row) in original_texts)
             provenance = {"case_id": f"dev-{i:06d}", "conditions": {}}
-            for condition in CONDITIONS:
+            for condition in conditions:
                 prompt, detail = index.make_row(
                     row, options, case_id=f"dev-{i:06d}",
                     condition=condition, seed=seed + i, precomputed_items=pool,
@@ -118,7 +117,8 @@ def run(size: int, seed: int, tag: str) -> dict:
         "duplicate_train_text_samples": duplicate_count,
         "candidate_top16_parity": True,
         "baseline_prompt_parity": True,
-        "conditions": list(CONDITIONS),
+        "conditions": list(conditions),
+        "evidence_budget": evidence_budget,
         "input_tokens": {
             name: {"minimum": min(values), "mean": round(mean(values), 1),
                    "maximum": max(values)}
@@ -141,5 +141,6 @@ if __name__ == "__main__":
     parser.add_argument("--samples", type=int, default=300)
     parser.add_argument("--seed", type=int, default=20261116)
     parser.add_argument("--tag", default="pilot")
+    parser.add_argument("--evidence-budget", type=int, choices=(2, 4), default=4)
     args = parser.parse_args()
-    run(args.samples, args.seed, args.tag)
+    run(args.samples, args.seed, args.tag, evidence_budget=args.evidence_budget)
