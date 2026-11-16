@@ -3,6 +3,7 @@
 Every source position, syndrome label, query, candidate order and seed remains
 equal to the original pilot. Only the support text excerpt changes.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -12,9 +13,8 @@ from statistics import mean
 
 from tcmdiscern.case_rag import CONDITIONS, CONDITIONS_2
 from tcmdiscern.case_rag_excerpts import focused_case_view, verify_extractive
-from tcmdiscern.case_rag_tokenizer import load_jeff_token_counter
+from tcmdiscern.case_rag_tokenizer import count_jeff_prompt_tokens, load_jeff_token_counter
 from tcmdiscern.datasets import CLINICAL_FIELDS, clinical_text, load_records
-from tcmdiscern.jeff_format import semif_messages
 from tcmdiscern.retrieval import chinese_bigrams
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,8 +35,11 @@ def main(evidence_budget: int) -> dict:
     old = ROOT / "data/case_rag" / original_tag
     target = ROOT / "data/case_rag" / focused_tag
     original_manifest = json.loads((old / "manifest.json").read_text(encoding="utf-8"))
-    if (tuple(original_manifest["conditions"]) != conditions
-            or original_manifest["seed"] != 20261116 or original_manifest["samples"] != 300):
+    if (
+        tuple(original_manifest["conditions"]) != conditions
+        or original_manifest["seed"] != 20261116
+        or original_manifest["samples"] != 300
+    ):
         raise ValueError("Frozen source pilot changed unexpectedly")
     train = load_records(ROOT / "data/tcm-sd/train.json")
     dev = load_records(ROOT / "data/tcm-sd/dev.json")
@@ -51,10 +54,7 @@ def main(evidence_budget: int) -> dict:
     overlap_before = 0
     overlap_after = 0
     total_supports = 0
-    streams = {
-        arm: (target / f"{arm}.jsonl").open("x", encoding="utf-8")
-        for arm in conditions
-    }
+    streams = {arm: (target / f"{arm}.jsonl").open("x", encoding="utf-8") for arm in conditions}
     try:
         for arm in conditions:
             with (old / f"{arm}.jsonl").open(encoding="utf-8") as source:
@@ -70,7 +70,10 @@ def main(evidence_budget: int) -> dict:
                             raise ValueError("Incorrect source case budget")
                         for j, pos in enumerate(positions):
                             expected_label = str(train[pos]["norm_syndrome"])
-                            if row["state"]["retrieved_cases"][j]["candidate_syndrome"] != expected_label:
+                            if (
+                                row["state"]["retrieved_cases"][j]["candidate_syndrome"]
+                                != expected_label
+                            ):
                                 raise ValueError("Source diagnosis changed")
                             new_text = focused_case_view(train[pos], query)
                             verify_extractive(train[pos], new_text)
@@ -80,12 +83,10 @@ def main(evidence_budget: int) -> dict:
                                 overlap_after += _overlap(query, new_text)
                                 total_supports += 1
                             row["state"]["retrieved_cases"][j] = {
-                                "candidate_syndrome": expected_label, **new_text,
+                                "candidate_syndrome": expected_label,
+                                **new_text,
                             }
-                    length = len(tok.apply_chat_template(
-                        semif_messages(row), tokenize=True,
-                        add_generation_prompt=True, enable_thinking=False,
-                    ))
+                    length = count_jeff_prompt_tokens(tok, row)
                     if length > 8192:
                         raise ValueError("Focused case excerpt exceeds Jeff input limit")
                     counts[arm].append(length)

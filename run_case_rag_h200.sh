@@ -19,4 +19,7 @@ if ! flock -n 9; then
   echo "An H200 experiment already holds data/h200/runner.lock." >&2
   exit 1
 fi
+# Reused virtual environments may still have editable imports bound to an old checkout.
+# Resolve this checkout first while keeping the existing GPU Python environment.
+export PYTHONPATH="$ROOT/src:$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 exec "$PY" -m scripts.run_case_rag_h200 "$@"

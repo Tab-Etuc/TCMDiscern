@@ -1,4 +1,5 @@
 """Prepare auditable clinical-case retrieval inputs for Jeff."""
+
 from __future__ import annotations
 
 import argparse
@@ -9,9 +10,8 @@ from statistics import mean
 from time import perf_counter
 
 from tcmdiscern.case_rag import CONDITIONS, CONDITIONS_2, CaseRAGIndex
-from tcmdiscern.case_rag_tokenizer import load_jeff_token_counter
+from tcmdiscern.case_rag_tokenizer import count_jeff_prompt_tokens, load_jeff_token_counter
 from tcmdiscern.datasets import clinical_text, load_records
-from tcmdiscern.jeff_format import semif_messages
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -58,10 +58,7 @@ def run(size: int, seed: int, tag: str, *, evidence_budget: int = 4) -> dict:
         raise ValueError("BM25 candidate parity failed")
     output = ROOT / "data/case_rag" / f"{tag}_{size:04d}_{seed}"
     output.mkdir(parents=True, exist_ok=False)
-    streams = {
-        name: (output / f"{name}.jsonl").open("x", encoding="utf-8")
-        for name in conditions
-    }
+    streams = {name: (output / f"{name}.jsonl").open("x", encoding="utf-8") for name in conditions}
     trace = (output / "provenance.jsonl").open("x", encoding="utf-8")
     lengths: dict[str, list[int]] = {name: [] for name in conditions}
     original_texts = {clinical_text(row) for row in train}
@@ -76,17 +73,16 @@ def run(size: int, seed: int, tag: str, *, evidence_budget: int = 4) -> dict:
             provenance = {"case_id": f"dev-{i:06d}", "conditions": {}}
             for condition in conditions:
                 prompt, detail = index.make_row(
-                    row, options, case_id=f"dev-{i:06d}",
-                    condition=condition, seed=seed + i, precomputed_items=pool,
+                    row,
+                    options,
+                    case_id=f"dev-{i:06d}",
+                    condition=condition,
+                    seed=seed + i,
+                    precomputed_items=pool,
                 )
                 if [item["id"] for item in prompt["options"]] != options:
                     raise AssertionError("RAG changed the original candidate order")
-                n = len(tok.apply_chat_template(
-                    semif_messages(prompt),
-                    tokenize=True,
-                    add_generation_prompt=True,
-                    enable_thinking=False,
-                ))
+                n = count_jeff_prompt_tokens(tok, prompt)
                 if n > 8192:
                     raise ValueError("Jeff maximum input exceeded")
                 lengths[condition].append(n)
@@ -120,8 +116,7 @@ def run(size: int, seed: int, tag: str, *, evidence_budget: int = 4) -> dict:
         "conditions": list(conditions),
         "evidence_budget": evidence_budget,
         "input_tokens": {
-            name: {"minimum": min(values), "mean": round(mean(values), 1),
-                   "maximum": max(values)}
+            name: {"minimum": min(values), "mean": round(mean(values), 1), "maximum": max(values)}
             for name, values in lengths.items()
         },
         "all_within_8192": True,

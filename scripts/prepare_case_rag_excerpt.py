@@ -1,4 +1,5 @@
 """Prepare verbatim clinical excerpt controls from frozen paired2 source cases."""
+
 from __future__ import annotations
 
 import argparse
@@ -13,9 +14,8 @@ from tcmdiscern.case_rag_excerpt import (
     evidence_case,
     validate_excerpts,
 )
-from tcmdiscern.case_rag_tokenizer import load_jeff_token_counter
+from tcmdiscern.case_rag_tokenizer import count_jeff_prompt_tokens, load_jeff_token_counter
 from tcmdiscern.datasets import CLINICAL_FIELDS, clinical_text, load_records
-from tcmdiscern.jeff_format import semif_messages
 from tcmdiscern.retrieval import chinese_bigrams
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,8 +42,9 @@ def prepare(source_tag: str, tag: str) -> dict:
     encoder, _ = load_jeff_token_counter(ROOT)
     destination = ROOT / "data/case_rag" / tag
     destination.mkdir(parents=True, exist_ok=False)
-    files = {arm: (destination / f"{arm}.jsonl").open("x", encoding="utf-8")
-             for arm in EXCERPT_ARMS}
+    files = {
+        arm: (destination / f"{arm}.jsonl").open("x", encoding="utf-8") for arm in EXCERPT_ARMS
+    }
     measured = {arm: [] for arm in EXCERPT_ARMS}
     coverage = {arm: [] for arm in EXCERPT_ARMS if arm != "baseline"}
     changed = {arm: 0 for arm in coverage}
@@ -72,33 +73,35 @@ def prepare(source_tag: str, tag: str) -> dict:
                     if original["candidate_syndrome"] != label:
                         raise ValueError("Original support label does not match Train")
                     support = evidence_case(
-                        source_case, label, query_text,
-                        mode=mode, seed=20261116 + i * 171 + source_pos * 17,
+                        source_case,
+                        label,
+                        query_text,
+                        mode=mode,
+                        seed=20261116 + i * 171 + source_pos * 17,
                     )
                     validate_excerpts(original, support, source_case, mode=mode)
                     examples.append(support)
-                    changed[name] += int(any(
-                        original[field] != support[field] for field in CLINICAL_FIELDS
-                    ))
+                    changed[name] += int(
+                        any(original[field] != support[field] for field in CLINICAL_FIELDS)
+                    )
                 variant["state"]["retrieved_cases"] = examples
                 interventions[name] = variant
             for arm, variant in interventions.items():
                 if variant["options"] != base["options"]:
                     raise ValueError("Extractive evidence changed BM25 candidates")
-                if any(variant["state"][field] != base["state"][field] for field in CLINICAL_FIELDS):
+                if any(
+                    variant["state"][field] != base["state"][field] for field in CLINICAL_FIELDS
+                ):
                     raise ValueError("Extractive evidence changed the patient's observations")
-                count = len(encoder.apply_chat_template(
-                    semif_messages(variant), tokenize=True,
-                    add_generation_prompt=True, enable_thinking=False,
-                ))
+                count = count_jeff_prompt_tokens(encoder, variant)
                 if count > 8192:
                     raise ValueError("Full-case evidence exceeds Jeff maximum input")
                 measured[arm].append(count)
                 if arm in coverage:
                     for support in variant["state"]["retrieved_cases"]:
-                        terms = set(chinese_bigrams(" ".join(
-                            support[field] for field in CLINICAL_FIELDS
-                        )))
+                        terms = set(
+                            chinese_bigrams(" ".join(support[field] for field in CLINICAL_FIELDS))
+                        )
                         coverage[arm].append(len(terms & query_terms))
                 files[arm].write(json.dumps(variant, ensure_ascii=False) + "\n")
     finally:
@@ -118,8 +121,7 @@ def prepare(source_tag: str, tag: str) -> dict:
         "support_fields_are_verbatim_substrings": True,
         "all_within_8192": True,
         "input_tokens": {
-            arm: {"mean": round(mean(values), 2),
-                  "minimum": min(values), "maximum": max(values)}
+            arm: {"mean": round(mean(values), 2), "minimum": min(values), "maximum": max(values)}
             for arm, values in measured.items()
         },
         "query_bigram_coverage_per_support_mean": {

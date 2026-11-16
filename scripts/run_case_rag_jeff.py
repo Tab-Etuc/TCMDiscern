@@ -8,6 +8,7 @@ Usage on H200 after preparing the exact same 300-case inputs there:
 This never trains a model. Every option list is identical to baseline.
 Private row-level logits stay in ignored data/; public output is aggregate-only.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,6 +44,13 @@ def load_inputs(folder: Path, limit: int | None = None) -> dict[str, list[dict]]
     arms = tuple(manifest["conditions"])
     if arms not in (CONDITIONS, CONDITIONS_2, CF_ARMS, EXCERPT_ARMS) or not manifest["all_within_8192"]:
         raise ValueError("Original prompt preparation manifest failed")
+    # Synthetic test fixtures may omit token statistics; reject any measured
+    # production count that obviously confused BatchEncoding keys with input IDs.
+    if any(
+        isinstance(entry, dict) and entry.get("minimum", 32) < 32
+        for entry in (manifest.get("input_tokens") or {}).values()
+    ):
+        raise ValueError("Invalid token statistics: count input_ids, not BatchEncoding keys")
     evidence_budget = 2 if arms in (CONDITIONS_2, CF_ARMS, EXCERPT_ARMS) else 4
     if manifest.get("evidence_budget", evidence_budget) != evidence_budget:
         raise ValueError("Evidence budget contradicts the arm definitions")
@@ -71,22 +79,26 @@ def load_inputs(folder: Path, limit: int | None = None) -> dict[str, list[dict]]
                 for before, after in zip(source, entries, strict=True):
                     if before["candidate_syndrome"] != after["candidate_syndrome"]:
                         raise ValueError("Excerpt ablation changed the source case label")
-                if collection[arm][index]["state"]["retrieval_note"] != (
-                    collection["paired2"][index]["state"]["retrieval_note"]
+                if (
+                    collection[arm][index]["state"]["retrieval_note"]
+                    != (collection["paired2"][index]["state"]["retrieval_note"])
                 ):
                     raise ValueError("Excerpt ablation changed the source instruction")
         for condition in arms[1:]:
             rag = collection[condition][index]
             if (
-                rag["id"] != row["id"] or rag["options"] != row["options"]
+                rag["id"] != row["id"]
+                or rag["options"] != row["options"]
                 or rag["question"] != row["question"]
                 or rag["qtype"] != row["qtype"]
             ):
                 raise ValueError("RAG intervention changed the decision task")
             if len(rag["state"].get("retrieved_cases", [])) != evidence_budget:
                 raise ValueError("RAG condition has wrong case count")
-            if any(rag["state"][f] != row["state"][f]
-                   for f in ("chief_complaint", "description", "detection")):
+            if any(
+                rag["state"][f] != row["state"][f]
+                for f in ("chief_complaint", "description", "detection")
+            ):
                 raise ValueError("RAG condition altered patient input")
     if len({row["id"] for row in original}) != n:
         raise ValueError("Duplicate patient ID in prepared pilot")
@@ -110,7 +122,11 @@ def read_condition_logits(path: Path, cases: list[dict]) -> np.ndarray:
 
 
 def check_reference_baseline(
-    rows: list[dict], local_logits: Path, reference_logits: Path, *, total_cases: int = 5486,
+    rows: list[dict],
+    local_logits: Path,
+    reference_logits: Path,
+    *,
+    total_cases: int = 5486,
 ) -> dict:
     """Check true checkpoint/prompt parity before spending GPU on RAG arms."""
     from tcmdiscern.jeff_scoring import read_model_logits
@@ -136,7 +152,8 @@ def accuracy(gold: list[str], predictions: list[str]) -> float:
 
 
 def score_counterfactual_outputs(
-    collection: dict[str, list[dict]], output: Path,
+    collection: dict[str, list[dict]],
+    output: Path,
 ) -> dict:
     """Quantify sensitivity to the historical source label, order, and provenance."""
     from scipy.stats import binomtest
@@ -151,7 +168,8 @@ def score_counterfactual_outputs(
     gold = [str(dev[i]["norm_syndrome"]) for i in indices]
     exact_train = {clinical_text(row) for row in train}
     unseen = np.asarray(
-        [clinical_text(dev[i]) not in exact_train for i in indices], dtype=bool,
+        [clinical_text(dev[i]) not in exact_train for i in indices],
+        dtype=bool,
     )
     groups = transitive_group_ids(dev)
     group_indices = {}
@@ -161,13 +179,13 @@ def score_counterfactual_outputs(
     random = np.random.default_rng(20261116)
     bootstrap = random.integers(0, len(grouped), (600, len(grouped)))
     logits = {
-        arm: read_condition_logits(output / f"{arm}.jsonl", collection[arm])
-        for arm in CF_ARMS
+        arm: read_condition_logits(output / f"{arm}.jsonl", collection[arm]) for arm in CF_ARMS
     }
     positions = {arm: score.argmax(axis=1) for arm, score in logits.items()}
     chosen = {
-        arm: [original["options"][int(j)]["id"]
-              for original, j in zip(originals, pred, strict=True)]
+        arm: [
+            original["options"][int(j)]["id"] for original, j in zip(originals, pred, strict=True)
+        ]
         for arm, pred in positions.items()
     }
     result = {
@@ -180,28 +198,45 @@ def score_counterfactual_outputs(
         "methods": {},
         "source_interventions_vs_paired2": {},
     }
-    original_correct = np.asarray([
-        label == truth for label, truth in zip(chosen["paired2"], gold, strict=True)
-    ])
+    original_correct = np.asarray(
+        [label == truth for label, truth in zip(chosen["paired2"], gold, strict=True)]
+    )
     original_margin = logits["paired2"][:, 0] - logits["paired2"][:, 1]
     for arm in CF_ARMS:
         prediction = chosen[arm]
-        correct = np.asarray([label == truth for label, truth in zip(prediction, gold, strict=True)])
+        correct = np.asarray(
+            [label == truth for label, truth in zip(prediction, gold, strict=True)]
+        )
         result["methods"][arm] = {
             "top1_percent": round(100 * float(correct.mean()), 4),
             "top1_no_train_exact_text_percent": (
                 round(100 * float(correct[unseen].mean()), 4) if unseen.any() else None
             ),
             "macro_f1_148_percent": round(
-                100 * float(f1_score(
-                    gold, prediction, labels=all_labels, average="macro", zero_division=0,
-                )), 4,
+                100
+                * float(
+                    f1_score(
+                        gold,
+                        prediction,
+                        labels=all_labels,
+                        average="macro",
+                        zero_division=0,
+                    )
+                ),
+                4,
             ),
             "macro_f1_observed_gold_classes_percent": round(
-                100 * float(f1_score(
-                    gold, prediction, labels=sorted(set(gold)), average="macro",
-                    zero_division=0,
-                )), 4,
+                100
+                * float(
+                    f1_score(
+                        gold,
+                        prediction,
+                        labels=sorted(set(gold)),
+                        average="macro",
+                        zero_division=0,
+                    )
+                ),
+                4,
             ),
             "correct": int(correct.sum()),
         }
@@ -220,22 +255,29 @@ def score_counterfactual_outputs(
         result["source_interventions_vs_paired2"][arm] = {
             "prediction_flip_rate_percent": round(100 * float(changed.mean()), 4),
             "top2_pair_flip_rate_percent": round(
-                100 * float(np.mean(
-                    ((paired_pred == 0) & (new_pred == 1))
-                    | ((paired_pred == 1) & (new_pred == 0))
-                )), 4,
+                100
+                * float(
+                    np.mean(
+                        ((paired_pred == 0) & (new_pred == 1))
+                        | ((paired_pred == 1) & (new_pred == 0))
+                    )
+                ),
+                4,
             ),
             "mean_absolute_top2_margin_change": round(
-                float(np.abs(new_margin - original_margin).mean()), 6,
+                float(np.abs(new_margin - original_margin).mean()),
+                6,
             ),
             "delta_top1_pp": round(
-                100 * float(correct.mean() - original_correct.mean()), 4,
+                100 * float(correct.mean() - original_correct.mean()),
+                4,
             ),
             "rescued_vs_paired2": recovered,
             "broken_vs_paired2": damaged,
             "mcnemar_p_vs_paired2": (
                 float(binomtest(min(recovered, damaged), recovered + damaged).pvalue)
-                if recovered + damaged else 1.0
+                if recovered + damaged
+                else 1.0
             ),
             "delta_top1_pp_cluster_bootstrap_95ci": [
                 round(float(v), 4) for v in np.percentile(changes, [2.5, 97.5])
@@ -243,9 +285,7 @@ def score_counterfactual_outputs(
         }
     # Full 2x2 intervention: true vs swapped source labels crossed with
     # original vs reversed case order. Both clinical texts remain unchanged.
-    margins = {
-        arm: values[:, 0] - values[:, 1] for arm, values in logits.items()
-    }
+    margins = {arm: values[:, 0] - values[:, 1] for arm, values in logits.items()}
     base = margins["paired2"]
     swapped = margins["labelswap2"]
     reversed_order = margins["orderflip2"]
@@ -257,11 +297,13 @@ def score_counterfactual_outputs(
         "design": "2x2 source label swap x pair order; fixed patient and source case text",
         "mean_label_swap_effect_on_top2_logit_margin": round(float(label_effect.mean()), 6),
         "mean_abs_label_swap_effect_on_top2_logit_margin": round(
-            float(np.abs(label_effect).mean()), 6,
+            float(np.abs(label_effect).mean()),
+            6,
         ),
         "mean_order_effect_on_top2_logit_margin": round(float(order_effect.mean()), 6),
         "mean_abs_order_effect_on_top2_logit_margin": round(
-            float(np.abs(order_effect).mean()), 6,
+            float(np.abs(order_effect).mean()),
+            6,
         ),
         "mean_abs_label_order_interaction": round(float(np.abs(interaction).mean()), 6),
     }
@@ -276,7 +318,8 @@ def score_counterfactual_outputs(
 
 
 def score_excerpt_outputs(
-    collection: dict[str, list[dict]], output: Path,
+    collection: dict[str, list[dict]],
+    output: Path,
 ) -> dict:
     """Evaluate clinical-evidence extraction under controlled support identity."""
     from scipy.stats import binomtest
@@ -290,9 +333,9 @@ def score_excerpt_outputs(
     case_indices = [int(row["id"].removeprefix("dev-")) for row in original]
     gold = [str(dev[i]["norm_syndrome"]) for i in case_indices]
     exact_train = {clinical_text(row) for row in train}
-    unseen = np.asarray([
-        clinical_text(dev[i]) not in exact_train for i in case_indices
-    ], dtype=bool)
+    unseen = np.asarray(
+        [clinical_text(dev[i]) not in exact_train for i in case_indices], dtype=bool
+    )
     groups = transitive_group_ids(dev)
     group_members = {}
     for j, dev_index in enumerate(case_indices):
@@ -304,13 +347,10 @@ def score_excerpt_outputs(
     for mode in EXCERPT_ARMS:
         scores = read_condition_logits(output / f"{mode}.jsonl", collection[mode])
         predictions[mode] = [
-            row["options"][int(scores[i].argmax())]["id"]
-            for i, row in enumerate(collection[mode])
+            row["options"][int(scores[i].argmax())]["id"] for i, row in enumerate(collection[mode])
         ]
     paired = predictions["paired2"]
-    original_correct = np.asarray([
-        p == y for p, y in zip(paired, gold, strict=True)
-    ])
+    original_correct = np.asarray([p == y for p, y in zip(paired, gold, strict=True)])
     result = {
         "status": "REAL_JEFF_CLINICAL_EXCERPT_ABLATION",
         "samples": len(original),
@@ -322,26 +362,39 @@ def score_excerpt_outputs(
         "test_used": False,
     }
     for mode, predictions_for_arm in predictions.items():
-        current_correct = np.asarray([
-            p == y for p, y in zip(predictions_for_arm, gold, strict=True)
-        ])
+        current_correct = np.asarray(
+            [p == y for p, y in zip(predictions_for_arm, gold, strict=True)]
+        )
         result["methods"][mode] = {
             "top1_percent": round(float(current_correct.mean() * 100), 4),
-            "macro_f1_148_percent": round(float(
-                100 * f1_score(
-                    gold, predictions_for_arm, labels=labels,
-                    average="macro", zero_division=0,
-                )), 4,
+            "macro_f1_148_percent": round(
+                float(
+                    100
+                    * f1_score(
+                        gold,
+                        predictions_for_arm,
+                        labels=labels,
+                        average="macro",
+                        zero_division=0,
+                    )
+                ),
+                4,
             ),
             "macro_f1_observed_gold_classes_percent": round(
-                float(100 * f1_score(
-                    gold, predictions_for_arm, labels=sorted(set(gold)),
-                    average="macro", zero_division=0,
-                )), 4,
+                float(
+                    100
+                    * f1_score(
+                        gold,
+                        predictions_for_arm,
+                        labels=sorted(set(gold)),
+                        average="macro",
+                        zero_division=0,
+                    )
+                ),
+                4,
             ),
             "top1_no_train_exact_text_percent": (
-                round(float(current_correct[unseen].mean() * 100), 4)
-                if unseen.any() else None
+                round(float(current_correct[unseen].mean() * 100), 4) if unseen.any() else None
             ),
             "correct": int(current_correct.sum()),
         }
@@ -352,25 +405,43 @@ def score_excerpt_outputs(
         diffs = []
         for draw in sampled_groups:
             sample = np.concatenate([group_arr[int(j)] for j in draw])
-            diffs.append(100 * float(
-                current_correct[sample].mean() - original_correct[sample].mean()
-            ))
+            diffs.append(
+                100 * float(current_correct[sample].mean() - original_correct[sample].mean())
+            )
         result["vs_paired2_fixed_prefix"][mode] = {
-            "delta_top1_pp": round(100 * float(
-                current_correct.mean() - original_correct.mean()
-            ), 4),
-            "delta_macro_f1_148_pp": round(100 * float(
-                f1_score(
-                    gold, predictions_for_arm, labels=labels, average="macro",
-                    zero_division=0,
-                ) - f1_score(
-                    gold, paired, labels=labels, average="macro", zero_division=0,
-                )
-            ), 4),
-            "rescued": rescued, "broken": damaged,
-            "mcnemar_p": float(binomtest(
-                min(rescued, damaged), rescued + damaged,
-            ).pvalue) if rescued + damaged else 1.0,
+            "delta_top1_pp": round(
+                100 * float(current_correct.mean() - original_correct.mean()), 4
+            ),
+            "delta_macro_f1_148_pp": round(
+                100
+                * float(
+                    f1_score(
+                        gold,
+                        predictions_for_arm,
+                        labels=labels,
+                        average="macro",
+                        zero_division=0,
+                    )
+                    - f1_score(
+                        gold,
+                        paired,
+                        labels=labels,
+                        average="macro",
+                        zero_division=0,
+                    )
+                ),
+                4,
+            ),
+            "rescued": rescued,
+            "broken": damaged,
+            "mcnemar_p": float(
+                binomtest(
+                    min(rescued, damaged),
+                    rescued + damaged,
+                ).pvalue
+            )
+            if rescued + damaged
+            else 1.0,
             "cluster_bootstrap_delta_top1_pp_95ci": [
                 round(float(v), 4) for v in np.percentile(diffs, (2.5, 97.5))
             ],
@@ -452,17 +523,24 @@ def score_outputs(
         report["conditions"][mode] = {
             "top1_percent": round(100 * float(c.mean()), 4),
             "macro_f1_148_percent": round(
-                100 * float(f1_score(gold, pred, labels=classes,
-                                     average="macro", zero_division=0)), 4
+                100 * float(f1_score(gold, pred, labels=classes, average="macro", zero_division=0)),
+                4,
             ),
             "top1_no_train_exact_overlap_percent": (
                 round(100 * float(c[unseen].mean()), 4) if unseen.any() else None
             ),
             "macro_f1_observed_gold_classes_percent": round(
-                100 * float(f1_score(
-                    gold, pred, labels=sorted(set(gold)),
-                    average="macro", zero_division=0,
-                )), 4,
+                100
+                * float(
+                    f1_score(
+                        gold,
+                        pred,
+                        labels=sorted(set(gold)),
+                        average="macro",
+                        zero_division=0,
+                    )
+                ),
+                4,
             ),
             "correct": int(c.sum()),
             "rescued_vs_baseline": rescued,
@@ -471,8 +549,9 @@ def score_outputs(
                 round(float(v), 4) for v in np.percentile(cluster_diffs, [2.5, 97.5])
             ],
             "mcnemar_p_vs_baseline": (
-                float(binomtest(min(rescued, broken), rescued+broken).pvalue)
-                if rescued+broken else 1.0
+                float(binomtest(min(rescued, broken), rescued + broken).pvalue)
+                if rescued + broken
+                else 1.0
             ),
         }
     # Predeclared primary test: paired clinical cases vs equal-budget Top-2
@@ -488,25 +567,27 @@ def score_outputs(
         breakage = int((~c & b).sum())
         group_delta = []
         for replicate in bootstrap:
-            sampled = np.concatenate(
-                [group_members[unique_groups[int(g)]] for g in replicate]
-            )
+            sampled = np.concatenate([group_members[unique_groups[int(g)]] for g in replicate])
             group_delta.append(100 * float(c[sampled].mean() - b[sampled].mean()))
         comparison[comparator] = {
             "delta_top1_pp": round(100 * float(c.mean() - b.mean()), 4),
-            "delta_macro_f1_148_pp": round(100 * float(
-                f1_score(gold, paired, labels=classes, average="macro", zero_division=0)
-                - f1_score(gold, other, labels=classes, average="macro", zero_division=0)
-            ), 4),
+            "delta_macro_f1_148_pp": round(
+                100
+                * float(
+                    f1_score(gold, paired, labels=classes, average="macro", zero_division=0)
+                    - f1_score(gold, other, labels=classes, average="macro", zero_division=0)
+                ),
+                4,
+            ),
             "delta_top1_no_train_exact_overlap_pp": (
-                round(100 * float(c[unseen].mean() - b[unseen].mean()), 4)
-                if unseen.any() else None
+                round(100 * float(c[unseen].mean() - b[unseen].mean()), 4) if unseen.any() else None
             ),
             "rescued_vs_comparator": rescue,
             "broken_vs_comparator": breakage,
             "mcnemar_p": (
                 float(binomtest(min(rescue, breakage), rescue + breakage).pvalue)
-                if rescue + breakage else 1.0
+                if rescue + breakage
+                else 1.0
             ),
             "delta_top1_pp_group_bootstrap_95ci": [
                 round(float(v), 4) for v in np.percentile(group_delta, [2.5, 97.5])
@@ -548,7 +629,10 @@ def run_inference(
     # Verify the *actual* patient/evidence/option bytes and checkpoint
     # provenance before allocating Jeff's large released backbone.
     base_identity = expected_run_identity(
-        collection, model_dir, checkpoint, source=folder.name,
+        collection,
+        model_dir,
+        checkpoint,
+        source=folder.name,
     )
     if expected_method is not None:
         metadata = json.loads((checkpoint / "manifest.json").read_text(encoding="utf-8"))
@@ -557,12 +641,12 @@ def run_inference(
     stamp = output / "run_manifest.json"
     if stamp.exists():
         validate_saved_identity(
-            json.loads(stamp.read_text(encoding="utf-8")), base_identity,
+            json.loads(stamp.read_text(encoding="utf-8")),
+            base_identity,
         )
     elif output.exists() and any(output.glob("*.jsonl*")):
         raise ValueError(
-            "Unidentified existing logits/partials cannot be safely resumed; "
-            "use a new run-id"
+            "Unidentified existing logits/partials cannot be safely resumed; use a new run-id"
         )
     if output.exists() and any(output.glob("*.jsonl")):
         # Existing artifacts must be complete; partial files are handled by
@@ -574,8 +658,12 @@ def run_inference(
     output.mkdir(parents=True, exist_ok=True)
     started = perf_counter()
     jeff = JeffModel(
-        model_dir, device="cuda", reasoning=False, long_input="refuse",
-        cudnn_attention=False, compile=False,
+        model_dir,
+        device="cuda",
+        reasoning=False,
+        long_input="refuse",
+        cudnn_attention=False,
+        compile=False,
     )
     if jeff.config.get("bidirectional") is not None:
         raise ValueError("Incorrect Jeff backbone architecture")
@@ -590,11 +678,14 @@ def run_inference(
     }
     if stamp.exists():
         validate_saved_identity(
-            json.loads(stamp.read_text(encoding="utf-8")), identity, strict=True,
+            json.loads(stamp.read_text(encoding="utf-8")),
+            identity,
+            strict=True,
         )
     else:
-        stamp.write_text(json.dumps(identity, ensure_ascii=False, indent=2) + "\n",
-                         encoding="utf-8")
+        stamp.write_text(
+            json.dumps(identity, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
     records = {}
     frozen_baseline_check = None
     if require_baseline_parity:
@@ -606,10 +697,14 @@ def run_inference(
     for condition in collection:
         path = output / f"{condition}.jsonl"
         records[condition] = run_resumable(collection[condition], jeff.decider, path)
-        print(f"[case-rag] {condition}: {records[condition]['cases']} real Jeff decisions", flush=True)
+        print(
+            f"[case-rag] {condition}: {records[condition]['cases']} real Jeff decisions", flush=True
+        )
         if condition == "baseline" and require_baseline_parity:
             frozen_baseline_check = check_reference_baseline(
-                collection["baseline"], path, frozen_path,
+                collection["baseline"],
+                path,
+                frozen_path,
             )
             if frozen_baseline_check["decision_disagreements_vs_saved_s2"] != 0:
                 raise ValueError(
@@ -619,7 +714,7 @@ def run_inference(
     return {
         "checkpoint": checkpoint_info,
         "baseline_reference_check": frozen_baseline_check,
-        "elapsed_seconds": round(perf_counter()-started, 2),
+        "elapsed_seconds": round(perf_counter() - started, 2),
         "run_conditions": records,
     }
 
@@ -641,18 +736,24 @@ def main() -> None:
     folder = ROOT / "data/case_rag" / args.tag
     prompts = load_inputs(folder, args.limit)
     if args.preflight:
-        print(json.dumps({
-            "status": "READY_FOR_H200",
-            "rows_per_condition": len(prompts["baseline"]),
-            "conditions": list(prompts),
-            "evidence_budget": 2 if "paired2" in prompts else 4,
-            "candidate_order": "verified equal",
-            "gold_injected": False,
-            "supports_checkpoint_methods": ["s1", "s2", "s3", "s4"],
-            "counterfactual_source_attribution_stress_test": tuple(prompts) == CF_ARMS,
-            "extractive_evidence_content_ablation": tuple(prompts) == EXCERPT_ARMS,
-            "test_used": False,
-        }, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {
+                    "status": "READY_FOR_H200",
+                    "rows_per_condition": len(prompts["baseline"]),
+                    "conditions": list(prompts),
+                    "evidence_budget": 2 if "paired2" in prompts else 4,
+                    "candidate_order": "verified equal",
+                    "gold_injected": False,
+                    "supports_checkpoint_methods": ["s1", "s2", "s3", "s4"],
+                    "counterfactual_source_attribution_stress_test": tuple(prompts) == CF_ARMS,
+                    "extractive_evidence_content_ablation": tuple(prompts) == EXCERPT_ARMS,
+                    "test_used": False,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
     output = folder / "scores" / args.run_id
     compute_report = {}
@@ -662,14 +763,19 @@ def main() -> None:
             parser.error("Score-only evaluation requires the original inference manifest")
         validate_score_only_inputs(
             json.loads(manifest_path.read_text(encoding="utf-8")),
-            prompts, source=folder.name,
+            prompts,
+            source=folder.name,
         )
     if not args.score_only:
         if args.model_dir is None or args.checkpoint is None:
             parser.error("Real scoring requires --model-dir and --checkpoint")
         compute_report = run_inference(
-            folder, output, model_dir=args.model_dir, checkpoint=args.checkpoint,
-            limit=args.limit, expected_method=args.expected_method,
+            folder,
+            output,
+            model_dir=args.model_dir,
+            checkpoint=args.checkpoint,
+            limit=args.limit,
+            expected_method=args.expected_method,
             require_baseline_parity=args.require_baseline_parity,
         )
     report = score_outputs(folder, output, limit=args.limit)

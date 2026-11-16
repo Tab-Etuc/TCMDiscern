@@ -8,6 +8,7 @@ H200:
 
 Runs official Train/Dev-only inputs; keeps Test sealed and never trains Jeff.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,32 +62,34 @@ def checkpoints(root: Path, method: str) -> list[dict]:
             continue
         if meta.get("loss_method") != method:
             continue
-        candidates.append({
-            "path": str(path.resolve()),
-            "run_id": str(meta.get("run_id") or ""),
-            "global_update": int(meta.get("global_update") or 0),
-            "cursor_epoch": int(meta.get("cursor_epoch") or 0),
-        })
+        candidates.append(
+            {
+                "path": str(path.resolve()),
+                "run_id": str(meta.get("run_id") or ""),
+                "global_update": int(meta.get("global_update") or 0),
+                "cursor_epoch": int(meta.get("cursor_epoch") or 0),
+            }
+        )
     return sorted(
         candidates,
         key=lambda row: (
-            -row["cursor_epoch"], -row["global_update"], row["path"],
+            -row["cursor_epoch"],
+            -row["global_update"],
+            row["path"],
         ),
     )
 
 
 def choose_checkpoint(
-    root: Path, method: str, explicit: Path | None,
+    root: Path,
+    method: str,
+    explicit: Path | None,
 ) -> Path:
     if explicit is not None:
         directory = explicit.expanduser().resolve()
         if not all((directory / name).is_file() for name in REQUIRED_CHECKPOINT):
-            raise FileNotFoundError(
-                f"Incomplete {method.upper()} Jeff checkpoint: {directory}"
-            )
-        manifest = json.loads(
-            (directory / "manifest.json").read_text(encoding="utf-8")
-        )
+            raise FileNotFoundError(f"Incomplete {method.upper()} Jeff checkpoint: {directory}")
+        manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
         if manifest.get("loss_method") != method:
             raise ValueError("Checkpoint method differs from the requested experiment")
         return directory
@@ -99,10 +102,9 @@ def choose_checkpoint(
     if len(matches) > 1:
         selected = matches[0]
         second = matches[1]
-        if (
-            selected["cursor_epoch"], selected["global_update"]
-        ) == (
-            second["cursor_epoch"], second["global_update"]
+        if (selected["cursor_epoch"], selected["global_update"]) == (
+            second["cursor_epoch"],
+            second["global_update"],
         ):
             raise ValueError(
                 f"Multiple equally progressed {method.upper()} checkpoints. "
@@ -124,10 +126,17 @@ def required_data_status(root: Path) -> dict[str, bool]:
 
 def _frozen_input(folder: Path) -> dict:
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    measured = manifest.get("input_tokens") or {}
     if (
         manifest.get("samples") != SAMPLES
         or manifest.get("seed") != SEED
         or manifest.get("all_within_8192") is not True
+        or not measured
+        or any(
+            not isinstance(item, dict)
+            or not 32 <= item.get("minimum", 0) <= item.get("maximum", 8193) <= 8192
+            for item in measured.values()
+        )
     ):
         raise ValueError(f"Unexpected frozen Case-RAG manifest: {folder.name}")
     return manifest
@@ -137,7 +146,8 @@ def prepare_inputs(root: Path, *, include_counterfactual: bool) -> dict:
     missing = [name for name, exists in required_data_status(root).items() if not exists]
     if missing:
         raise FileNotFoundError(
-            "Official Train/Dev artifacts missing: " + ", ".join(missing)
+            "Official Train/Dev artifacts missing: "
+            + ", ".join(missing)
             + ". On H200 run 'bash run_h200.sh prepare'."
         )
     locate_jeff_tokenizer(root)
@@ -182,6 +192,7 @@ def prepare_inputs(root: Path, *, include_counterfactual: bool) -> dict:
     # The read-only source audit rederives each excerpt from the exact Train
     # positions. On H200, prevent a wrong reconstruction from reaching Jeff.
     from scripts.audit_case_rag_excerpt_provenance import verify
+
     verify(PREFIX, EXCERPT)
     plan = plan_identical_inferences(suites)
     return {
@@ -199,15 +210,13 @@ def check(root: Path, method: str, model_dir: Path, *, include_counterfactual: b
     tags = [PREFIX, EXCERPT]
     if include_counterfactual:
         tags.append(COUNTERFACTUAL)
-    generated = {
-        tag: (root / "data/case_rag" / tag / "manifest.json").is_file()
-        for tag in tags
-    }
+    generated = {tag: (root / "data/case_rag" / tag / "manifest.json").is_file() for tag in tags}
     try:
         tokenizer_dir = str(locate_jeff_tokenizer(root, model_dir=model_dir))
     except FileNotFoundError:
         tokenizer_dir = None
     from scripts.preflight_jeff_training import inspect_checkpoint
+
     model_status = inspect_checkpoint(model_dir)
     return {
         "status": "CASE_RAG_READINESS_CHECK",
@@ -246,13 +255,12 @@ def run(
     if root.resolve() != batch.ROOT.resolve():
         raise ValueError("Runner root differs from project workspace")
     planned = prepare_inputs(root, include_counterfactual=include_counterfactual)
-    summary = {
-        k: v for k, v in planned.items() if k not in {"suites", "plan"}
-    }
+    summary = {k: v for k, v in planned.items() if k not in {"suites", "plan"}}
     if mode == "prepare":
         return {"status": "CASE_RAG_INPUTS_VERIFIED", **summary, "test_opened": False}
     chosen = choose_checkpoint(root, method, checkpoint)
     from scripts.preflight_jeff_training import inspect_checkpoint
+
     inspected = inspect_checkpoint(model_dir)
     if not (
         inspected["weights_present"]
@@ -291,12 +299,9 @@ def run(
         "checkpoint": str(chosen),
         "run_id": name,
         "tags": planned["tags"],
-        "private_logits": [
-            f"data/case_rag/{tag}/scores/{name}/" for tag in planned["tags"]
-        ],
+        "private_logits": [f"data/case_rag/{tag}/scores/{name}/" for tag in planned["tags"]],
         "public_reports": [
-            f"experiments/case_rag_batch_{tag}_{name}.json"
-            for tag in planned["tags"]
+            f"experiments/case_rag_batch_{tag}_{name}.json" for tag in planned["tags"]
         ],
         "gold_used_for_model_input": False,
     }
@@ -306,18 +311,30 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("method", choices=("s1", "s2", "s3", "s4"), nargs="?", default="s2")
     parser.add_argument("--check", action="store_true", help="inspect files without GPU or writes")
-    parser.add_argument("--prepare-only", action="store_true", help="generate/verify inputs without GPU")
-    parser.add_argument("--all", action="store_true",
-                        help="include seven counterfactual stress controls")
+    parser.add_argument(
+        "--prepare-only", action="store_true", help="generate/verify inputs without GPU"
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="include seven counterfactual stress controls"
+    )
     parser.add_argument("--checkpoint", type=Path, help="explicit trained checkpoint")
-    parser.add_argument("--model-dir", type=Path,
-                        default=Path(os.environ.get(
-                            "H200_MODEL_DIR", str(ROOT / "data/models/Jeff-1.1-Large"),
-                        )))
+    parser.add_argument(
+        "--model-dir",
+        type=Path,
+        default=Path(
+            os.environ.get(
+                "H200_MODEL_DIR",
+                str(ROOT / "data/models/Jeff-1.1-Large"),
+            )
+        ),
+    )
     parser.add_argument("--limit", type=int, help="distinct smoke run ID when <300")
     parser.add_argument("--run-id", help="resume-safe distinct run ID")
-    parser.add_argument("--require-baseline-parity", action="store_true",
-                        help="require exact saved S2 epoch2 prediction match")
+    parser.add_argument(
+        "--require-baseline-parity",
+        action="store_true",
+        help="require exact saved S2 epoch2 prediction match",
+    )
     args = parser.parse_args(argv)
     if args.check and args.prepare_only:
         parser.error("--check and --prepare-only are mutually exclusive")
@@ -325,10 +342,14 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("Frozen baseline parity applies only to the S2 checkpoint")
     mode = "check" if args.check else "prepare" if args.prepare_only else "run"
     result = run(
-        root=ROOT, method=args.method, checkpoint=args.checkpoint,
+        root=ROOT,
+        method=args.method,
+        checkpoint=args.checkpoint,
         model_dir=args.model_dir.expanduser().resolve(),
-        mode=mode, limit=args.limit,
-        include_counterfactual=args.all, run_id=args.run_id,
+        mode=mode,
+        limit=args.limit,
+        include_counterfactual=args.all,
+        run_id=args.run_id,
         require_baseline_parity=args.require_baseline_parity,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
