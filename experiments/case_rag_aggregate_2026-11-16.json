@@ -1,0 +1,1700 @@
+{
+  "status": "CASE_RAG_REPORTS_AUDITED",
+  "report_count": 9,
+  "sample_per_model": 300,
+  "test_used": false,
+  "models": {
+    "S1": {
+      "arms": {
+        "baseline": {
+          "correct": 233,
+          "top1_percent": 77.6667,
+          "delta_top1_pp": 0.0,
+          "macro_f1_148_percent": 19.0942,
+          "no_exact_train_text_top1_percent": 74.9064,
+          "rescued_vs_baseline": 0,
+          "broken_vs_baseline": 0,
+          "mcnemar_exact_p_vs_baseline": 1.0,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.0,
+            0.0
+          ]
+        },
+        "global2": {
+          "correct": 252,
+          "top1_percent": 84.0,
+          "delta_top1_pp": 6.3333,
+          "macro_f1_148_percent": 23.7153,
+          "no_exact_train_text_top1_percent": 82.397,
+          "rescued_vs_baseline": 23,
+          "broken_vs_baseline": 4,
+          "mcnemar_exact_p_vs_baseline": 0.000310748815536499,
+          "cluster_bootstrap_95ci_delta_pp": [
+            3.01,
+            9.0377
+          ]
+        },
+        "balanced2": {
+          "correct": 246,
+          "top1_percent": 82.0,
+          "delta_top1_pp": 4.3333,
+          "macro_f1_148_percent": 22.9153,
+          "no_exact_train_text_top1_percent": 79.7753,
+          "rescued_vs_baseline": 20,
+          "broken_vs_baseline": 7,
+          "mcnemar_exact_p_vs_baseline": 0.0191572904586792,
+          "cluster_bootstrap_95ci_delta_pp": [
+            1.3289,
+            7.3649
+          ]
+        },
+        "paired2": {
+          "correct": 244,
+          "top1_percent": 81.3333,
+          "delta_top1_pp": 3.6666,
+          "macro_f1_148_percent": 22.6268,
+          "no_exact_train_text_top1_percent": 79.0262,
+          "rescued_vs_baseline": 18,
+          "broken_vs_baseline": 7,
+          "mcnemar_exact_p_vs_baseline": 0.043285250663757324,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.3344,
+            6.6667
+          ]
+        },
+        "random2": {
+          "correct": 241,
+          "top1_percent": 80.3333,
+          "delta_top1_pp": 2.6666,
+          "macro_f1_148_percent": 21.0287,
+          "no_exact_train_text_top1_percent": 77.9026,
+          "rescued_vs_baseline": 14,
+          "broken_vs_baseline": 6,
+          "mcnemar_exact_p_vs_baseline": 0.11531829833984375,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.0,
+            5.3512
+          ]
+        }
+      },
+      "retrieval_paired_vs_global2": {
+        "delta_top1_pp": -2.6667,
+        "delta_macro_f1_148_pp": -1.0884,
+        "delta_top1_no_train_exact_overlap_pp": -3.3708,
+        "rescued_vs_comparator": 2,
+        "broken_vs_comparator": 10,
+        "mcnemar_p": 0.03857421875,
+        "delta_top1_pp_group_bootstrap_95ci": [
+          -4.6823,
+          -0.6645
+        ]
+      },
+      "excerpt_vs_paired2": {
+        "baseline": {
+          "delta_top1_pp": -3.6667,
+          "delta_macro_f1_148_pp": -3.5326,
+          "rescued": 7,
+          "broken": 18,
+          "mcnemar_p": 0.043285250663757324,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -6.689,
+            -0.6667
+          ]
+        },
+        "querywindow2": {
+          "delta_top1_pp": 1.0,
+          "delta_macro_f1_148_pp": -0.4252,
+          "rescued": 8,
+          "broken": 5,
+          "mcnemar_p": 0.5810546875,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -1.312,
+            3.3445
+          ]
+        },
+        "randomwindow2": {
+          "delta_top1_pp": 1.0,
+          "delta_macro_f1_148_pp": 0.0124,
+          "rescued": 8,
+          "broken": 5,
+          "mcnemar_p": 0.5810546875,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -1.6348,
+            3.3333
+          ]
+        },
+        "fullcase2": {
+          "delta_top1_pp": 1.3333,
+          "delta_macro_f1_148_pp": 3.0359,
+          "rescued": 14,
+          "broken": 10,
+          "mcnemar_p": 0.5412561893463135,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -1.9935,
+            4.6823
+          ]
+        }
+      },
+      "counterfactual": {
+        "arms": {
+          "labelswap2": {
+            "top1_percent": 78.3333,
+            "delta_top1_pp_vs_paired2": -3.0,
+            "prediction_flip_rate_percent": 7.6667,
+            "mcnemar_p_vs_paired2": 0.0783538818359375
+          },
+          "labelhide2": {
+            "top1_percent": 77.6667,
+            "delta_top1_pp_vs_paired2": -3.6667,
+            "prediction_flip_rate_percent": 7.0,
+            "mcnemar_p_vs_paired2": 0.0192108154296875
+          },
+          "orderflip2": {
+            "top1_percent": 82.3333,
+            "delta_top1_pp_vs_paired2": 1.0,
+            "prediction_flip_rate_percent": 3.6667,
+            "mcnemar_p_vs_paired2": 0.5078125
+          },
+          "doubleflip2": {
+            "top1_percent": 76.6667,
+            "delta_top1_pp_vs_paired2": -4.6667,
+            "prediction_flip_rate_percent": 9.3333,
+            "mcnemar_p_vs_paired2": 0.009355306625366211
+          },
+          "sourceguard2": {
+            "top1_percent": 82.0,
+            "delta_top1_pp_vs_paired2": 0.6667,
+            "prediction_flip_rate_percent": 3.0,
+            "mcnemar_p_vs_paired2": 0.7265625
+          }
+        },
+        "source_label_order_factorial": {
+          "design": "2x2 source label swap x pair order; fixed patient and source case text",
+          "mean_label_swap_effect_on_top2_logit_margin": -0.928287,
+          "mean_abs_label_swap_effect_on_top2_logit_margin": 1.200033,
+          "mean_order_effect_on_top2_logit_margin": -0.10014,
+          "mean_abs_order_effect_on_top2_logit_margin": 0.246861,
+          "mean_abs_label_order_interaction": 0.872105
+        }
+      },
+      "pilot_label_coverage": {
+        "cases": 300,
+        "class_count_reference": 148,
+        "observed_gold_classes": 56,
+        "absent_gold_classes": 92,
+        "classes_with_one_gold_case": 25,
+        "classes_with_two_or_fewer_gold_cases": 33,
+        "maximum_possible_fixed_148_macro_f1_percent": 37.8378,
+        "train_dev_normalized_text_overlap_cases": 33,
+        "train_dev_same_text_different_gold_cases": 2,
+        "train_dev_patient_id_overlap_cases": 2,
+        "reference_split": "official Dev, sampled without replacement",
+        "gold_usage": "metrics and data-audit only; never retrieval or model input",
+        "interpretation": "Small non-stratified pilot: within-sample paired Top-1/rescue-break is exploratory; fixed-148 macro-F1 cannot be directly compared to full-Dev macro-F1. Evaluate the locked full 5,486 Dev for 148-class and long-tail claims.",
+        "official_test_used": false
+      },
+      "inference": {
+        "budget": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s1-seed20261112-e2",
+          "checkpoint_method": "s1",
+          "arms": {
+            "baseline": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 223041,
+              "new_forward_seconds": 52.409,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 174.468,
+                "p50_ms": 163.704,
+                "p95_ms": 224.511,
+                "first_ms": 206.553,
+                "steady_p95_ms": 224.733,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "global2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348655,
+              "new_forward_seconds": 72.981,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.043,
+                "p50_ms": 229.587,
+                "p95_ms": 310.043,
+                "first_ms": 267.12,
+                "steady_p95_ms": 310.106,
+                "mean_input_tokens": 1162.18,
+                "peak_cuda_allocated_bytes": 63306785280,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "balanced2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348541,
+              "new_forward_seconds": 73.179,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.702,
+                "p50_ms": 230.006,
+                "p95_ms": 310.906,
+                "first_ms": 269.552,
+                "steady_p95_ms": 310.927,
+                "mean_input_tokens": 1161.8,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.244,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.919,
+                "p50_ms": 229.935,
+                "p95_ms": 313.103,
+                "first_ms": 268.97,
+                "steady_p95_ms": 313.13,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "random2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348293,
+              "new_forward_seconds": 72.928,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.869,
+                "p50_ms": 228.825,
+                "p95_ms": 309.306,
+                "first_ms": 268.352,
+                "steady_p95_ms": 309.4,
+                "mean_input_tokens": 1160.98,
+                "peak_cuda_allocated_bytes": 63301916160,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        },
+        "excerpt": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s1-seed20261112-e2",
+          "checkpoint_method": "s1",
+          "arms": {
+            "baseline": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 174.468,
+                "p50_ms": 163.704,
+                "p95_ms": 224.511,
+                "first_ms": 206.553,
+                "steady_p95_ms": 224.733,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.919,
+                "p50_ms": 229.935,
+                "p95_ms": 313.103,
+                "first_ms": 268.97,
+                "steady_p95_ms": 313.13,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "querywindow2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 355333,
+              "new_forward_seconds": 74.307,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 247.463,
+                "p50_ms": 238.798,
+                "p95_ms": 313.289,
+                "first_ms": 273.063,
+                "steady_p95_ms": 313.291,
+                "mean_input_tokens": 1184.44,
+                "peak_cuda_allocated_bytes": 63312361984,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "randomwindow2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 353845,
+              "new_forward_seconds": 74.028,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 246.533,
+                "p50_ms": 232.562,
+                "p95_ms": 312.998,
+                "first_ms": 270.29,
+                "steady_p95_ms": 313.336,
+                "mean_input_tokens": 1179.48,
+                "peak_cuda_allocated_bytes": 63311751680,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "fullcase2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 507649,
+              "new_forward_seconds": 104.056,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 346.626,
+                "p50_ms": 301.448,
+                "p95_ms": 597.048,
+                "first_ms": 398.717,
+                "steady_p95_ms": 597.183,
+                "mean_input_tokens": 1692.16,
+                "peak_cuda_allocated_bytes": 64353023488,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        },
+        "counterfactual": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s1-seed20261112-e2",
+          "checkpoint_method": "s1",
+          "arms": {
+            "baseline": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 174.468,
+                "p50_ms": 163.704,
+                "p95_ms": 224.511,
+                "first_ms": 206.553,
+                "steady_p95_ms": 224.733,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.919,
+                "p50_ms": 229.935,
+                "p95_ms": 313.103,
+                "first_ms": 268.97,
+                "steady_p95_ms": 313.13,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "labelswap2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.124,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.519,
+                "p50_ms": 229.38,
+                "p95_ms": 311.815,
+                "first_ms": 268.798,
+                "steady_p95_ms": 311.824,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "labelhide2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 346747,
+              "new_forward_seconds": 72.744,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.25,
+                "p50_ms": 229.046,
+                "p95_ms": 311.305,
+                "first_ms": 267.393,
+                "steady_p95_ms": 311.353,
+                "mean_input_tokens": 1155.82,
+                "peak_cuda_allocated_bytes": 63302889984,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "orderflip2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.116,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.487,
+                "p50_ms": 229.742,
+                "p95_ms": 311.985,
+                "first_ms": 268.074,
+                "steady_p95_ms": 311.989,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "doubleflip2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.095,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.421,
+                "p50_ms": 229.281,
+                "p95_ms": 311.55,
+                "first_ms": 268.618,
+                "steady_p95_ms": 311.56,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "sourceguard2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 355388,
+              "new_forward_seconds": 74.381,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 247.712,
+                "p50_ms": 238.915,
+                "p95_ms": 318.975,
+                "first_ms": 271.518,
+                "steady_p95_ms": 318.976,
+                "mean_input_tokens": 1184.63,
+                "peak_cuda_allocated_bytes": 63312765440,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        }
+      },
+      "no_exact_overlap_n": 267,
+      "global2_no_exact_overlap_delta_pp": 7.4906
+    },
+    "S2": {
+      "arms": {
+        "baseline": {
+          "correct": 245,
+          "top1_percent": 81.6667,
+          "delta_top1_pp": 0.0,
+          "macro_f1_148_percent": 22.2322,
+          "no_exact_train_text_top1_percent": 79.7753,
+          "rescued_vs_baseline": 0,
+          "broken_vs_baseline": 0,
+          "mcnemar_exact_p_vs_baseline": 1.0,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.0,
+            0.0
+          ]
+        },
+        "global2": {
+          "correct": 256,
+          "top1_percent": 85.3333,
+          "delta_top1_pp": 3.6666,
+          "macro_f1_148_percent": 24.2825,
+          "no_exact_train_text_top1_percent": 83.5206,
+          "rescued_vs_baseline": 16,
+          "broken_vs_baseline": 5,
+          "mcnemar_exact_p_vs_baseline": 0.02660369873046875,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.6667,
+            6.6672
+          ]
+        },
+        "balanced2": {
+          "correct": 254,
+          "top1_percent": 84.6667,
+          "delta_top1_pp": 3.0,
+          "macro_f1_148_percent": 23.8315,
+          "no_exact_train_text_top1_percent": 83.1461,
+          "rescued_vs_baseline": 14,
+          "broken_vs_baseline": 5,
+          "mcnemar_exact_p_vs_baseline": 0.063568115234375,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.3228,
+            5.9613
+          ]
+        },
+        "paired2": {
+          "correct": 255,
+          "top1_percent": 85.0,
+          "delta_top1_pp": 3.3333,
+          "macro_f1_148_percent": 23.7605,
+          "no_exact_train_text_top1_percent": 83.5206,
+          "rescued_vs_baseline": 15,
+          "broken_vs_baseline": 5,
+          "mcnemar_exact_p_vs_baseline": 0.04138946533203125,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.6666,
+            6.3333
+          ]
+        },
+        "random2": {
+          "correct": 249,
+          "top1_percent": 83.0,
+          "delta_top1_pp": 1.3333,
+          "macro_f1_148_percent": 22.9246,
+          "no_exact_train_text_top1_percent": 81.2734,
+          "rescued_vs_baseline": 7,
+          "broken_vs_baseline": 3,
+          "mcnemar_exact_p_vs_baseline": 0.34375,
+          "cluster_bootstrap_95ci_delta_pp": [
+            -0.6667,
+            3.3336
+          ]
+        }
+      },
+      "retrieval_paired_vs_global2": {
+        "delta_top1_pp": -0.3333,
+        "delta_macro_f1_148_pp": -0.522,
+        "delta_top1_no_train_exact_overlap_pp": 0.0,
+        "rescued_vs_comparator": 3,
+        "broken_vs_comparator": 4,
+        "mcnemar_p": 1.0,
+        "delta_top1_pp_group_bootstrap_95ci": [
+          -2.0067,
+          1.6667
+        ]
+      },
+      "excerpt_vs_paired2": {
+        "baseline": {
+          "delta_top1_pp": -3.3333,
+          "delta_macro_f1_148_pp": -1.5283,
+          "rescued": 5,
+          "broken": 15,
+          "mcnemar_p": 0.04138946533203125,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -6.2516,
+            -0.654
+          ]
+        },
+        "querywindow2": {
+          "delta_top1_pp": -1.0,
+          "delta_macro_f1_148_pp": -0.7114,
+          "rescued": 4,
+          "broken": 7,
+          "mcnemar_p": 0.548828125,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -3.01,
+            1.0001
+          ]
+        },
+        "randomwindow2": {
+          "delta_top1_pp": -0.3333,
+          "delta_macro_f1_148_pp": -0.2599,
+          "rescued": 5,
+          "broken": 6,
+          "mcnemar_p": 1.0,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -2.3411,
+            1.6722
+          ]
+        },
+        "fullcase2": {
+          "delta_top1_pp": 0.3333,
+          "delta_macro_f1_148_pp": 1.6575,
+          "rescued": 10,
+          "broken": 9,
+          "mcnemar_p": 1.0,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -2.3411,
+            3.3006
+          ]
+        }
+      },
+      "counterfactual": {
+        "arms": {
+          "labelswap2": {
+            "top1_percent": 81.6667,
+            "delta_top1_pp_vs_paired2": -3.3333,
+            "prediction_flip_rate_percent": 6.6667,
+            "mcnemar_p_vs_paired2": 0.021270751953125
+          },
+          "labelhide2": {
+            "top1_percent": 82.0,
+            "delta_top1_pp_vs_paired2": -3.0,
+            "prediction_flip_rate_percent": 6.3333,
+            "mcnemar_p_vs_paired2": 0.049041748046875
+          },
+          "orderflip2": {
+            "top1_percent": 84.6667,
+            "delta_top1_pp_vs_paired2": -0.3333,
+            "prediction_flip_rate_percent": 4.3333,
+            "mcnemar_p_vs_paired2": 1.0
+          },
+          "doubleflip2": {
+            "top1_percent": 80.6667,
+            "delta_top1_pp_vs_paired2": -4.3333,
+            "prediction_flip_rate_percent": 9.0,
+            "mcnemar_p_vs_paired2": 0.007197380065917969
+          },
+          "sourceguard2": {
+            "top1_percent": 83.3333,
+            "delta_top1_pp_vs_paired2": -1.6667,
+            "prediction_flip_rate_percent": 3.6667,
+            "mcnemar_p_vs_paired2": 0.1796875
+          }
+        },
+        "source_label_order_factorial": {
+          "design": "2x2 source label swap x pair order; fixed patient and source case text",
+          "mean_label_swap_effect_on_top2_logit_margin": -0.734542,
+          "mean_abs_label_swap_effect_on_top2_logit_margin": 1.014606,
+          "mean_order_effect_on_top2_logit_margin": -0.08519,
+          "mean_abs_order_effect_on_top2_logit_margin": 0.228657,
+          "mean_abs_label_order_interaction": 0.809103
+        }
+      },
+      "pilot_label_coverage": {
+        "cases": 300,
+        "class_count_reference": 148,
+        "observed_gold_classes": 56,
+        "absent_gold_classes": 92,
+        "classes_with_one_gold_case": 25,
+        "classes_with_two_or_fewer_gold_cases": 33,
+        "maximum_possible_fixed_148_macro_f1_percent": 37.8378,
+        "train_dev_normalized_text_overlap_cases": 33,
+        "train_dev_same_text_different_gold_cases": 2,
+        "train_dev_patient_id_overlap_cases": 2,
+        "reference_split": "official Dev, sampled without replacement",
+        "gold_usage": "metrics and data-audit only; never retrieval or model input",
+        "interpretation": "Small non-stratified pilot: within-sample paired Top-1/rescue-break is exploratory; fixed-148 macro-F1 cannot be directly compared to full-Dev macro-F1. Evaluate the locked full 5,486 Dev for 148-class and long-tail claims.",
+        "official_test_used": false
+      },
+      "inference": {
+        "budget": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s2-seed20261112-e2",
+          "checkpoint_method": "s2",
+          "arms": {
+            "baseline": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 223041,
+              "new_forward_seconds": 52.191,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 173.739,
+                "p50_ms": 163.042,
+                "p95_ms": 229.058,
+                "first_ms": 212.557,
+                "steady_p95_ms": 229.096,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "global2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348655,
+              "new_forward_seconds": 72.993,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.078,
+                "p50_ms": 229.086,
+                "p95_ms": 309.293,
+                "first_ms": 268.088,
+                "steady_p95_ms": 309.33,
+                "mean_input_tokens": 1162.18,
+                "peak_cuda_allocated_bytes": 63306785280,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "balanced2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348541,
+              "new_forward_seconds": 72.862,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.643,
+                "p50_ms": 228.961,
+                "p95_ms": 311.238,
+                "first_ms": 269.724,
+                "steady_p95_ms": 311.248,
+                "mean_input_tokens": 1161.8,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 72.854,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.626,
+                "p50_ms": 228.586,
+                "p95_ms": 311.18,
+                "first_ms": 268.103,
+                "steady_p95_ms": 311.185,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "random2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348293,
+              "new_forward_seconds": 72.816,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.495,
+                "p50_ms": 228.874,
+                "p95_ms": 309.639,
+                "first_ms": 268.111,
+                "steady_p95_ms": 309.811,
+                "mean_input_tokens": 1160.98,
+                "peak_cuda_allocated_bytes": 63301916160,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        },
+        "excerpt": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s2-seed20261112-e2",
+          "checkpoint_method": "s2",
+          "arms": {
+            "baseline": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 173.739,
+                "p50_ms": 163.042,
+                "p95_ms": 229.058,
+                "first_ms": 212.557,
+                "steady_p95_ms": 229.096,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.626,
+                "p50_ms": 228.586,
+                "p95_ms": 311.18,
+                "first_ms": 268.103,
+                "steady_p95_ms": 311.185,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "querywindow2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 355333,
+              "new_forward_seconds": 74.232,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 247.208,
+                "p50_ms": 238.885,
+                "p95_ms": 311.618,
+                "first_ms": 272.362,
+                "steady_p95_ms": 311.633,
+                "mean_input_tokens": 1184.44,
+                "peak_cuda_allocated_bytes": 63312361984,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "randomwindow2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 353845,
+              "new_forward_seconds": 73.953,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 246.279,
+                "p50_ms": 232.385,
+                "p95_ms": 312.891,
+                "first_ms": 270.349,
+                "steady_p95_ms": 313.189,
+                "mean_input_tokens": 1179.48,
+                "peak_cuda_allocated_bytes": 63311751680,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "fullcase2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 507649,
+              "new_forward_seconds": 104.029,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 346.53,
+                "p50_ms": 301.308,
+                "p95_ms": 599.872,
+                "first_ms": 399.191,
+                "steady_p95_ms": 599.88,
+                "mean_input_tokens": 1692.16,
+                "peak_cuda_allocated_bytes": 64353023488,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        },
+        "counterfactual": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s2-seed20261112-e2",
+          "checkpoint_method": "s2",
+          "arms": {
+            "baseline": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 173.739,
+                "p50_ms": 163.042,
+                "p95_ms": 229.058,
+                "first_ms": 212.557,
+                "steady_p95_ms": 229.096,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.626,
+                "p50_ms": 228.586,
+                "p95_ms": 311.18,
+                "first_ms": 268.103,
+                "steady_p95_ms": 311.185,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "labelswap2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 72.886,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.723,
+                "p50_ms": 229.214,
+                "p95_ms": 308.442,
+                "first_ms": 288.567,
+                "steady_p95_ms": 308.51,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63305116160,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "labelhide2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 346747,
+              "new_forward_seconds": 72.744,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.252,
+                "p50_ms": 228.901,
+                "p95_ms": 309.962,
+                "first_ms": 267.858,
+                "steady_p95_ms": 309.997,
+                "mean_input_tokens": 1155.82,
+                "peak_cuda_allocated_bytes": 63304200704,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "orderflip2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 72.999,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.102,
+                "p50_ms": 229.236,
+                "p95_ms": 310.874,
+                "first_ms": 267.466,
+                "steady_p95_ms": 310.925,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63305116160,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "doubleflip2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.01,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.141,
+                "p50_ms": 229.106,
+                "p95_ms": 311.178,
+                "first_ms": 267.975,
+                "steady_p95_ms": 311.182,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63305116160,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "sourceguard2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 355388,
+              "new_forward_seconds": 74.361,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 247.639,
+                "p50_ms": 238.697,
+                "p95_ms": 318.487,
+                "first_ms": 271.483,
+                "steady_p95_ms": 318.525,
+                "mean_input_tokens": 1184.63,
+                "peak_cuda_allocated_bytes": 63313656832,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        }
+      },
+      "no_exact_overlap_n": 267,
+      "global2_no_exact_overlap_delta_pp": 3.7453
+    },
+    "S3": {
+      "arms": {
+        "baseline": {
+          "correct": 243,
+          "top1_percent": 81.0,
+          "delta_top1_pp": 0.0,
+          "macro_f1_148_percent": 20.8754,
+          "no_exact_train_text_top1_percent": 78.6517,
+          "rescued_vs_baseline": 0,
+          "broken_vs_baseline": 0,
+          "mcnemar_exact_p_vs_baseline": 1.0,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.0,
+            0.0
+          ]
+        },
+        "global2": {
+          "correct": 253,
+          "top1_percent": 84.3333,
+          "delta_top1_pp": 3.3333,
+          "macro_f1_148_percent": 23.9998,
+          "no_exact_train_text_top1_percent": 82.7715,
+          "rescued_vs_baseline": 15,
+          "broken_vs_baseline": 5,
+          "mcnemar_exact_p_vs_baseline": 0.04138946533203125,
+          "cluster_bootstrap_95ci_delta_pp": [
+            0.6689,
+            6.2717
+          ]
+        },
+        "balanced2": {
+          "correct": 247,
+          "top1_percent": 82.3333,
+          "delta_top1_pp": 1.3333,
+          "macro_f1_148_percent": 22.061,
+          "no_exact_train_text_top1_percent": 80.5243,
+          "rescued_vs_baseline": 10,
+          "broken_vs_baseline": 6,
+          "mcnemar_exact_p_vs_baseline": 0.454498291015625,
+          "cluster_bootstrap_95ci_delta_pp": [
+            -1.0033,
+            3.9735
+          ]
+        },
+        "paired2": {
+          "correct": 248,
+          "top1_percent": 82.6667,
+          "delta_top1_pp": 1.6667,
+          "macro_f1_148_percent": 22.1893,
+          "no_exact_train_text_top1_percent": 80.8989,
+          "rescued_vs_baseline": 10,
+          "broken_vs_baseline": 5,
+          "mcnemar_exact_p_vs_baseline": 0.3017578125,
+          "cluster_bootstrap_95ci_delta_pp": [
+            -0.6667,
+            4.0134
+          ]
+        },
+        "random2": {
+          "correct": 248,
+          "top1_percent": 82.6667,
+          "delta_top1_pp": 1.6667,
+          "macro_f1_148_percent": 22.9561,
+          "no_exact_train_text_top1_percent": 80.5243,
+          "rescued_vs_baseline": 10,
+          "broken_vs_baseline": 5,
+          "mcnemar_exact_p_vs_baseline": 0.3017578125,
+          "cluster_bootstrap_95ci_delta_pp": [
+            -0.9935,
+            4.0203
+          ]
+        }
+      },
+      "retrieval_paired_vs_global2": {
+        "delta_top1_pp": -1.6667,
+        "delta_macro_f1_148_pp": -1.8105,
+        "delta_top1_no_train_exact_overlap_pp": -1.8727,
+        "rescued_vs_comparator": 3,
+        "broken_vs_comparator": 8,
+        "mcnemar_p": 0.2265625,
+        "delta_top1_pp_group_bootstrap_95ci": [
+          -3.6789,
+          0.3344
+        ]
+      },
+      "excerpt_vs_paired2": {
+        "baseline": {
+          "delta_top1_pp": -1.6667,
+          "delta_macro_f1_148_pp": -1.3139,
+          "rescued": 5,
+          "broken": 10,
+          "mcnemar_p": 0.30175781249999994,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -4.0203,
+            0.9935
+          ]
+        },
+        "querywindow2": {
+          "delta_top1_pp": -0.6667,
+          "delta_macro_f1_148_pp": -0.0561,
+          "rescued": 3,
+          "broken": 5,
+          "mcnemar_p": 0.7265625,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -2.6578,
+            1.3333
+          ]
+        },
+        "randomwindow2": {
+          "delta_top1_pp": 0.6667,
+          "delta_macro_f1_148_pp": -0.0945,
+          "rescued": 5,
+          "broken": 3,
+          "mcnemar_p": 0.7265625,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -1.3378,
+            2.6578
+          ]
+        },
+        "fullcase2": {
+          "delta_top1_pp": 0.0,
+          "delta_macro_f1_148_pp": 1.6824,
+          "rescued": 9,
+          "broken": 9,
+          "mcnemar_p": 1.0,
+          "cluster_bootstrap_delta_top1_pp_95ci": [
+            -2.99,
+            2.9903
+          ]
+        }
+      },
+      "counterfactual": {
+        "arms": {
+          "labelswap2": {
+            "top1_percent": 80.6667,
+            "delta_top1_pp_vs_paired2": -2.0,
+            "prediction_flip_rate_percent": 9.0,
+            "mcnemar_p_vs_paired2": 0.30745625495910645
+          },
+          "labelhide2": {
+            "top1_percent": 81.0,
+            "delta_top1_pp_vs_paired2": -1.6667,
+            "prediction_flip_rate_percent": 6.0,
+            "mcnemar_p_vs_paired2": 0.30175781249999994
+          },
+          "orderflip2": {
+            "top1_percent": 83.0,
+            "delta_top1_pp_vs_paired2": 0.3333,
+            "prediction_flip_rate_percent": 3.6667,
+            "mcnemar_p_vs_paired2": 1.0
+          },
+          "doubleflip2": {
+            "top1_percent": 77.6667,
+            "delta_top1_pp_vs_paired2": -5.0,
+            "prediction_flip_rate_percent": 9.3333,
+            "mcnemar_p_vs_paired2": 0.004077315330505371
+          },
+          "sourceguard2": {
+            "top1_percent": 81.3333,
+            "delta_top1_pp_vs_paired2": -1.3333,
+            "prediction_flip_rate_percent": 3.6667,
+            "mcnemar_p_vs_paired2": 0.2890625
+          }
+        },
+        "source_label_order_factorial": {
+          "design": "2x2 source label swap x pair order; fixed patient and source case text",
+          "mean_label_swap_effect_on_top2_logit_margin": -1.072596,
+          "mean_abs_label_swap_effect_on_top2_logit_margin": 1.471683,
+          "mean_order_effect_on_top2_logit_margin": -0.088904,
+          "mean_abs_order_effect_on_top2_logit_margin": 0.265754,
+          "mean_abs_label_order_interaction": 0.922895
+        }
+      },
+      "pilot_label_coverage": {
+        "cases": 300,
+        "class_count_reference": 148,
+        "observed_gold_classes": 56,
+        "absent_gold_classes": 92,
+        "classes_with_one_gold_case": 25,
+        "classes_with_two_or_fewer_gold_cases": 33,
+        "maximum_possible_fixed_148_macro_f1_percent": 37.8378,
+        "train_dev_normalized_text_overlap_cases": 33,
+        "train_dev_same_text_different_gold_cases": 2,
+        "train_dev_patient_id_overlap_cases": 2,
+        "reference_split": "official Dev, sampled without replacement",
+        "gold_usage": "metrics and data-audit only; never retrieval or model input",
+        "interpretation": "Small non-stratified pilot: within-sample paired Top-1/rescue-break is exploratory; fixed-148 macro-F1 cannot be directly compared to full-Dev macro-F1. Evaluate the locked full 5,486 Dev for 148-class and long-tail claims.",
+        "official_test_used": false
+      },
+      "inference": {
+        "budget": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s3-seed20261112-e2",
+          "checkpoint_method": "s3",
+          "arms": {
+            "baseline": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 223041,
+              "new_forward_seconds": 52.538,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 174.899,
+                "p50_ms": 164.28,
+                "p95_ms": 224.802,
+                "first_ms": 206.669,
+                "steady_p95_ms": 225.0,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "global2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348655,
+              "new_forward_seconds": 73.068,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.332,
+                "p50_ms": 229.194,
+                "p95_ms": 309.944,
+                "first_ms": 266.713,
+                "steady_p95_ms": 309.97,
+                "mean_input_tokens": 1162.18,
+                "peak_cuda_allocated_bytes": 63306785280,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "balanced2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348541,
+              "new_forward_seconds": 73.132,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.549,
+                "p50_ms": 229.663,
+                "p95_ms": 311.907,
+                "first_ms": 270.12,
+                "steady_p95_ms": 311.918,
+                "mean_input_tokens": 1161.8,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.028,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.206,
+                "p50_ms": 228.978,
+                "p95_ms": 311.727,
+                "first_ms": 268.834,
+                "steady_p95_ms": 311.736,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "random2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348293,
+              "new_forward_seconds": 72.99,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.073,
+                "p50_ms": 228.819,
+                "p95_ms": 310.203,
+                "first_ms": 268.33,
+                "steady_p95_ms": 310.29,
+                "mean_input_tokens": 1160.98,
+                "peak_cuda_allocated_bytes": 63301916160,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        },
+        "excerpt": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s3-seed20261112-e2",
+          "checkpoint_method": "s3",
+          "arms": {
+            "baseline": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 174.899,
+                "p50_ms": 164.28,
+                "p95_ms": 224.802,
+                "first_ms": 206.669,
+                "steady_p95_ms": 225.0,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.206,
+                "p50_ms": 228.978,
+                "p95_ms": 311.727,
+                "first_ms": 268.834,
+                "steady_p95_ms": 311.736,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "querywindow2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 355333,
+              "new_forward_seconds": 74.371,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 247.671,
+                "p50_ms": 239.038,
+                "p95_ms": 312.929,
+                "first_ms": 272.524,
+                "steady_p95_ms": 312.952,
+                "mean_input_tokens": 1184.44,
+                "peak_cuda_allocated_bytes": 63312361984,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "randomwindow2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 353845,
+              "new_forward_seconds": 74.07,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 246.666,
+                "p50_ms": 232.388,
+                "p95_ms": 313.228,
+                "first_ms": 270.703,
+                "steady_p95_ms": 313.524,
+                "mean_input_tokens": 1179.48,
+                "peak_cuda_allocated_bytes": 63311751680,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "fullcase2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 507649,
+              "new_forward_seconds": 104.103,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 346.78,
+                "p50_ms": 301.631,
+                "p95_ms": 596.991,
+                "first_ms": 398.123,
+                "steady_p95_ms": 597.111,
+                "mean_input_tokens": 1692.16,
+                "peak_cuda_allocated_bytes": 64353023488,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        },
+        "counterfactual": {
+          "one_model_load_for_all_suites": true,
+          "checkpoint_run_id": "s3-seed20261112-e2",
+          "checkpoint_method": "s3",
+          "arms": {
+            "baseline": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 174.899,
+                "p50_ms": 164.28,
+                "p95_ms": 224.802,
+                "first_ms": 206.669,
+                "steady_p95_ms": 225.0,
+                "mean_input_tokens": 743.47,
+                "peak_cuda_allocated_bytes": 63154002432,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "paired2": {
+              "source": "identical_prompt_shared_scores_and_timing",
+              "cases": 300,
+              "new_forwards": 0,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.206,
+                "p50_ms": 228.978,
+                "p95_ms": 311.727,
+                "first_ms": 268.834,
+                "steady_p95_ms": 311.736,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "labelswap2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.208,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.795,
+                "p50_ms": 229.415,
+                "p95_ms": 311.544,
+                "first_ms": 270.106,
+                "steady_p95_ms": 311.559,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "labelhide2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 346747,
+              "new_forward_seconds": 72.805,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 242.452,
+                "p50_ms": 228.928,
+                "p95_ms": 311.82,
+                "first_ms": 268.735,
+                "steady_p95_ms": 311.836,
+                "mean_input_tokens": 1155.82,
+                "peak_cuda_allocated_bytes": 63302889984,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "orderflip2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.147,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.594,
+                "p50_ms": 229.405,
+                "p95_ms": 311.704,
+                "first_ms": 267.984,
+                "steady_p95_ms": 311.74,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "doubleflip2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 348488,
+              "new_forward_seconds": 73.133,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 243.546,
+                "p50_ms": 229.466,
+                "p95_ms": 310.929,
+                "first_ms": 268.687,
+                "steady_p95_ms": 310.965,
+                "mean_input_tokens": 1161.63,
+                "peak_cuda_allocated_bytes": 63304837632,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            },
+            "sourceguard2": {
+              "source": "new_inference",
+              "cases": 300,
+              "resumed_cases": 0,
+              "new_forwards": 300,
+              "new_input_tokens": 355388,
+              "new_forward_seconds": 74.457,
+              "timing": {
+                "latency_sample_n": 300,
+                "unmeasured_legacy_cases": 0,
+                "mean_ms": 247.961,
+                "p50_ms": 239.009,
+                "p95_ms": 319.285,
+                "first_ms": 272.306,
+                "steady_p95_ms": 319.301,
+                "mean_input_tokens": 1184.63,
+                "peak_cuda_allocated_bytes": 63312819712,
+                "cuda_synchronized": true,
+                "timing_scope": "per-case Jeff decide wall-time, excludes BM25 search and model load"
+              }
+            }
+          }
+        }
+      },
+      "no_exact_overlap_n": 267,
+      "global2_no_exact_overlap_delta_pp": 4.1198
+    }
+  },
+  "warnings": [
+    "300 Dev cases per model share the same sampled patients; treat model runs as paired, not 900 independent cases",
+    "148-class Macro-F1 from only 300 Dev cases has poor rare-class coverage",
+    "S1/S2/S3 and retrieval arms are exploratory comparisons; report unadjusted p-values",
+    "Exact Train/Dev text non-overlap excludes verbatim duplicates only, not semantic near-duplicates",
+    "False historical labels in counterfactual arms assess source-label sensitivity, not clinical reasoning correctness"
+  ],
+  "holm_3_model_global2_vs_baseline": {
+    "S1": 0.0009322464466094971,
+    "S2": 0.0532073974609375,
+    "S3": 0.0532073974609375
+  }
+}

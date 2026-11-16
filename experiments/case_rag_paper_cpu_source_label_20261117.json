@@ -1,0 +1,10 @@
+{
+  "status": "PAPER_CPU_RETRIEVED_LABEL_CONTROL",
+  "samples": 5486,
+  "selection": "Use the highest-BM25-score historical Global2 case diagnosis",
+  "top1_percent": 80.2953,
+  "macro_f1_148_percent": 55.172,
+  "without_exact_train_text_n": 4957,
+  "without_exact_train_text_top1_percent": 78.7977,
+  "test_used": false
+}
