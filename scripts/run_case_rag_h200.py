@@ -1,9 +1,9 @@
 """One-command, frozen Case-RAG H200 launch after original Jeff preparation.
 
 H200:
-    bash run_case_rag_h200.sh s2 --check
-    bash run_case_rag_h200.sh s2 --limit 5
-    bash run_case_rag_h200.sh s2
+    bash run_case_rag_h200.sh s2 --check --require-baseline-parity
+    bash run_case_rag_h200.sh s2 --prepare-only
+    bash run_case_rag_h200.sh s2 --require-baseline-parity
     bash run_case_rag_h200.sh s3 --all
 
 Runs official Train/Dev-only inputs; keeps Test sealed and never trains Jeff.
@@ -230,7 +230,10 @@ def check(root: Path, method: str, model_dir: Path, *, include_counterfactual: b
         "frozen_suites_prepared": generated,
         "available_checkpoints": checkpoints(root, method)[:12],
         "test_opened": False,
-        "next_command": f"bash run_case_rag_h200.sh {method} --limit 5",
+        "next_command": (
+            f"bash run_case_rag_h200.sh {method}"
+            + (" --require-baseline-parity" if method == "s2" else "")
+        ),
     }
 
 
@@ -246,9 +249,20 @@ def run(
     run_id: str | None,
     require_baseline_parity: bool,
 ) -> dict:
-    if mode == "check":
-        return check(root, method, model_dir, include_counterfactual=include_counterfactual)
     import scripts.run_case_rag_batch_jeff as batch
+
+    if mode == "check":
+        report = check(root, method, model_dir, include_counterfactual=include_counterfactual)
+        if checkpoint is not None or checkpoints(root, method):
+            chosen = choose_checkpoint(root, method, checkpoint)
+            report["checkpoint_preflight"] = batch.preflight_checkpoint_contract(
+                model_dir,
+                chosen,
+                method,
+                require_baseline_parity=require_baseline_parity,
+                check_kernel=True,
+            )
+        return report
 
     # The batch runner is the only owner of paths and scientific scoring.
     # CLI orchestration may be unit-tested in a separate temporary ROOT.
