@@ -21,7 +21,7 @@ GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**目前暫緩**�
 
 ## P1 — H200 既有 Global2 logits 與固定強基準 CPU 融合（現在要做）
 
-**狀態：Global2 H200 完整 Dev 聚合分析已歸檔；固定 SGD+Jeff S1 85.0711%／60.9597% 已在本地 CPU 完整重現。現在只需要將 H200 已有 Global2 logits 代入同一固定融合規則，無需載入 Jeff 31B。**
+**狀態：Global2 H200 完整 Dev 聚合分析已歸檔；固定 SGD+Jeff S1 85.0711%／60.9597% 已在本地 CPU 重現。H200 初次運行得 4673/5486、61.2118%（相較歷史差 6 筆），已修訂程式記錄環境差異，讓同一台 H200 上的 Base／Global2 成對評估繼續完成。此批無需載入 Jeff 31B。**
 
 H200 上已有 S1/S2/S3 的 Global2 完整 5,486 筆 logits，及 S2 全套消融、S3 Label-Hide。H200 聚合報告已保存至 `experiments/case_rag_cpu_first_2026-11-17.json`；原始逐病例 logits 保留於 H200。下一步與既存完整 Dev 85% 強基準做完全固定規則的 CPU 比較。
 
@@ -33,9 +33,9 @@ git pull --ff-only origin main
 .venv/bin/python -m scripts.evaluate_case_rag_strong_sgd_fusion_cpu --strict-global2
 ```
 
-報告輸出 `experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json`。先自動核對原始 SGD+Jeff S1 是否恰為 4667/5486、60.9597% Macro-F1，再維持同一 SGD 權重與 pairwise_margin1 門檻，將 Jeff scores 換成 S1/S2/S3 Global2。分析下列固定問題：
+報告輸出 `experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json`。先核對並記錄本機 SGD+Jeff S1 與歷史 4667/5486、60.9597% 的差異及套件版本，再維持同一次 SGD 訓練的分數與 pairwise_margin1 門檻，把 Jeff scores 換成 S1/S2/S3 Global2。若跨環境數字不同，仍可取得同機成對增益。分析下列固定問題：
 
-1. **原始規則重現**：SGD+Jeff S1 必須完全重現 **4667/5486、60.9597% Macro-F1**，才開始載入 Global2 分數。
+1. **原始規則稽核**：核對 SGD+Jeff S1 與歷史 **4667/5486、60.9597% Macro-F1** 的差異，記錄 H200 的環境與實際分數；本次已有 **4673/5486、61.2118%**。以本次相同模型得分作後續配對基準。
 2. **固定模型切換驗證**：維持相同 SGD 訓練、Train 類別先驗、Jeff Top10 候選門檻與 pairwise_margin1，S1／S2／S3 分別把 Base logits 換成 Global2 logits，檢驗淨增益。
 3. **性能公平比較**：報告 Top-1、固定 148 類 Macro-F1、37 類 Tail-F1，以及 4,957 筆排除 Train 同文的 Top-1；同時比較歷史 **85.180% Top-1／60.960% Macro-F1**。
 4. **配對統計**：計算同一微調方法 Global2 對 Base 強融合的 rescued/broken、未校正 McNemar 和分群 Bootstrap 95% CI。

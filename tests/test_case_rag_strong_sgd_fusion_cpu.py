@@ -6,9 +6,33 @@ import pytest
 from scripts.evaluate_case_rag_strong_sgd_fusion_cpu import (
     class_balanced_weights,
     frozen_pairwise_margin1,
+    historical_baseline_audit,
     row_normalize,
     run,
 )
+
+
+def test_historical_fusion_audit_distinguishes_exact_reproduction_and_h200_drift():
+    exact = historical_baseline_audit(4667, 60.9597)
+    assert exact["matched"]
+    assert exact["delta_correct"] == 0
+    assert exact["delta_macro_f1_pp"] == 0.0
+
+    h200 = historical_baseline_audit(4673, 61.2118)
+    assert not h200["matched"]
+    assert h200["delta_correct"] == 6
+    assert h200["delta_macro_f1_pp"] == 0.2521
+    assert h200["this_environment_top1_percent"] == 85.1805
+    assert "same-run" in h200["interpretation"] or "same" in h200["interpretation"]
+
+
+@pytest.mark.parametrize(
+    ("correct", "macro"),
+    [(-1, 60.0), (5487, 60.0), (4667, float("nan"))],
+)
+def test_historical_audit_rejects_invalid_scores(correct, macro):
+    with pytest.raises(ValueError, match="Invalid baseline measurement"):
+        historical_baseline_audit(correct, macro)
 
 
 def test_strict_global2_preflight_blocks_cpu_fit_when_logits_missing(tmp_path):

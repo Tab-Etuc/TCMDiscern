@@ -120,6 +120,10 @@ git pull --ff-only origin main
 .venv/bin/python -m scripts.evaluate_case_rag_strong_sgd_fusion_cpu --strict-global2
 ```
 
-此命令會先重現 S1 Baseline（4667/5486、60.9597% Macro-F1），如未重現即直接中止；成功後一次評分 S1/S2/S3 原始與 Global2 共六組，輸出聚合報告 `experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json`。完全在 CPU 上執行；不載入 Jeff 31B、不讀 Test、不改動任何 GPU checkpoint、不在 Dev 上重新搜尋閾值。最終分數與 pairwise rescue/break 將直接用來判定 Case-RAG 能否提升歷史強基準。
+**2026-11-17 H200 執行修訂**：第一次 H200 執行固定 SGD 腳本時，S1 Baseline 得 **4673/5486、61.2118% Macro-F1**，而既有歷史為 **4667/5486、60.9597% Macro-F1**（差 6 筆、+0.2521 pp Macro-F1）。程序因精確等值檢查中止，故當時**尚未評估 Global2**。本地 Python **3.12.13／NumPy 2.5.4／scikit-learn 1.9.1／SciPy 1.18.1**；H200 套件版本待由新執行報告自動列出。這類差異可能來自套件／數值環境或資料版本，尚未確證根因。
+
+已修訂程式：將歷史數值改為**可稽核的再現狀態**，遇差異保留 `historical_s1_reproduction.matched=false`、兩邊成績、差異與套件版本，讓 Base 與 Global2 在**同一次 SGD fitting、同樣 16 候選／固定融合規則**下成對評估。比較時主要看**同機同流程**各模型的 `paired_vs_same_fusion_original`；跨環境的絕對分數差只作環境診斷，避免誤認成 Global2 增益。
+
+重新執行成功後，報告 `experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json` 會含 S1/S2/S3 Base 與 Global2 共六組、配對 rescued/broken、McNemar 與分群 Bootstrap、原始強基準歷史差異、套件版本。全程 CPU，不載入 Jeff 31B、不讀 Test、不改動 GPU checkpoint、不在 Dev 搜尋新閾值。
 
 **完成條件**：本次 12 組方法、19 組配對分析與長尾頻率保護均已從 H200 聚合 JSON 稽核並歸檔；新的強融合 CPU 基準也已在本地完整重現。接下來只需要 H200 保存的 Global2 logits 給相同固定規則評分。
