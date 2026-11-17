@@ -97,7 +97,17 @@ def validate_checkpoint_manifest(manifest: dict) -> None:
         # Matched-candidate study: S1 CE and multi-positive objectives differ
         # only in their outside-the-prompt supervision. All 43,180 K16
         # choices originate from the same official Train-only data source.
-        expected_source = "train_oof_multipos_k16_epoch03.jsonl"
+        negatives = manifest.get("negative_sampling", "hard")
+        if negatives not in {"hard", "random"} or (
+            negatives == "random" and manifest["loss_method"] != "s1"
+        ):
+            raise ValueError("Invalid checkpoint negative sampling")
+        if manifest.get("trainable_components", "both") not in {"both", "head", "lora"}:
+            raise ValueError("Invalid checkpoint trainable component setting")
+        expected_source = (
+            "train_oof_randomneg_k16_epoch03.jsonl"
+            if negatives == "random" else "train_oof_multipos_k16_epoch03.jsonl"
+        )
     else:
         # Disease and disease-syndrome evaluation must verify the same
         # Train-only candidate task that produced the LoRA checkpoint.

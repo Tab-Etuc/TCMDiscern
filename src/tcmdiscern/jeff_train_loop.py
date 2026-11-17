@@ -61,10 +61,17 @@ STUDY_FILE = {
 }
 
 
-def load_train(method: str, *, study_mode: str | None = None) -> list[dict]:
+RANDOM_NEGATIVE_FILE = "train_oof_randomneg_k16_epoch03.jsonl"
+
+
+def load_train(
+    method: str, *, study_mode: str | None = None, negative_sampling: str = "hard"
+) -> list[dict]:
     """Validate all 43,180 official Train rows before allocating GPU memory."""
     if method not in TRAIN_FILE:
         raise ValueError("Unknown Jeff Loss")
+    if negative_sampling not in {"hard", "random"} or (negative_sampling == "random" and (method != "s1" or study_mode is not None)):
+        raise ValueError("Random-negative control only supports syndrome S1")
     if study_mode is not None:
         if study_mode not in STUDY_FILE or method != "s1":
             raise ValueError("Disease study requires a registered mode and single-label CE")
@@ -81,7 +88,7 @@ def load_train(method: str, *, study_mode: str | None = None) -> list[dict]:
     # The S1 ablation removes only external multi-label supervision; both
     # methods receive identical model-visible question and candidate options.
     shared = load_frozen_train(
-        ROOT / "data/jeff" / TRAIN_FILE[method],
+        ROOT / "data/jeff" / (RANDOM_NEGATIVE_FILE if negative_sampling == "random" else TRAIN_FILE[method]),
         multi=True,
         expected_count=43180,
     )
@@ -100,7 +107,11 @@ def load_train(method: str, *, study_mode: str | None = None) -> list[dict]:
 def fixed_run_settings(args: Any) -> dict:
     """Only these exactly matching settings may be resumed together."""
     study_mode = getattr(args, "study_mode", None)
-    source = STUDY_FILE[study_mode] if study_mode is not None else TRAIN_FILE[args.method]
+    negative_sampling = getattr(args, "negative_sampling", "hard")
+    source = (
+        STUDY_FILE[study_mode] if study_mode is not None
+        else RANDOM_NEGATIVE_FILE if negative_sampling == "random" else TRAIN_FILE[args.method]
+    )
     settings = {
         "run_id": args.run_id,
         "loss_method": args.method,
@@ -139,6 +150,10 @@ def fixed_run_settings(args: Any) -> dict:
                 "pairwise_margin": getattr(args, "pairwise_margin", 0.2),
             }
         )
+    if getattr(args, "trainable_components", "both") != "both":
+        settings["trainable_components"] = args.trainable_components
+    if negative_sampling != "hard":
+        settings["negative_sampling"] = negative_sampling
     return settings
 
 
@@ -147,6 +162,12 @@ def validate_run_args(args: Any) -> Path:
     if args.method not in TRAIN_FILE:
         raise ValueError("Unknown fine-tuning method")
     study_mode = getattr(args, "study_mode", None)
+    components = getattr(args, "trainable_components", "both")
+    negatives = getattr(args, "negative_sampling", "hard")
+    if components not in {"both", "head", "lora"} or negatives not in {"hard", "random"}:
+        raise ValueError("Unknown training ablation")
+    if (components != "both" or negatives != "hard") and (args.method != "s1" or study_mode is not None):
+        raise ValueError("Component or negative sampling ablation requires syndrome S1")
     pairwise_weight = getattr(args, "pairwise_weight", 0.0)
     pairwise_margin = getattr(args, "pairwise_margin", 0.2)
     if study_mode is not None and (study_mode not in STUDY_FILE or args.method != "s1"):
@@ -340,7 +361,11 @@ def run(args: Any, *, released: Any | None = None) -> dict:
         raise RuntimeError("Jeff-1.1-Large training requires an H200-class CUDA BF16 GPU")
 
     study_mode = getattr(args, "study_mode", None)
-    rows = load_train(args.method, study_mode=study_mode)
+    components = getattr(args, "trainable_components", "both")
+    rows = load_train(
+        args.method, study_mode=study_mode,
+        negative_sampling=getattr(args, "negative_sampling", "hard"),
+    )
     weighting_scheme = getattr(args, "weighting", "uniform")
     oof_weights = None
     weighting_report = {"policy": "uniform", "original_rows_removed": 0}
@@ -368,7 +393,31 @@ def run(args: Any, *, released: Any | None = None) -> dict:
     adapter, _, initial_delta, modules, n_trainable = inject_lora_and_assert_step_zero(
         decider, ids0, rank=args.rank, alpha=args.alpha
     )
-    report_parameters = parameter_audit(adapter, decider.head)
+    if components == "head":
+        for p in adapter.parameters():
+            p.requires_grad_(False)
+    elif components == "lora":
+        for p in decider.head.parameters():
+            p.requires_grad_(False)
+    if components == "both":
+        report_parameters = parameter_audit(adapter, decider.head)
+        lora_params, head_params = trainable_parameters(adapter, decider.head)
+    else:
+        lora_params = [p for p in adapter.parameters() if p.requires_grad]
+        head_params = [p for p in decider.head.parameters() if p.requires_grad]
+        if components == "head" and (lora_params or len(head_params) != 2):
+            raise RuntimeError("Invalid head-only configuration")
+        if components == "lora" and (not lora_params or head_params):
+            raise RuntimeError("Invalid LoRA-only configuration")
+        report_parameters = {
+            "trainable_adapter_parameters": sum(p.numel() for p in lora_params),
+            "trainable_head_parameters": sum(p.numel() for p in head_params),
+            "trainable_components": components,
+            "frozen_backbone": True,
+        }
+    # The injected adapter exists for checkpoint compatibility even in the
+    # head-only arm, but its frozen parameters must not be reported as trained.
+    n_trainable = sum(p.numel() for p in lora_params)
     batch_parity_report = None
     if getattr(args, "micro_batch_size", 1) > 1:
         audit_tokens = []
@@ -387,7 +436,6 @@ def run(args: Any, *, released: Any | None = None) -> dict:
             audit_tokens[1] = audit_tokens[1][:-8]
         batch_parity_report = verify_official_batched_logits(decider, audit_tokens)
         print(f"[TRAIN] Published Jeff batch parity PASS: {batch_parity_report}", flush=True)
-    lora_params, head_params = trainable_parameters(adapter, decider.head)
     decider.model.gradient_checkpointing_enable(
         gradient_checkpointing_kwargs={"use_reentrant": False}
     )
@@ -396,8 +444,8 @@ def run(args: Any, *, released: Any | None = None) -> dict:
 
     optimizer = torch.optim.AdamW(
         [
-            {"params": lora_params, "lr": args.lora_lr},
-            {"params": head_params, "lr": args.head_lr},
+            *([{"params": lora_params, "lr": args.lora_lr}] if lora_params else []),
+            *([{"params": head_params, "lr": args.head_lr}] if head_params else []),
         ],
         weight_decay=args.weight_decay,
     )
@@ -483,7 +531,22 @@ def run(args: Any, *, released: Any | None = None) -> dict:
                     torch.stack(weighted_losses).sum().backward()
 
             if gradients is None:
-                gradients = gradient_audit(adapter, decider.head)
+                if components == "both":
+                    gradients = gradient_audit(adapter, decider.head)
+                else:
+                    active = lora_params if components == "lora" else head_params
+                    if not all(
+                        p.grad is not None and bool(torch.isfinite(p.grad).all().item())
+                        for p in active
+                    ):
+                        raise RuntimeError("Missing finite component gradients")
+                    if not any(bool(torch.count_nonzero(p.grad).item()) for p in active):
+                        raise RuntimeError("Component gradients are zero")
+                    gradients = {
+                        "adapter_gradients_present": components == "lora",
+                        "head_delta_gradients_present": components == "head",
+                        "all_gradients_finite": True,
+                    }
             torch.nn.utils.clip_grad_norm_(
                 lora_params + head_params,
                 max_norm=args.clip_norm,
@@ -491,16 +554,38 @@ def run(args: Any, *, released: Any | None = None) -> dict:
             )
             # Verify an actual LoRA-B and Head weight change after step one.
             # A finite loss/gradient alone is insufficient evidence of training.
-            update_probe = (
-                capture_first_update(adapter, decider.head)
-                if first_parameter_update is None
-                else None
-            )
+            update_probe = None
+            if first_parameter_update is None:
+                if components == "both":
+                    update_probe = capture_first_update(adapter, decider.head)
+                else:
+                    active = lora_params if components == "lora" else head_params
+                    # Snapshot only a tensor with a real gradient, rather than
+                    # cloning the entire 31B-model LoRA for this single audit.
+                    changing = next(
+                        (
+                            p for p in active
+                            if p.grad is not None and bool(torch.count_nonzero(p.grad).item())
+                        ),
+                        None,
+                    )
+                    if changing is None:
+                        raise RuntimeError("No active parameter has a nonzero gradient")
+                    update_probe = [(changing, changing.detach().clone())]
             optimizer.step()
             if update_probe is not None:
-                first_parameter_update = verify_first_update(update_probe)
+                if components == "both":
+                    first_parameter_update = verify_first_update(update_probe)
+                else:
+                    differences = [
+                        float((p.detach().float() - before.float()).abs().max().item())
+                        for p, before in update_probe
+                    ]
+                    if not all(math.isfinite(x) for x in differences) or max(differences) <= 0:
+                        raise RuntimeError("Component-only optimizer update failed")
+                    first_parameter_update = {"active_component_max_delta": max(differences)}
                 print(
-                    f"[TRAIN] First optimizer step changed LoRA and Head: {first_parameter_update}",
+                    f"[TRAIN] First optimizer step changed {components}: {first_parameter_update}",
                     flush=True,
                 )
             scheduler.step()
@@ -596,6 +681,8 @@ def run(args: Any, *, released: Any | None = None) -> dict:
         "optimizer_and_scheduler_saved": True,
         "train_gold_outside_prompts": True,
         "weighting_audit": weighting_report,
+        "trainable_components": components,
+        "negative_sampling": getattr(args, "negative_sampling", "hard"),
         "dev_test_used": False,
     }
     with (run_dir / "summary.json").open("x", encoding="utf-8") as stream:

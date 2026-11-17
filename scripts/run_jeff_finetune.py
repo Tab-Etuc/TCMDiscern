@@ -18,6 +18,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train Jeff-1.1-Large on H200")
     parser.add_argument("--model-dir", required=True, type=Path)
     parser.add_argument("--method", required=True, choices=("s1", "s2", "s3", "s4"))
+    parser.add_argument("--trainable-components", choices=("both", "head", "lora"), default="both")
+    parser.add_argument("--negative-sampling", choices=("hard", "random"), default="hard")
     parser.add_argument("--run-id", required=True)
     parser.add_argument(
         "--study-mode",
