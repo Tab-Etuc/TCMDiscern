@@ -1,0 +1,148 @@
+{
+  "status": "CASE_RAG_STRONG_SGD_CPU_FUSION_COMPLETED",
+  "study_scope": "Dev exploratory, historical 2026-11-16 fixed pairwise rule",
+  "no_fusion_parameter_tuning": true,
+  "official_test_used": false,
+  "new_gpu_forwards": 0,
+  "dev_cases": 5486,
+  "train_cases": 43180,
+  "original_s1_baseline_verified": true,
+  "historical_s1_reproduction": {
+    "matched": true,
+    "historical_correct": 4667,
+    "historical_top1_percent": 85.0711,
+    "historical_macro_f1_148_percent": 60.9597,
+    "this_environment_correct": 4667,
+    "this_environment_top1_percent": 85.0711,
+    "this_environment_macro_f1_148_percent": 60.9597,
+    "delta_correct": 0,
+    "delta_macro_f1_pp": 0.0,
+    "interpretation": "Historical full-Dev baseline reproduced."
+  },
+  "numerical_environment": {
+    "python": "3.12.13",
+    "numpy": "2.5.4",
+    "scikit_learn": "1.9.1",
+    "scipy": "1.18.1"
+  },
+  "score_comparison_policy": "Evaluate Global2 against the same-method original Base within this run using identical SGD scores, candidate order and fixed arbitration. Historical score differences are separate environment diagnostics.",
+  "global2_logit_sources": {
+    "s1": "data/case_rag/paper_5486_20261116/scores/paper-s1-full/global2.jsonl",
+    "s2": "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2.jsonl",
+    "s3": "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2.jsonl"
+  },
+  "fixed_sgd_parameters": {
+    "loss": "modified_huber",
+    "alpha": 2e-05,
+    "max_iter": 15,
+    "gamma": 0.25,
+    "smoothing": 5.0,
+    "arbitration": "pairwise_margin1",
+    "prior_multiplier": 0.6,
+    "jeff_top10_gate_delta": 3.0
+  },
+  "methods": {
+    "s1_base": {
+      "metrics": {
+        "top1_percent": 85.0711,
+        "correct": 4667,
+        "macro_f1_148_percent": 60.9597,
+        "tail_37_macro_f1_percent": 45.9202,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 43.3735,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.0226
+      }
+    },
+    "s2_base": {
+      "metrics": {
+        "top1_percent": 84.9617,
+        "correct": 4661,
+        "macro_f1_148_percent": 59.4761,
+        "tail_37_macro_f1_percent": 42.4067,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 39.759,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 83.841
+      }
+    },
+    "s3_base": {
+      "metrics": {
+        "top1_percent": 84.9253,
+        "correct": 4659,
+        "macro_f1_148_percent": 59.6804,
+        "tail_37_macro_f1_percent": 43.1274,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 39.759,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 83.8209
+      }
+    },
+    "s1_global2": {
+      "metrics": {
+        "top1_percent": 85.144,
+        "correct": 4671,
+        "macro_f1_148_percent": 60.4736,
+        "tail_37_macro_f1_percent": 45.2896,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 42.1687,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.0629
+      },
+      "paired_vs_same_fusion_original": {
+        "delta_top1_pp": 0.0729,
+        "rescued": 35,
+        "broken": 31,
+        "exact_mcnemar_p": 0.7122308826373509,
+        "cluster_bootstrap_95ci_pp": [
+          -0.2178,
+          0.3452
+        ]
+      }
+    },
+    "s2_global2": {
+      "metrics": {
+        "top1_percent": 85.0711,
+        "correct": 4667,
+        "macro_f1_148_percent": 59.3008,
+        "tail_37_macro_f1_percent": 41.5058,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 38.5542,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 83.9419
+      },
+      "paired_vs_same_fusion_original": {
+        "delta_top1_pp": 0.1094,
+        "rescued": 29,
+        "broken": 23,
+        "exact_mcnemar_p": 0.48845566937989204,
+        "cluster_bootstrap_95ci_pp": [
+          -0.1456,
+          0.3643
+        ]
+      }
+    },
+    "s3_global2": {
+      "metrics": {
+        "top1_percent": 85.1075,
+        "correct": 4669,
+        "macro_f1_148_percent": 59.4063,
+        "tail_37_macro_f1_percent": 41.9562,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 38.5542,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 83.9621
+      },
+      "paired_vs_same_fusion_original": {
+        "delta_top1_pp": 0.1823,
+        "rescued": 46,
+        "broken": 36,
+        "exact_mcnemar_p": 0.3202933636380142,
+        "cluster_bootstrap_95ci_pp": [
+          -0.1452,
+          0.5105
+        ]
+      }
+    }
+  }
+}

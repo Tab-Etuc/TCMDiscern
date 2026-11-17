@@ -97,7 +97,21 @@
 - **H200 完成版聚合報告已同步本地**，歸檔於 `experiments/case_rag_cpu_first_2026-11-17.json`，包含 12 組成績與 19 個配對分析。S3+Global2 vs BM25：Global2 獨對 **429**、BM25 獨對 **217**；配對 Oracle 上限 **87.4043%**，低於原始 S3 vs BM25 的 **88.4251%**。S3 Label-Hide 僅 **80.1495% Top-1**，完整 Global2 **83.4488%**，來源診斷標籤依賴值得深入研究。
 - **既有最強融合已用 CPU 重現**：固定 SGD + Jeff S1 得 **85.0711% Top-1／60.9597% Macro-F1**；同規則搭配 S2 為 **84.9617%／59.4761%**，搭配 S3 為 **84.9253%／59.6804%**。下一批仍維持 CPU，直接以 H200 保存的 Global2 logits 套用**完全相同的固定融合規則**，確認是否能超越歷史強基準。參見 `docs/case_rag_cpu_complete_review_2026-11-17.md`。
 
-## 五、已準備好的 GPU 補強批次（繼續暫緩，待固定 SGD／Global2 CPU 融合結論）
+## 五、H200 全量壓縮包已匯入本地並完成強融合消融（2026-11-17）
+
+來源 `TCMDiscern-H200-research-20261117.tar.gz`，完整資料來源核對、安全匯入、CPU 重算、9 組 Case-RAG arms、H200 timing 及所有實驗結論：**`docs/case_rag_h200_archive_complete_2026-11-17.md`**。原始逐病例 logits 位於本地私有 `data/case_rag/paper_5486_20261116/scores/`；正式聚合統計位於 `experiments/`。
+
+- 同一官方 Dev 的 **12 組既有方法 Top-1／Macro-F1／37 類 Tail-F1 都已從本地 H200 原始 logits 完全重算對齊**。
+- H200 SGD+S2 Global2 **85.3081% Top-1**，相比同機 S2 Base 只多 **8 筆**，配對 p=0.341、95% CI **[-0.1102,+0.4042] pp**。
+- 本地 SGD+S1 Base **85.0711% Top-1／60.9597% Macro-F1**；本地 SGD+S3 Label-Only **85.2351%／59.8835%**，優於 S3 完整 Global2 的 85.1075% Top-1，但差距 **7 筆**且配對 p=0.392。
+- 原始 S3 Global2 的高幅度增益，加入強 SGD 後縮小且伴隨部分 Macro-F1 下降；Label-Only 的作用需透過後續 OOF／獨立評估檢驗。
+- S3 Global2 中位 forward **225.845 ms**。S2/S3 的 Random2／Label-Hide／Label-Only 已完整完成，S1 Label-Hide 僅有 `.partial`，已排除；下一批 GPU 保留暫緩。
+- H200 Python 3.12.3、本地 Python 3.12.13，同樣套件版本與逐位元相同的固定輸入仍出現 SGD 6 筆差異。主研究比較使用同機 paired 分數，絕對分數差作重現性敏感度。
+
+## 六、已準備好的 GPU 補強批次（繼續暫緩；原先估算留存以追蹤）
+
+**更新現況：S3 的 Random2、Label-Hide、Label-Only 已在匯入檔案中完整取得；目前主要缺 S1 三種完整控制條件（另有部分 S1 Label-Hide 斷點資料）。下列 32,916 forward 是當初兩模型六組全量估算，非現階段實際待做量。完整 CPU 分析結論顯示暫無立即追加 GPU 的必要。**
+
 
 `scripts/run_case_rag_followup_h200.py` 會以 S3→S1 順序補完：
 
@@ -122,7 +136,7 @@ echo "PID: $!"
 
 預期先出現 `CASE_RAG_FOLLOWUP_PREFLIGHT_PASSED`，最後 `CASE_RAG_FOLLOWUP_COMPLETED`。全新執行時 `backbone_loads=1`；已完成後再執行應是 0。
 
-## 六、時間預估與計算依據
+## 七、時間預估與計算依據（原先六組全量估算，供歷史追蹤）
 
 前次 **300 筆 Pilot** 的 Jeff + 兩筆歷史醫案推論均值約 **243 ms/forward**，既往 H200 Jeff 權重冷載入約 **43 分鐘**。本批最多 **32,916** 新 forward：
 
@@ -133,7 +147,7 @@ echo "PID: $!"
 
 以上屬規劃估算，非已量到的此次 H200 實際總耗時。排除 Model 冷載入的單例 latency 不能當作端到端總延遲。
 
-## 七、論文要寫什麼（IEEE J-BHI 稿件方向）
+## 八、論文要寫什麼（IEEE J-BHI 稿件方向）
 
 **暫定技術命題：** Evidence-attributed Case Retrieval for Efficient TCM Syndrome Differentiation（研究題名仍待新方法確立後定稿）。
 

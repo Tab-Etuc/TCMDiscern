@@ -45,7 +45,7 @@ def test_full_dev_strict_global2_with_saved_logits_uses_both_oracle_keys(monkeyp
     monkeypatch.setattr(analysis, "read_condition_logits", use_original_valid_logits)
     output = analysis.run(strict_global2=True)
     assert output["missing_case_rag_global2"] == []
-    assert len(output["case_rag_logits_available"]) == 3
+    assert {"s1_global2", "s2_global2", "s3_global2"} <= set(output["case_rag_logits_available"])
     pairs = output["paired_error_decomposition"]
     for method in ("s1", "s2", "s3"):
         assert f"{method}_base_vs_bm25" in pairs

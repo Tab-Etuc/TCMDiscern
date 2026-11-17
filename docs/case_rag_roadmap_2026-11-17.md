@@ -1,11 +1,11 @@
 # TCMDiscern Case-RAG 後續研究路線圖（2026-11-17，CPU-first 修訂）
 
-**目前優先順序：P0 完成 H200 CPU 聚合分析及 85.0711% 強基準重現 → P1 在 H200 使用既有 Global2 logits 測試固定 SGD／Jeff 融合 → P2 決定是否需要新 GPU 消融 → P3 論文／最終獨立驗證。**
+**目前優先順序：P0／P1 已完成所有 H200 logits 本地匯入、全量 CPU 消融與強融合重現 → P2 使用 Train OOF／固定 fit-cal 研發新的證據可靠度方法 → P3 論文／最終獨立驗證。**
 
 主研究紀錄：`docs/case_rag_research_record_2026-11-17.md`
 CPU 第一輪結果：`docs/case_rag_cpu_first_2026-11-17.md`；CPU 分組路由與最高歷史成績核對：`docs/case_rag_cpu_router_2026-11-17.md`；**完整 H200 聚合結果與新 CPU 強基準**：`docs/case_rag_cpu_complete_review_2026-11-17.md`
 最初事先鎖定實驗：`docs/case_rag_jbhi_experiment_lock_2026-11-17.md`（原文保留以追蹤決策歷程）
-GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**目前暫緩**）
+完整壓縮包匯入及所有 CPU 分析：`docs/case_rag_h200_archive_complete_2026-11-17.md`。GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**暫緩**）
 
 ## P0 — CPU 已完成的原始模型逐病例分析
 
@@ -19,31 +19,29 @@ GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**目前暫緩**�
 - 新增 5 折分組 Logistic 路由（Dev 開發性分析）：S3 原模型 + BM25 在 threshold 0.5 得 **84.543% Top-1 / 58.376% Macro-F1 / 44.659% Tail-F1（37 類）**，紀錄在 `experiments/case_rag_cpu_router_2026-11-17.json`。
 - **全面重估強基準：先前 2026-11-16 完整 Dev 的 Joint+Jeff S2 達 85.180% Top-1；SGD+Jeff S1 達 60.960% Macro-F1（該組 Top-1 85.071%）。** 下一方法要和這兩項正式比較。
 
-## P1 — H200 既有 Global2 logits 與固定強基準 CPU 融合（現在要做）
+## P1 — H200 歷史 logits 匯入、原始與強融合 CPU 比較（已完成）
 
-**狀態：Global2 H200 完整 Dev 聚合分析已歸檔；固定 SGD+Jeff S1 85.0711%／60.9597% 已在本地 CPU 重現。H200 初次運行得 4673/5486、61.2118%（相較歷史差 6 筆），已修訂程式記錄環境差異，讓同一台 H200 上的 Base／Global2 成對評估繼續完成。此批無需載入 Jeff 31B。**
+**狀態：完成。** H200 全量壓縮檔已進入本地 TCMDiscern，五個固定輸入的 SHA-256 與本地完全一致；已補入 9 個完整 Case-RAG 推論條件及逐病例 timings，保留原有程式與私人病歷。完整記錄：`docs/case_rag_h200_archive_complete_2026-11-17.md`。
 
-H200 上已有 S1/S2/S3 的 Global2 完整 5,486 筆 logits，及 S2 全套消融、S3 Label-Hide。H200 聚合報告已保存至 `experiments/case_rag_cpu_first_2026-11-17.json`；原始逐病例 logits 保留於 H200。下一步與既存完整 Dev 85% 強基準做完全固定規則的 CPU 比較。
+- 已重算原始 Jeff + Global2 的 Top-1、Macro-F1、Tail-F1，和 H200 原始 12 組共有方法全數一致（僅配對 p 值有浮點末位差）。
+- H200 同機最佳 SGD + S2 Global2 為 **85.3081% Top-1／59.8629% Macro-F1**，相較同機 S2 Base 多 8 筆、McNemar p=0.341、群組 Bootstrap 95% CI **[-0.1102,+0.4042] pp**；Global2 的強融合增益目前不穩健。
+- 本地同機 SGD + S1 Base 為 **85.0711% Top-1／60.9597% Macro-F1**；擴充至 S2/S3 Random2、Label-Hide、Label-Only，發現 **S3 Label-Only + SGD 85.2351%／59.8835%**，Top-1 比 S3 完整 Global2 + SGD **85.1075%** 稍高，但此差異的配對 p=0.392。
+- H200 Python 3.12.3、本地 Python 3.12.13；同樣 NumPy／scikit-learn／SciPy 版本、相同資料與固定程式時 SGD 分數仍差 6 筆。所有模型提升以**同一環境的 paired Base** 為主，禁止將跨環境分數差當演算法改善。
+- H200 S3 Global2 的逐病例 forward 中位 **225.845 ms**；Label-Only **174.980 ms**。完整端到端部署延遲需另計檢索與冷啟動。
 
-直接在 H200 執行：
+已完成的 CPU 工作與輸出：
 
 ```bash
-cd /home/quanta/TCMDiscern-git
-git pull --ff-only origin main
-.venv/bin/python -m scripts.evaluate_case_rag_strong_sgd_fusion_cpu --strict-global2
+.venv/bin/python -m scripts.import_case_rag_h200_archive
+.venv/bin/python -m scripts.analyze_case_rag_cpu_first --strict-global2 \
+  --output experiments/case_rag_cpu_first_local_recomputed_2026-11-17.json
+.venv/bin/python -m scripts.analyze_case_rag_cpu_router --strict-global2 \
+  --output experiments/case_rag_cpu_router_local_recomputed_2026-11-17.json
+.venv/bin/python -m scripts.evaluate_case_rag_strong_sgd_fusion_cpu --strict-global2 --all-arms \
+  --output experiments/case_rag_strong_sgd_all_arms_local_2026-11-17.json
 ```
 
-報告輸出 `experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json`。先核對並記錄本機 SGD+Jeff S1 與歷史 4667/5486、60.9597% 的差異及套件版本，再維持同一次 SGD 訓練的分數與 pairwise_margin1 門檻，把 Jeff scores 換成 S1/S2/S3 Global2。若跨環境數字不同，仍可取得同機成對增益。分析下列固定問題：
-
-1. **原始規則稽核**：核對 SGD+Jeff S1 與歷史 **4667/5486、60.9597% Macro-F1** 的差異，記錄 H200 的環境與實際分數；本次已有 **4673/5486、61.2118%**。以本次相同模型得分作後續配對基準。
-2. **固定模型切換驗證**：維持相同 SGD 訓練、Train 類別先驗、Jeff Top10 候選門檻與 pairwise_margin1，S1／S2／S3 分別把 Base logits 換成 Global2 logits，檢驗淨增益。
-3. **性能公平比較**：報告 Top-1、固定 148 類 Macro-F1、37 類 Tail-F1，以及 4,957 筆排除 Train 同文的 Top-1；同時比較歷史 **85.180% Top-1／60.960% Macro-F1**。
-4. **配對統計**：計算同一微調方法 Global2 對 Base 強融合的 rescued/broken、未校正 McNemar 和分群 Bootstrap 95% CI。
-5. **決策**：若固定融合也無法改善歷史強基準，將 Global2 保留為病例檢索研究基準，優先找新的可靠度／證據作用機制再投入 GPU。
-
-**H200 進度補充（2026-11-17）**：六模型 Global2 CPU 路由已完成。最高路由 Top-1 為 **S3 Base 84.543%**；Global2 的最高路由 Macro-F1 為 **S1 58.800%**。兩者仍低於既有完整 Dev 強基準的 85.180% Top-1 與 60.960% Macro-F1。H200 的 `analyze_case_rag_cpu_first --strict-global2` 曾遇到 `s3_base_vs_bm25` KeyError，原因已修正並測試。
-
-**P1 尚待確認**：H200 執行 `evaluate_case_rag_strong_sgd_fusion_cpu --strict-global2`，取得三種固定 SGD＋Global2 強融合的 Top-1、Macro-F1、Tail-F1、Train 同文敏感度和配對救回／破壞；對照既存 **85.180% Top-1／60.960% Macro-F1**。新的 GPU 工作繼續暫緩。
+**下一階段改用目前可用的完整逐病例 logits 研究 Train OOF／固定 fit-cal 的診斷可靠度與證據衝突路由，先建立能公平超越 85% Top-1／61% Macro-F1 的新機制。** 官方 Test 保持封存；追加 GPU 消融與訓練維持暫緩。
 
 ## P2 — 決定新方法與是否需要下一批 GPU（條件式）
 
@@ -52,8 +50,8 @@ git pull --ff-only origin main
 - 比較 Jeff 決策 logits/margin、BM25 排名與候選差距、來源病例證型一致度、Train 類別頻率與臨床描述的證據衝突。
 - 先評估固定規則或簡單、可重現的路由器，在 Train OOF 或分組 fit/cal 上訓練與調參。Dev 已反覆用於方法研究，只能作探索性結果。
 - 對照 BM25、source-label CPU、S3+Global2、S2+Global2，並納入 **既存 Joint+Jeff S2 85.180% Top-1 與 SGD+Jeff S1 60.960% Macro-F1** 作更強的完整 Dev 比較；追求維持整體 Top-1 優勢，同時縮小低頻 Macro-F1 落差。
-- 若 P1 顯示需要跨模型證據歸因，才執行已寫好的 `run_case_rag_followup_h200.sh`：S3/S1 各三個消融，共最多 **32,916** 新 forward，**單次** Jeff 31B 權重載入；歷史量測估計約 3～3.5 小時。
-- 若無額外科研價值，取消這六組 GPU 重複驗證，把算力留給真正新方法。**Seed 2／Seed 3 的訓練繼續延後**。
+- 已完成 S2/S3 的 Random2／Label-Hide／Label-Only 完整消融，且強 SGD 下 Global2 增益較小。只有新方法明確需要尚缺的 S1 對照組且預期研究結論會改變時，才啟用 `run_case_rag_followup_h200.sh`；成本上限 **32,916** 新 forward。
+- 現階段先使用本地完整 logits 做 CPU 差分分析與固定 fit-cal 驗證，對照歷史 SGD+S1／Joint+S2 強基準。**Seed 2／Seed 3 的 GPU 訓練繼續延後**。
 
 P2 完成標準：有清楚技術創新、強基準與必要消融；整體 Top-1／Macro-F1／長尾改善經配對統計與重複病例敏感度驗證。
 

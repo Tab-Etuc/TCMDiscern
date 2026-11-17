@@ -1,0 +1,42 @@
+{
+  "status": "H200_CASE_RAG_ARCHIVE_IMPORT_COMPLETED",
+  "verified_frozen_inputs": [
+    "data/tcm-sd/train.json",
+    "data/tcm-sd/dev.json",
+    "data/candidates/bm25_dev.jsonl",
+    "data/jeff/dev_k16.jsonl",
+    "data/case_rag/paper_5486_20261116/global2.jsonl"
+  ],
+  "imported": [
+    "data/case_rag/paper_5486_20261116/scores/paper-s1-full/global2.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s1-full/global2.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s1-full/run_manifest.json",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2_labelhide.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2_labelhide.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2_labelonly.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2_labelonly.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/random2.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/random2.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2_labelhide.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2_labelhide.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2_labelonly.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2_labelonly.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/random2.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/random2.timings.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s3-full/run_manifest.json",
+    "experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json"
+  ],
+  "identical": [
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2.jsonl",
+    "data/case_rag/paper_5486_20261116/scores/paper-s2-full/run_manifest.json"
+  ],
+  "skipped_incomplete": [
+    "data/case_rag/paper_5486_20261116/scores/paper-s1-full/global2_labelhide.jsonl.partial",
+    "data/case_rag/paper_5486_20261116/scores/paper-s1-full/global2_labelhide.timings.jsonl.partial"
+  ],
+  "full_dev_case_count": 5486,
+  "official_test_used": false
+}

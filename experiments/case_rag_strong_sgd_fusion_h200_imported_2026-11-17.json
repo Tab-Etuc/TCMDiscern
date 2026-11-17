@@ -1,0 +1,148 @@
+{
+  "status": "CASE_RAG_STRONG_SGD_CPU_FUSION_COMPLETED",
+  "study_scope": "Dev exploratory, historical 2026-11-16 fixed pairwise rule",
+  "no_fusion_parameter_tuning": true,
+  "official_test_used": false,
+  "new_gpu_forwards": 0,
+  "dev_cases": 5486,
+  "train_cases": 43180,
+  "original_s1_baseline_verified": false,
+  "historical_s1_reproduction": {
+    "matched": false,
+    "historical_correct": 4667,
+    "historical_top1_percent": 85.0711,
+    "historical_macro_f1_148_percent": 60.9597,
+    "this_environment_correct": 4673,
+    "this_environment_top1_percent": 85.1805,
+    "this_environment_macro_f1_148_percent": 61.2118,
+    "delta_correct": 6,
+    "delta_macro_f1_pp": 0.2521,
+    "interpretation": "Historical scores differ under the current run. Compare each Global2 arm ONLY with its same-run original Base arm. Investigate dependencies and input fingerprints before claiming exact reproduction."
+  },
+  "numerical_environment": {
+    "python": "3.12.3",
+    "numpy": "2.5.4",
+    "scikit_learn": "1.9.1",
+    "scipy": "1.18.1"
+  },
+  "score_comparison_policy": "Evaluate Global2 against the same-method original Base within this run using identical SGD scores, candidate order and fixed arbitration. Historical score differences are separate environment diagnostics.",
+  "global2_logit_sources": {
+    "s1": "data/case_rag/paper_5486_20261116/scores/paper-s1-full/global2.jsonl",
+    "s2": "data/case_rag/paper_5486_20261116/scores/paper-s2-full/global2.jsonl",
+    "s3": "data/case_rag/paper_5486_20261116/scores/paper-s3-full/global2.jsonl"
+  },
+  "fixed_sgd_parameters": {
+    "loss": "modified_huber",
+    "alpha": 2e-05,
+    "max_iter": 15,
+    "gamma": 0.25,
+    "smoothing": 5.0,
+    "arbitration": "pairwise_margin1",
+    "prior_multiplier": 0.6,
+    "jeff_top10_gate_delta": 3.0
+  },
+  "methods": {
+    "s1_base": {
+      "metrics": {
+        "top1_percent": 85.1805,
+        "correct": 4673,
+        "macro_f1_148_percent": 61.2118,
+        "tail_37_macro_f1_percent": 45.9202,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 43.3735,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.1436
+      }
+    },
+    "s2_base": {
+      "metrics": {
+        "top1_percent": 85.1622,
+        "correct": 4672,
+        "macro_f1_148_percent": 59.8474,
+        "tail_37_macro_f1_percent": 42.1364,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 39.759,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.0831
+      }
+    },
+    "s3_base": {
+      "metrics": {
+        "top1_percent": 85.0346,
+        "correct": 4665,
+        "macro_f1_148_percent": 60.1116,
+        "tail_37_macro_f1_percent": 43.1274,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 39.759,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 83.9419
+      }
+    },
+    "s1_global2": {
+      "metrics": {
+        "top1_percent": 85.1987,
+        "correct": 4674,
+        "macro_f1_148_percent": 60.6532,
+        "tail_37_macro_f1_percent": 45.2896,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 42.1687,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.1235
+      },
+      "paired_vs_same_fusion_original": {
+        "delta_top1_pp": 0.0182,
+        "rescued": 34,
+        "broken": 33,
+        "exact_mcnemar_p": 1.0,
+        "cluster_bootstrap_95ci_pp": [
+          -0.2542,
+          0.2888
+        ]
+      }
+    },
+    "s2_global2": {
+      "metrics": {
+        "top1_percent": 85.3081,
+        "correct": 4680,
+        "macro_f1_148_percent": 59.8629,
+        "tail_37_macro_f1_percent": 41.5058,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 38.5542,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.2042
+      },
+      "paired_vs_same_fusion_original": {
+        "delta_top1_pp": 0.1458,
+        "rescued": 31,
+        "broken": 23,
+        "exact_mcnemar_p": 0.3408909412200971,
+        "cluster_bootstrap_95ci_pp": [
+          -0.1102,
+          0.4042
+        ]
+      }
+    },
+    "s3_global2": {
+      "metrics": {
+        "top1_percent": 85.2351,
+        "correct": 4676,
+        "macro_f1_148_percent": 59.9029,
+        "tail_37_macro_f1_percent": 41.9562,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 38.5542,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.1033
+      },
+      "paired_vs_same_fusion_original": {
+        "delta_top1_pp": 0.2005,
+        "rescued": 47,
+        "broken": 36,
+        "exact_mcnemar_p": 0.272268945972048,
+        "cluster_bootstrap_95ci_pp": [
+          -0.127,
+          0.5125
+        ]
+      }
+    }
+  }
+}

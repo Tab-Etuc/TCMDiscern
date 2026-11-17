@@ -34,6 +34,7 @@ from tcmdiscern.datasets import clinical_text, load_records, normalized_input
 from tcmdiscern.jeff_scoring import read_model_logits
 
 METHODS = ("s1", "s2", "s3")
+CONTROL_ARMS = ("random2", "global2_labelhide", "global2_labelonly")
 N_CASES = 5486
 FEATURES = {
     "analyzer": "char",
@@ -160,7 +161,7 @@ def _read_frozen_inputs(root: Path) -> tuple[list[dict], list[dict], list[dict],
     return train, dev, original, evidence
 
 
-def run(root: Path = ROOT, *, strict_global2: bool = False) -> dict:
+def run(root: Path = ROOT, *, strict_global2: bool = False, all_arms: bool = False) -> dict:
     # Fail before fitting the SGD if any requested H200 logits are missing.
     if strict_global2:
         for method in METHODS:
@@ -243,24 +244,40 @@ def run(root: Path = ROOT, *, strict_global2: bool = False) -> dict:
             "continue matched Base/Global2 paired comparisons with this same fitted SGD",
             flush=True,
         )
+    additional_sources: dict[str, str] = {}
     for method in METHODS:
-        path = root / "data/case_rag" / TAG / "scores" / f"paper-{method}-full" / "global2.jsonl"
-        if not path.is_file():
-            if strict_global2:
-                raise FileNotFoundError(f"Missing completed Global2 logits: {path}")
-            continue
-        scores = read_condition_logits(path, augmented)
-        predictions[f"{method}_global2"] = options[
-            np.arange(N_CASES), frozen_pairwise_margin1(sgd_scores, scores, support)
-        ]
-        used_score_files[method] = str(path.relative_to(root))
+        for arm in ("global2", *CONTROL_ARMS) if all_arms else ("global2",):
+            path = root / "data/case_rag" / TAG / "scores" / f"paper-{method}-full" / f"{arm}.jsonl"
+            if not path.is_file():
+                if strict_global2 and arm == "global2":
+                    raise FileNotFoundError(f"Missing completed Global2 logits: {path}")
+                continue
+            input_rows = augmented
+            if arm != "global2":
+                with (root / "data/case_rag" / TAG / f"{arm}.jsonl").open(
+                    encoding="utf-8"
+                ) as stream:
+                    input_rows = [json.loads(line) for line in stream]
+                if len(input_rows) != N_CASES or any(
+                    row["id"] != f"dev-{i:06d}" or row["options"] != original[i]["options"]
+                    for i, row in enumerate(input_rows)
+                ):
+                    raise ValueError(f"Frozen input alignment changed: {method}/{arm}")
+            scores = read_condition_logits(path, input_rows)
+            predictions[f"{method}_{arm}"] = options[
+                np.arange(N_CASES), frozen_pairwise_margin1(sgd_scores, scores, support)
+            ]
+            if arm == "global2":
+                used_score_files[method] = str(path.relative_to(root))
+            else:
+                additional_sources[f"{method}_{arm}"] = str(path.relative_to(root))
     if strict_global2 and len(used_score_files) != len(METHODS):
         raise FileNotFoundError("All three completed Global2 logits required")
     statistics: dict[str, dict] = {}
     for label, pred in predictions.items():
         scored = metrics(gold, pred.tolist(), classes, tail, clean)
         record = {"metrics": scored}
-        if label.endswith("_global2"):
+        if not label.endswith("_base"):
             method = label.split("_")[0]
             reference = predictions[f"{method}_base"]
             record["paired_vs_same_fusion_original"] = paired(
@@ -273,7 +290,15 @@ def run(root: Path = ROOT, *, strict_global2: bool = False) -> dict:
                 != record["paired_vs_same_fusion_original"]["rescued"]
                 - record["paired_vs_same_fusion_original"]["broken"]
             ):
-                raise ValueError("Global2 paired accounting mismatch")
+                raise ValueError("Arm paired accounting mismatch")
+            if label != f"{method}_global2" and f"{method}_global2" in predictions:
+                record["paired_vs_global2"] = paired(
+                    gold,
+                    predictions[f"{method}_global2"].tolist(),
+                    pred.tolist(),
+                    inverse,
+                    len(clusters),
+                )
         statistics[label] = record
     return {
         "status": "CASE_RAG_STRONG_SGD_CPU_FUSION_COMPLETED",
@@ -297,6 +322,8 @@ def run(root: Path = ROOT, *, strict_global2: bool = False) -> dict:
             "Historical score differences are separate environment diagnostics."
         ),
         "global2_logit_sources": used_score_files,
+        "control_logit_sources": additional_sources,
+        "all_available_completed_arms_evaluated": all_arms,
         "fixed_sgd_parameters": {
             "loss": "modified_huber",
             "alpha": SGD_OPTIONS["alpha"],
@@ -314,13 +341,14 @@ def run(root: Path = ROOT, *, strict_global2: bool = False) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--strict-global2", action="store_true")
+    parser.add_argument("--all-arms", action="store_true")
     parser.add_argument(
         "--output",
         type=Path,
         default=ROOT / "experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json",
     )
     args = parser.parse_args()
-    report = run(strict_global2=args.strict_global2)
+    report = run(strict_global2=args.strict_global2, all_arms=args.all_arms)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
