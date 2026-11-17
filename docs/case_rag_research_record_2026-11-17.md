@@ -3,6 +3,7 @@
 > 本文件記錄截至 2026-11-17 已確認的實驗成果、研究問題、論文規劃及待執行批次；新增實驗保留附錄與版本紀錄，避免事後改寫既有結果。
 > 實驗前方法鎖定版本：`docs/case_rag_jbhi_experiment_lock_2026-11-17.md`。
 > 後續具體工作：`docs/case_rag_roadmap_2026-11-17.md`。
+> **2026-11-17 優先順序修訂：先用既有 logits 做 CPU 分析，參見 `docs/case_rag_cpu_first_2026-11-17.md`；S3/S1 的六組 GPU 消融已準備好，但依 CPU 結論再決定是否執行。**
 
 ## 一、研究目標與定義
 
@@ -21,7 +22,7 @@
 | 300 筆 Dev Pilot，S1/S2/S3，17 arms 與反事實 | **完成** | `case_rag_reports.tar.gz`；`docs/case_rag_three_model_results_2026-11-16.md` |
 | 5,486 筆 Dev，S2：Global2、Random2、Label-Hide、Label-Only | **H200 完成** | `experiments/case_rag_paper_full_dev_s2_20261117.json` |
 | 5,486 筆 Dev，S1/S3：Global2 | **H200 完成** | `experiments/case_rag_paper_full_dev_s1_20261117.json`、`...s3...` |
-| 5,486 筆 Dev，S3/S1：Random2、Label-Hide、Label-Only | **已寫好、待 H200 執行** | `run_case_rag_followup_h200.sh` |
+| 5,486 筆 Dev，S3/S1：Random2、Label-Hide、Label-Only | **GPU 程式就緒；CPU 分析後再決定是否執行** | `run_case_rag_followup_h200.sh` |
 | Seed 2／Seed 3 的重新訓練與驗證 | **延後** | 先完成歸因分析與方法決策 |
 
 完成的 H200 原始執行回報：`CASE_RAG_PAPER_FULL_DEV_COMPLETE`，`backbone_loads=1`，`official_test_used=false`。
@@ -69,7 +70,16 @@
 - 300 筆 Pilot 已用於挑選 Global2，而完整 Dev 又用於觀察最優 S3。因此目前是**開發集結果**；完整方法與參數定稿後，才進行一次獨立 Test／外部驗證。
 - 已完成的「訓練加病例」只是強比較基準。論文若要主張有新方法，仍須新增可被消融證明的 **可靠度估計、臨床證據衝突處理、長尾保護或其他技術機制**。
 
-## 四、目前唯一排程中的 GPU 批次（未完成）
+## 四、CPU-first 研究進展（2026-11-17 補錄）
+
+已執行 `scripts/analyze_case_rag_cpu_first.py`，使用原本三組 S1/S2/S3 完整 Dev logits、BM25 Top-16 與 Train 來源診斷標籤。報告保存在 `experiments/case_rag_cpu_first_2026-11-17.json`，方法、分桶與負面結果見 `docs/case_rag_cpu_first_2026-11-17.md`。
+
+- **S3 Base vs BM25**：Jeff 獨對 **485**，BM25 獨對 **457**，兩者只在正確者中選擇的 Oracle 上限 **88.4251%**；這是分析上限，不可宣稱實際模型達成。
+- 原始 S3 在 Train gold 頻率 **1–9、10–49、50–199、200+** 四桶的 Top-1 分別為 **13.64%、32.07%、42.63%、87.30%**；BM25 則是 **40.91%、50.63%、56.47%、83.99%**。
+- 固定的 CPU 頻率切換診斷：S3 Base + BM25 條件式覆寫（Train 頻率上限 199）得到 **80.44% Top-1、51.38% Macro-F1、35.16% Tail-F1**；僅為已觀察 Dev 的簡單規則參照，未在獨立資料驗證。
+- 完整 S3+Global2 的每病例 logits 位於 H200，尚未同步本地；**下一件事是在 H200 只用 CPU 執行既有 logits 的配對分析**，經過這項結果再決定是否補六組 GPU 消融。
+
+## 五、已準備好的 GPU 補強批次（暫緩，等待 CPU 結論）
 
 `scripts/run_case_rag_followup_h200.py` 會以 S3→S1 順序補完：
 
@@ -81,7 +91,7 @@
 
 原始三模型 Base、三模型 Global2 與 S2 全套消融既已完成，均重用；由檔案核對決定實際剩餘 forward。輸入 Token、checkpoint、注意力後端與前次 logits 都在 GPU 前預檢；輸出以病例順序斷點續跑。Seed 2、3 不參與。
 
-**執行：**
+**已備妥的啟動指令（此批暫緩，待 CPU 評估需要時使用）：**
 
 ```bash
 cd /home/quanta/TCMDiscern-git
@@ -94,7 +104,7 @@ echo "PID: $!"
 
 預期先出現 `CASE_RAG_FOLLOWUP_PREFLIGHT_PASSED`，最後 `CASE_RAG_FOLLOWUP_COMPLETED`。全新執行時 `backbone_loads=1`；已完成後再執行應是 0。
 
-## 五、時間預估與計算依據
+## 六、時間預估與計算依據
 
 前次 **300 筆 Pilot** 的 Jeff + 兩筆歷史醫案推論均值約 **243 ms/forward**，既往 H200 Jeff 權重冷載入約 **43 分鐘**。本批最多 **32,916** 新 forward：
 
@@ -105,7 +115,7 @@ echo "PID: $!"
 
 以上屬規劃估算，非已量到的此次 H200 實際總耗時。排除 Model 冷載入的單例 latency 不能當作端到端總延遲。
 
-## 六、論文要寫什麼（IEEE J-BHI 稿件方向）
+## 七、論文要寫什麼（IEEE J-BHI 稿件方向）
 
 **暫定技術命題：** Evidence-attributed Case Retrieval for Efficient TCM Syndrome Differentiation（研究題名仍待新方法確立後定稿）。
 
