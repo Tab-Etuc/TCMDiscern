@@ -22,6 +22,19 @@ EPOCH_RUN = "seed20261112-e2"
 OUTPUT_ARMS = ("global2", "random2", "global2_labelhide", "global2_labelonly")
 
 
+def expected_output_arms(method: str, output: Path) -> tuple[str, ...]:
+    """Include optional full-Dev replication controls only once their files exist."""
+    if method == "s2":
+        return OUTPUT_ARMS
+    if method not in {"s1", "s3"}:
+        raise ValueError("Unsupported full-Dev checkpoint")
+    controls = ("random2", "global2_labelhide", "global2_labelonly")
+    return (
+        "global2",
+        *(arm for arm in controls if (output / f"{arm}.jsonl").is_file()),
+    )
+
+
 def _labels(rows: list[dict], matrix: np.ndarray) -> list[str]:
     if matrix.shape != (len(rows), 16):
         raise ValueError("Full Dev logits require exactly 16 candidates per patient")
@@ -151,8 +164,8 @@ def evaluate(method: str, *, root: Path = ROOT, strict: bool = False) -> dict:
         result["comparisons"][name] = paired(
             gold, reference_predictions, predictions, inverse, len(clusters)
         )
-    expected = OUTPUT_ARMS if method == "s2" else ("global2",)
     output = folder / "scores" / f"paper-{method}-full"
+    expected = expected_output_arms(method, output)
     model_labels = {}
     for arm in expected:
         path = output / f"{arm}.jsonl"
@@ -181,16 +194,15 @@ def evaluate(method: str, *, root: Path = ROOT, strict: bool = False) -> dict:
             result["comparisons"][f"{arm}_vs_{name}"] = paired(
                 gold, other, decisions, inverse, len(clusters)
             )
-    if method == "s2":
-        for control in ("random2", "global2_labelhide", "global2_labelonly"):
-            if "global2" in model_labels and control in model_labels:
-                result["comparisons"][f"global2_vs_{control}"] = paired(
-                    gold,
-                    model_labels[control],
-                    model_labels["global2"],
-                    inverse,
-                    len(clusters),
-                )
+    for control in ("random2", "global2_labelhide", "global2_labelonly"):
+        if "global2" in model_labels and control in model_labels:
+            result["comparisons"][f"global2_vs_{control}"] = paired(
+                gold,
+                model_labels[control],
+                model_labels["global2"],
+                inverse,
+                len(clusters),
+            )
     if not result["missing_arms"]:
         result["status"] = "CASE_RAG_PAPER_FULL_DEV_COMPLETED"
     elif strict:
