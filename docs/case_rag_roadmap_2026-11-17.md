@@ -1,9 +1,9 @@
 # TCMDiscern Case-RAG 後續研究路線圖（2026-11-17，CPU-first 修訂）
 
-**目前優先順序：P0 已執行部分 CPU 分析 → P1 取得 H200 現有 Global2 logits 再做 CPU 配對分析 → P2 決定技術方法與最小必要 GPU 消融 → P3 寫論文／獨立驗證。**
+**目前優先順序：P0 完成 H200 CPU 聚合分析及 85.0711% 強基準重現 → P1 在 H200 使用既有 Global2 logits 測試固定 SGD／Jeff 融合 → P2 決定是否需要新 GPU 消融 → P3 論文／最終獨立驗證。**
 
 主研究紀錄：`docs/case_rag_research_record_2026-11-17.md`
-CPU 第一輪結果：`docs/case_rag_cpu_first_2026-11-17.md`；CPU 分組路由與最高歷史成績核對：`docs/case_rag_cpu_router_2026-11-17.md`
+CPU 第一輪結果：`docs/case_rag_cpu_first_2026-11-17.md`；CPU 分組路由與最高歷史成績核對：`docs/case_rag_cpu_router_2026-11-17.md`；**完整 H200 聚合結果與新 CPU 強基準**：`docs/case_rag_cpu_complete_review_2026-11-17.md`
 最初事先鎖定實驗：`docs/case_rag_jbhi_experiment_lock_2026-11-17.md`（原文保留以追蹤決策歷程）
 GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**目前暫緩**）
 
@@ -19,32 +19,31 @@ GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**目前暫緩**�
 - 新增 5 折分組 Logistic 路由（Dev 開發性分析）：S3 原模型 + BM25 在 threshold 0.5 得 **84.543% Top-1 / 58.376% Macro-F1 / 44.659% Tail-F1（37 類）**，紀錄在 `experiments/case_rag_cpu_router_2026-11-17.json`。
 - **全面重估強基準：先前 2026-11-16 完整 Dev 的 Joint+Jeff S2 達 85.180% Top-1；SGD+Jeff S1 達 60.960% Macro-F1（該組 Top-1 85.071%）。** 下一方法要和這兩項正式比較。
 
-## P1 — H200 現有 Global2 logits 的 CPU 分析（現在要做）
+## P1 — H200 既有 Global2 logits 與固定強基準 CPU 融合（現在要做）
 
-**狀態：等待取得已完成的原始 logits；不需要訓練，也不需要 Jeff 31B GPU 載入。**
+**狀態：Global2 H200 完整 Dev 聚合分析已歸檔；固定 SGD+Jeff S1 85.0711%／60.9597% 已在本地 CPU 完整重現。現在只需要將 H200 已有 Global2 logits 代入同一固定融合規則，無需載入 Jeff 31B。**
 
-H200 上已有 S1/S2/S3 的 Global2 完整 5,486 筆 logits，及 S2 的 Random2／Label-Hide／Label-Only。原始聚合成績已在主研究紀錄。
+H200 上已有 S1/S2/S3 的 Global2 完整 5,486 筆 logits，及 S2 全套消融、S3 Label-Hide。H200 聚合報告已保存至 `experiments/case_rag_cpu_first_2026-11-17.json`；原始逐病例 logits 保留於 H200。下一步與既存完整 Dev 85% 強基準做完全固定規則的 CPU 比較。
 
 直接在 H200 執行：
 
 ```bash
 cd /home/quanta/TCMDiscern-git
 git pull --ff-only origin main
-.venv/bin/python -m scripts.analyze_case_rag_cpu_first --strict-global2
-.venv/bin/python -m scripts.analyze_case_rag_cpu_router --strict-global2
+.venv/bin/python -m scripts.evaluate_case_rag_strong_sgd_fusion_cpu --strict-global2
 ```
 
-報告輸出 `experiments/case_rag_cpu_first_2026-11-17.json`。分析下列固定問題：
+報告輸出 `experiments/case_rag_strong_sgd_fusion_cpu_2026-11-17.json`。先自動核對原始 SGD+Jeff S1 是否恰為 4667/5486、60.9597% Macro-F1，再維持同一 SGD 權重與 pairwise_margin1 門檻，將 Jeff scores 換成 S1/S2/S3 Global2。分析下列固定問題：
 
-1. **S3 + Global2 vs BM25／來源標籤**：各自獨對、雙對、雙錯、Oracle 上限及排除 Train 同文後的結果。
-2. **頻率偏差是否改善**：依 Train gold 頻率 1–9、10–49、50–199、200+ 檢查 S3 + Global2。確認 S3+Global2 是否仍系統性偏向高頻。
-3. **尾類候選衝突**：BM25 預測尾類但 Global2 不預測時，BM25／Global2 誰比較常正確；檢查單純依頻率切換是否有淨優勢。
-4. **來源歸因差分**：S2 Global2 vs Random2／Label-Hide／Label-Only 的逐病例救回／破壞與類別差異。
-5. **統計與資料品質**：完整與排除 529 筆同文後的 Top-1、配對 McNemar、群組 Bootstrap；避免把 Dev 上的擇優規則當成獨立驗證。
+1. **原始規則重現**：SGD+Jeff S1 必須完全重現 **4667/5486、60.9597% Macro-F1**，才開始載入 Global2 分數。
+2. **固定模型切換驗證**：維持相同 SGD 訓練、Train 類別先驗、Jeff Top10 候選門檻與 pairwise_margin1，S1／S2／S3 分別把 Base logits 換成 Global2 logits，檢驗淨增益。
+3. **性能公平比較**：報告 Top-1、固定 148 類 Macro-F1、37 類 Tail-F1，以及 4,957 筆排除 Train 同文的 Top-1；同時比較歷史 **85.180% Top-1／60.960% Macro-F1**。
+4. **配對統計**：計算同一微調方法 Global2 對 Base 強融合的 rescued/broken、未校正 McNemar 和分群 Bootstrap 95% CI。
+5. **決策**：若固定融合也無法改善歷史強基準，將 Global2 保留為病例檢索研究基準，優先找新的可靠度／證據作用機制再投入 GPU。
 
 **H200 進度補充（2026-11-17）**：六模型 Global2 CPU 路由已完成。最高路由 Top-1 為 **S3 Base 84.543%**；Global2 的最高路由 Macro-F1 為 **S1 58.800%**。兩者仍低於既有完整 Dev 強基準的 85.180% Top-1 與 60.960% Macro-F1。H200 的 `analyze_case_rag_cpu_first --strict-global2` 曾遇到 `s3_base_vs_bm25` KeyError，原因已修正並測試。
 
-**P1 尚待確認**：在 H200 拉取最新修正後，重新執行 `analyze_case_rag_cpu_first --strict-global2`，取得三模型 Global2 的逐病例 rescue/break、Oracle、Train 分桶與固定頻率保護成績。保存完成的 H200 原始 JSONL 與聚合報告；新 GPU 工作維持暫緩。
+**P1 尚待確認**：H200 執行 `evaluate_case_rag_strong_sgd_fusion_cpu --strict-global2`，取得三種固定 SGD＋Global2 強融合的 Top-1、Macro-F1、Tail-F1、Train 同文敏感度和配對救回／破壞；對照既存 **85.180% Top-1／60.960% Macro-F1**。新的 GPU 工作繼續暫緩。
 
 ## P2 — 決定新方法與是否需要下一批 GPU（條件式）
 

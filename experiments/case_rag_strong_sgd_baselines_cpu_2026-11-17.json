@@ -1,0 +1,59 @@
+{
+  "status": "CASE_RAG_STRONG_SGD_CPU_FUSION_COMPLETED",
+  "study_scope": "Dev exploratory, historical 2026-11-16 fixed pairwise rule",
+  "no_fusion_parameter_tuning": true,
+  "official_test_used": false,
+  "new_gpu_forwards": 0,
+  "dev_cases": 5486,
+  "train_cases": 43180,
+  "original_s1_baseline_verified": true,
+  "global2_logit_sources": {},
+  "fixed_sgd_parameters": {
+    "loss": "modified_huber",
+    "alpha": 2e-05,
+    "max_iter": 15,
+    "gamma": 0.25,
+    "smoothing": 5.0,
+    "arbitration": "pairwise_margin1",
+    "prior_multiplier": 0.6,
+    "jeff_top10_gate_delta": 3.0
+  },
+  "methods": {
+    "s1_base": {
+      "metrics": {
+        "top1_percent": 85.0711,
+        "correct": 4667,
+        "macro_f1_148_percent": 60.9597,
+        "tail_37_macro_f1_percent": 45.9202,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 43.3735,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 84.0226
+      }
+    },
+    "s2_base": {
+      "metrics": {
+        "top1_percent": 84.9617,
+        "correct": 4661,
+        "macro_f1_148_percent": 59.4761,
+        "tail_37_macro_f1_percent": 42.4067,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 39.759,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 83.841
+      }
+    },
+    "s3_base": {
+      "metrics": {
+        "top1_percent": 84.9253,
+        "correct": 4659,
+        "macro_f1_148_percent": 59.6804,
+        "tail_37_macro_f1_percent": 43.1274,
+        "tail_gold_cases": 83,
+        "tail_top1_percent": 39.759,
+        "no_exact_train_text_n": 4957,
+        "no_exact_train_text_top1_percent": 83.8209
+      }
+    }
+  }
+}
