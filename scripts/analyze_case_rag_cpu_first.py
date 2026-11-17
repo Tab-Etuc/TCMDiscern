@@ -168,6 +168,34 @@ def fixed_frequency_override_diagnostics(
     return output
 
 
+def build_pairwise_comparisons(gold: np.ndarray, models: dict[str, np.ndarray]) -> dict:
+    """Keep baseline comparisons stable regardless of optional Case-RAG scores.
+
+    The original S3-baseline Oracle summary remains available when Global2
+    scores are synchronized from H200. Include both comparisons when present.
+    """
+    pairs: dict[str, dict] = {}
+    for method in METHODS:
+        original = models[f"{method}_base"]
+        for competitor in ("bm25", "source_label"):
+            pairs[f"{method}_base_vs_{competitor}"] = paired_errors(
+                gold, models[competitor], original
+            )
+        global_key = f"{method}_global2"
+        if global_key in models:
+            model = models[global_key]
+            for competitor in ("bm25", "source_label"):
+                pairs[f"{global_key}_vs_{competitor}"] = paired_errors(
+                    gold, models[competitor], model
+                )
+            pairs[f"{global_key}_vs_base"] = paired_errors(gold, original, model)
+            for control in ("random2", "global2_labelhide", "global2_labelonly"):
+                key = f"{method}_{control}"
+                if key in models:
+                    pairs[f"{global_key}_vs_{control}"] = paired_errors(gold, models[key], model)
+    return pairs
+
+
 def _prediction_from_logits(rows: list[dict], matrix: np.ndarray) -> np.ndarray:
     if matrix.shape != (len(rows), 16):
         raise ValueError("Predictions must have 16 candidate logits")
@@ -256,34 +284,17 @@ def run(root: Path = ROOT, *, strict_global2: bool = False) -> dict:
             raise ValueError(f"{method}: baseline logits disagree with published full Dev")
         if abs(observed["macro_f1_148_percent"] / 100 - expected["macro_f1"]) > 1e-5:
             raise ValueError(f"{method}: baseline F1 disagrees with original full Dev")
-    # Predefine all S3-focused contrasts and extend to S1/S2 if GPU scores exist.
-    pairs = {}
-    for method in METHODS:
-        model = (
-            models[f"{method}_global2"]
-            if f"{method}_global2" in models
-            else models[f"{method}_base"]
-        )
-        label = f"{method}_{'global2' if f'{method}_global2' in models else 'base'}"
-        for competitor in ("bm25", "source_label"):
-            pairs[f"{label}_vs_{competitor}"] = paired_errors(gold, models[competitor], model)
-        if f"{method}_global2" in models:
-            pairs[f"{method}_global2_vs_base"] = paired_errors(
-                gold, models[f"{method}_base"], model
-            )
-            for control in ("random2", "global2_labelhide", "global2_labelonly"):
-                key = f"{method}_{control}"
-                if key in models:
-                    pairs[f"{method}_global2_vs_{control}"] = paired_errors(
-                        gold, models[key], model
-                    )
+    pairs = build_pairwise_comparisons(gold, models)
     tail_conflicts = {}
     for method in METHODS:
-        label = f"{method}_global2" if f"{method}_global2" in models else f"{method}_base"
-        for competitor in ("bm25", "source_label"):
-            tail_conflicts[f"{label}_vs_{competitor}"] = divergent_tail_choices(
-                gold, models[label], models[competitor], tail
-            )
+        for arm in ("base", "global2"):
+            label = f"{method}_{arm}"
+            if label not in models:
+                continue
+            for competitor in ("bm25", "source_label"):
+                tail_conflicts[f"{label}_vs_{competitor}"] = divergent_tail_choices(
+                    gold, models[label], models[competitor], tail
+                )
     sample = {
         "status": "CASE_RAG_CPU_DIAGNOSTICS_COMPLETED",
         "official_test_used": False,
@@ -314,7 +325,12 @@ def run(root: Path = ROOT, *, strict_global2: bool = False) -> dict:
         },
         "scope_note": (
             "CPU diagnostic on previously inspected Dev; oracle is a feasibility upper bound, "
-            "not a learnable model. Global2-specific case-level claims require H200 score JSONLs."
+            "not a learned or validated model. "
+            + (
+                "Three complete H200 Global2 logits are available for paired analysis."
+                if not any(f"{method}_global2" not in models for method in METHODS)
+                else "Global2-specific case-level claims require complete H200 score JSONLs."
+            )
         ),
     }
     if "s3_global2_vs_bm25" in pairs:

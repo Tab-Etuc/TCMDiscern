@@ -36,6 +36,26 @@ Train 43,180、Dev 5,486、148 證型、BM25 候選 K16，官方 Test 封存。
 
 結果表明 CPU 決策機制能改善原始模型的長尾，但更強的既有 `Joint+Jeff S2 85.180/59.387`、`Plain SGD+Jeff S1 85.071/60.960` 仍是必須超越或獨立比較的標準。尤其目前 **84.543%** 尚未超越 **85.180%**，Macro-F1 **58.376%** 尚未超越 **60.960%**。
 
+## H200 已取得的六模型分組路由結果（2026-11-17 終端輸出）
+
+使用者在 H200 成功執行 `scripts.analyze_case_rag_cpu_router`，狀態 `CASE_RAG_CPU_ROUTER_EXPLORATORY_COMPLETE models=6`；以下為 H200 終端提供的 5,486 筆 Dev 分組五折探索性結果（門檻 0.5）：
+
+| 使用的 Jeff logits | 原始 Top-1 | CPU 路由 Top-1 | 路由 Macro-F1（148） | 路由 Tail-F1（37） |
+|---|---:|---:|---:|---:|
+| S1 Base | 79.220% | 84.397% | 57.578% | 41.956% |
+| **S1 + Global2** | 82.902% | **84.451%** | **58.800%** | **45.109%** |
+| S2 Base | 80.350% | 84.123% | 57.093% | 38.919% |
+| S2 + Global2 | 82.592% | 84.160% | 57.461% | 40.245% |
+| **S3 Base** | 80.095% | **84.543%** | 58.376% | 44.659% |
+| S3 + Global2 | 83.449% | 84.397% | 58.061% | 42.136% |
+
+- **最高路由 Top-1：S3 Base + 路由 84.543%。最高路由 Macro-F1：S1 + Global2 + 路由 58.800%。**
+- 即使加入新路由，仍低於先前完整 Dev 的 **Joint+Jeff S2 85.180% Top-1** 與 **Plain SGD+Jeff S1 60.960% Macro-F1**。
+- S3 + Global2 經路由後的 84.397% 比 S3 Base 經相同路由的 84.543% 略低；進一步投入 GPU 前先確認 Global2 與 BM25 的逐病例互補性。
+- 這批 Fold 是從**已多次觀察的 Dev** 進行交叉擬合，僅代表探索性結果。新的方法仍須 Train OOF 或獨立資料驗證。
+
+同一批執行中，`analyze_case_rag_cpu_first --strict-global2` 因先前程式在取得 Global2 時覆蓋了 `s3_base_vs_bm25` 配對 key，觸發 `KeyError`。該程式已修正，會同時保留 Base 和 Global2 的配對表與 Oracle；回歸測試涵蓋三模型 Global2 存在的實際分支。
+
 ## 下一個 CPU 工作（已具備程式，待 H200 現有檔案）
 
 在 H200 已完成的 `data/case_rag/paper_5486_20261116/scores/paper-{s1,s2,s3}-full/global2.jsonl` 旁直接執行：

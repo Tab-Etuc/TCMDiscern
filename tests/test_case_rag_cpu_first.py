@@ -1,16 +1,89 @@
 """CPU-only regression checks for frozen per-case Case-RAG analysis."""
 
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from scripts import analyze_case_rag_cpu_first as analysis
 from scripts.analyze_case_rag_cpu_first import (
+    build_pairwise_comparisons,
     divergent_tail_choices,
     fixed_frequency_override_diagnostics,
     paired_errors,
     split_by_gold_frequency,
 )
+
+
+@pytest.mark.skipif(
+    not (analysis.ROOT / "data/tcm-sd/train.json").is_file(),
+    reason="Full-Dev original TCM-SD data unavailable in this checkout",
+)
+def test_full_dev_strict_global2_with_saved_logits_uses_both_oracle_keys(monkeypatch):
+    """Reproduce the exact H200 branch without needing to copy patient data."""
+    from tcmdiscern.case_rag_artifacts import frozen_paths
+    from tcmdiscern.jeff_scoring import read_model_logits
+
+    real_is_file = Path.is_file
+
+    def simulate_synced_global2(path):
+        if (
+            path.name == "global2.jsonl"
+            and path.parent.name.startswith("paper-")
+            and "scores" in path.parts
+        ):
+            return True
+        return real_is_file(path)
+
+    def use_original_valid_logits(path, rows):
+        method = path.parent.name.split("-")[1]
+        _, original = frozen_paths(analysis.ROOT, method)
+        return read_model_logits(original, num_cases=5486)
+
+    monkeypatch.setattr(Path, "is_file", simulate_synced_global2)
+    monkeypatch.setattr(analysis, "read_condition_logits", use_original_valid_logits)
+    output = analysis.run(strict_global2=True)
+    assert output["missing_case_rag_global2"] == []
+    assert len(output["case_rag_logits_available"]) == 3
+    pairs = output["paired_error_decomposition"]
+    for method in ("s1", "s2", "s3"):
+        assert f"{method}_base_vs_bm25" in pairs
+        assert f"{method}_global2_vs_bm25" in pairs
+    assert output["oracle_ceilings_descriptive_only"]["bm25_or_s3_baseline_top1_percent"] == 88.4251
+    assert output["oracle_ceilings_descriptive_only"]["bm25_or_s3_global2_top1_percent"] == 88.4251
+
+
+def test_global2_presence_preserves_s3_baseline_pairs_and_oracle():
+    gold = np.asarray(["a", "b", "c", "d"])
+    bm25 = np.asarray(["a", "x", "c", "x"])
+    source = np.asarray(["a", "b", "x", "x"])
+    original = np.asarray(["a", "b", "x", "x"])
+    global2 = np.asarray(["x", "b", "c", "d"])
+    models = {"bm25": bm25, "source_label": source}
+    for method in ("s1", "s2", "s3"):
+        models[f"{method}_base"] = original
+        models[f"{method}_global2"] = global2
+    models["s2_global2_labelonly"] = np.asarray(["a", "b", "x", "x"])
+    comparison = build_pairwise_comparisons(gold, models)
+    assert len(comparison) == 16
+    assert comparison["s3_base_vs_bm25"]["oracle_pair_top1_percent"] == 75.0
+    assert comparison["s3_global2_vs_bm25"]["oracle_pair_top1_percent"] == 100.0
+    assert comparison["s3_global2_vs_base"]["rescue"] == 2
+    assert "s2_global2_vs_global2_labelonly" in comparison
+
+
+def test_missing_global2_keeps_baseline_oracle_consistent():
+    gold = np.asarray(["a", "b"])
+    models = {
+        "bm25": np.asarray(["a", "x"]),
+        "source_label": np.asarray(["a", "b"]),
+        **{f"{method}_base": np.asarray(["x", "b"]) for method in ("s1", "s2", "s3")},
+    }
+    comparison = build_pairwise_comparisons(gold, models)
+    assert len(comparison) == 6
+    assert comparison["s3_base_vs_bm25"]["oracle_pair_top1_percent"] == 100.0
+    assert not any("global2" in key for key in comparison)
 
 
 def test_paired_rescue_break_and_oracle():

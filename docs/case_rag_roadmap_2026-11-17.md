@@ -42,7 +42,9 @@ git pull --ff-only origin main
 4. **來源歸因差分**：S2 Global2 vs Random2／Label-Hide／Label-Only 的逐病例救回／破壞與類別差異。
 5. **統計與資料品質**：完整與排除 529 筆同文後的 Top-1、配對 McNemar、群組 Bootstrap；避免把 Dev 上的擇優規則當成獨立驗證。
 
-P1 完成標準：取得上述包含 Global2 的聚合 JSON、確認 S3+Global2 與 BM25 的錯誤交集、長尾改善來源與假說；已完成 GPU 原始資料保存在 H200 私有路徑。
+**H200 進度補充（2026-11-17）**：六模型 Global2 CPU 路由已完成。最高路由 Top-1 為 **S3 Base 84.543%**；Global2 的最高路由 Macro-F1 為 **S1 58.800%**。兩者仍低於既有完整 Dev 強基準的 85.180% Top-1 與 60.960% Macro-F1。H200 的 `analyze_case_rag_cpu_first --strict-global2` 曾遇到 `s3_base_vs_bm25` KeyError，原因已修正並測試。
+
+**P1 尚待確認**：在 H200 拉取最新修正後，重新執行 `analyze_case_rag_cpu_first --strict-global2`，取得三模型 Global2 的逐病例 rescue/break、Oracle、Train 分桶與固定頻率保護成績。保存完成的 H200 原始 JSONL 與聚合報告；新 GPU 工作維持暫緩。
 
 ## P2 — 決定新方法與是否需要下一批 GPU（條件式）
 
