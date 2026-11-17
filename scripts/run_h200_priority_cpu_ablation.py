@@ -17,16 +17,16 @@ import sklearn
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import SGDClassifier
 
-from scripts.evaluate_case_rag_paper_dev import metrics
-from scripts.evaluate_case_rag_strong_sgd_fusion_cpu import (
-    FEATURES,
-    SGD_OPTIONS,
-    class_balanced_weights,
-    row_normalize,
-)
 from tcmdiscern.case_rag_artifacts import frozen_paths
 from tcmdiscern.datasets import clinical_text, load_records, normalized_input
 from tcmdiscern.jeff_scoring import read_model_logits
+from tcmdiscern.priority_cpu_common import (
+    FEATURES,
+    SGD_OPTIONS,
+    class_balanced_weights,
+    metrics,
+    row_normalize,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "experiments/h200_priority_cpu_ablation.json"

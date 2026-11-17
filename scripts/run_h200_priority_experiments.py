@@ -19,7 +19,23 @@ from pathlib import Path
 from tcmdiscern.h200.workflow import complete_optimizer_checkpoint
 
 ROOT = Path(__file__).resolve().parents[1]
-MODEL = Path(os.environ.get("H200_MODEL_DIR", str(ROOT / "data/models/Jeff-1.1-Large")))
+
+
+def default_model_dir() -> Path:
+    """Use the pinned weight location without copying a 31B model."""
+    provided = os.environ.get("H200_MODEL_DIR")
+    if provided:
+        return Path(provided).expanduser()
+    from tcmdiscern.case_rag_artifacts import artifact_roots
+
+    for base in artifact_roots(ROOT):
+        candidate = base / "data/models/Jeff-1.1-Large"
+        if candidate.is_dir():
+            return candidate
+    return ROOT / "data/models/Jeff-1.1-Large"
+
+
+MODEL = default_model_dir()
 STATE = ROOT / "data/h200/priority_experiment_queue.json"
 STEPS = 1350
 SEED = 20261112
@@ -100,18 +116,30 @@ def valid_report(run_id: str, epoch: int = 2) -> bool:
 
 def baseline_microbatch() -> int:
     """Match the already trained S1 first seed when it is available."""
+    from tcmdiscern.case_rag_artifacts import artifact_roots
     from tcmdiscern.jeff_axolotl_attention import requested_attention_backend
     from tcmdiscern.jeff_config import JEFF_MODEL_REVISION
 
-    baseline = ROOT / "data/runs/s1-seed20261112-e2"
+    candidates = [
+        path / "data/runs/s1-seed20261112-e2"
+        for path in artifact_roots(ROOT)
+    ]
+    baseline = next(
+        (
+            path for path in candidates
+            if (path / "summary.json").is_file()
+            or (path / "resume-0001350/training_state.json").is_file()
+        ),
+        None,
+    )
+    if baseline is None:
+        return 1  # Dry-run on developer machine, without H200 checkpoints.
     summary = baseline / "summary.json"
     state = baseline / "resume-0001350/training_state.json"
     if summary.is_file():
         original = json.loads(summary.read_text(encoding="utf-8"))
-    elif state.is_file():
-        original = json.loads(state.read_text(encoding="utf-8"))
     else:
-        return 1  # Dry-run on developer machine, without H200 checkpoints.
+        original = json.loads(state.read_text(encoding="utf-8"))
     if (
         original.get("loss_method") != "s1"
         or original.get("seed") != SEED
@@ -327,8 +355,18 @@ def run_queue(*, model_dir: Path, skip_seeds: bool, dry_run: bool) -> None:
     print(json.dumps(planned, ensure_ascii=False, indent=2), flush=True)
     if dry_run:
         return
-    if not (ROOT / "data/jeff/dev_s1-seed20261112-e2-epoch2_k16_5486.jsonl").is_file():
-        raise FileNotFoundError("Original S1 full-Dev logits are required")
+    # On the H200 the original S1/S2/S3 scores may live in the adjacent
+    # TCMDiscern-main run folder. Reuse the pre-registered artifact lookup,
+    # which checks both the current checkout and legacy training directories.
+    from tcmdiscern.case_rag_artifacts import frozen_paths
+
+    for method in ("s1", "s2", "s3"):
+        frozen_paths(ROOT, method)
+    from scripts.run_h200_priority_real_gpu_latency import original_s1_checkpoint
+
+    first_checkpoint = original_s1_checkpoint(ROOT)
+    if not complete_optimizer_checkpoint(first_checkpoint):
+        raise RuntimeError(f"Original S1 checkpoint is incomplete: {first_checkpoint}")
     if not model_dir.is_dir():
         raise FileNotFoundError(f"Pinned Jeff model not found: {model_dir}")
 
@@ -357,7 +395,9 @@ def run_queue(*, model_dir: Path, skip_seeds: bool, dry_run: bool) -> None:
         *(base / "scores" / f"paper-{method}-full/global2.jsonl"
           for method in ("s1", "s2", "s3")),
     ]
-    if all(path.is_file() for path in needed):
+    if all(path.is_file() for path in needed) and (
+        ROOT / "src/tcmdiscern/case_rag.py"
+    ).is_file():
         strong_report = ROOT / "experiments/h200_priority_strong_fusion_all_arms.json"
         run_cpu_stage(
             "scripts.evaluate_case_rag_strong_sgd_fusion_cpu",

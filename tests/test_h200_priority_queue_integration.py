@@ -117,9 +117,44 @@ def test_reject_stale_gpu_latency_cache(tmp_path):
 def setup_fake_queue(monkeypatch, tmp_path):
     monkeypatch.setattr(queue, "ROOT", tmp_path)
     monkeypatch.setattr(queue, "STATE", tmp_path / "data/h200/priority_experiment_queue.json")
-    source = tmp_path / "data/jeff/dev_s1-seed20261112-e2-epoch2_k16_5486.jsonl"
-    source.parent.mkdir(parents=True)
-    source.touch()
+    for method in ("s1", "s2", "s3"):
+        source = (
+            tmp_path / "data/jeff"
+            / f"dev_{method}-seed20261112-e2-epoch2_k16_5486.jsonl"
+        )
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.touch()
+        report = (
+            tmp_path / "experiments"
+            / f"jeff_{method}-seed20261112-e2-epoch2_k16_dev.json"
+        )
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.touch()
+    original = tmp_path / "data/runs/s1-seed20261112-e2/resume-0001350"
+    original.mkdir(parents=True)
+    for filename in (
+        "training_state.json", "manifest.json", "probe_logits.json",
+        "head.safetensors", "optimizer.pt", "scheduler.pt", "rng.pt",
+    ):
+        (original / filename).touch()
+    adapter = original / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_model.safetensors").touch()
+    (original / "training_state.json").write_text(
+        json.dumps(
+            {
+                "loss_method": "s1", "seed": 20261112, "target_updates": 1350,
+                "accumulation": 64, "source": "train_oof_multipos_k16_epoch03.jsonl",
+                "rank": 32, "alpha": 64, "warmup_steps": 40, "epochs": 2,
+                "model_revision": JEFF_MODEL_REVISION, "lora_lr": 2e-5,
+                "head_lr": 1e-4, "weight_decay": 0.01, "clip_norm": 1.0,
+                "checkpoint_every": 300,
+                "attention_backend": requested_attention_backend(),
+                "micro_batch_size": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
     model = tmp_path / "original-model"
     model.mkdir()
     selected = fake_selected(tmp_path)
@@ -168,7 +203,7 @@ def test_cached_gpu_latency_skips_loading_31b_when_no_training(monkeypatch, tmp_
     model, indices, calls = setup_fake_queue(monkeypatch, tmp_path)
     monkeypatch.setattr(queue, "pending_tasks", lambda **kwargs: [])
     cache = tmp_path / "experiments/h200_priority_real_gpu_latency.json"
-    cache.parent.mkdir(parents=True)
+    cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(fake_latency_report(indices)), encoding="utf-8")
     import tcmdiscern.h200.session as resident
 

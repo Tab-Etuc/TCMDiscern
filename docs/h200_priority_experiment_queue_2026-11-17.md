@@ -41,7 +41,9 @@ bash run_h200_priority_experiments.sh
 - 實際 GPU 20% 推論每筆儲存無病歷內容的進度紀錄，可以從中斷前最後一筆接續；每一筆都驗證與原始 S1 Dev logits 的 Top-1 一致。
 - 確認已完成的結果時，會驗證訓練設定、epoch/checkpoint、Dev 原始 logits 5486 筆及模型來源資訊；檔案存在本身不足以判定完成。
 - 原本所有 Seed 跑完而延遲測試中斷時，續跑仍會執行遺漏的延遲測試。
-- `H200_MODEL_DIR` 與既有 `run_h200.sh` 使用同一個模型權重路徑設定。
+- `H200_MODEL_DIR` 沿用既有 `run_h200.sh` 的模型權重設定；未指定時會依序尋找目前 Git checkout、`TCMDISCERN_LEGACY_ROOT` 與相鄰 `TCMDiscern-main` 的原始 Jeff 權重。
+- H200 曾發生 `ModuleNotFoundError: tcmdiscern.case_rag`：啟動器現在強制將此 Git checkout 的 `src/` 放在 `PYTHONPATH` 最前面並在 CPU 計算前檢查來源；核心 CPU 消融則已解耦 Case-RAG 歷史實驗匯入，使用獨立且已和固定基準逐函式比對的評分／SGD 常數。
+- 原始第一 Seed 的 LoRA、Head 與完整 Dev logits 可以仍留在相鄰 `TCMDiscern-main`；腳本會自動尋找與驗證，所有新優先實驗仍寫在當前 `TCMDiscern-git/data/`。
 
 ## 主要輸出
 

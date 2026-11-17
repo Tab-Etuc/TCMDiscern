@@ -93,6 +93,22 @@ def read_partial(path: Path, indices: list[int]) -> list[dict]:
     return records
 
 
+def original_s1_checkpoint(root: Path) -> Path:
+    """Resolve the original H200 checkpoint from this checkout or legacy root."""
+    from tcmdiscern.case_rag_artifacts import artifact_roots
+
+    candidates = [
+        base / "data/runs/s1-seed20261112-e2/resume-0001350"
+        for base in artifact_roots(root)
+    ]
+    checkpoint = next((path for path in candidates if path.is_dir()), None)
+    if checkpoint is None:
+        raise FileNotFoundError(
+            f"Original S1 final checkpoint is required. Checked: {candidates}"
+        )
+    return checkpoint
+
+
 def run(session, *, root: Path = ROOT, output: Path = OUTPUT) -> dict:
     indices = selection_indices(root)
     cached = completed_report(output, indices)
@@ -100,9 +116,7 @@ def run(session, *, root: Path = ROOT, output: Path = OUTPUT) -> dict:
         print("[SKIP] Verified complete real-GPU selective latency report", flush=True)
         return cached
 
-    checkpoint = root / "data/runs/s1-seed20261112-e2/resume-0001350"
-    if not checkpoint.is_dir():
-        raise FileNotFoundError(f"Original S1 final checkpoint is required: {checkpoint}")
+    checkpoint = original_s1_checkpoint(root)
     partial = root / "data/h200/priority_real_gpu_latency_partial.jsonl"
     rows = [json.loads(line) for line in (root / "data/jeff/dev_k16.jsonl").open(encoding="utf-8")]
     if len(rows) != 5486:
