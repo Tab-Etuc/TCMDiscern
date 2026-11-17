@@ -46,8 +46,25 @@
 
 - Global2 對各自 Base：S1 Top-1 **+3.68 pp**、S2 **+2.24 pp**、S3 **+3.35 pp**；相應 Macro-F1 **+10.62、+7.34、+10.19 pp**。
 - 本批 H200 配對 McNemar 印出的三模型 Global2 vs Base p 值均為 `0.000000`（僅六位小數呈現，實際值仍為正數）；完整統計應以原 JSON 的未四捨五入數值為準。
-- **S3 + Global2 目前最高 Top-1 與 Jeff 系列 Macro-F1；S2 + Global2 的 Tail Macro-F1 在 Jeff 系列最高。**
+- **S3 + Global2 是目前完整 Dev Case-RAG 分支的最高 Top-1 與 Macro-F1**；S2 + Global2 在這三組 Case-RAG 的 Tail Macro-F1 最高。完整 TCMDiscern 歷史強基準另見下一節。
 - BM25、來源標籤 CPU 基準在 148 類 Macro-F1 均高於所有 Jeff + Global2；BM25 的長尾 Macro-F1 亦高約 10–12 pp。這是研究真正需要改善的臨床技術缺口。
+
+### 歷史完整 Dev 更強的比較基準（2026-11-16 補錄）
+
+同樣是官方 TCM-SD **Train 43,180 / Dev 5,486 / K=16 / 148 類**，過往 CPU／融合研究已有更高分數；因此論文主表與新演算法驗收必須加入：
+
+| 研究分支 | Top-1 | 148 類 Macro-F1 | 證據狀態 |
+|---|---:|---:|---|
+| **Joint Clinical Signature + Jeff S2 Pairwise Fusion** | **85.180%（4,673/5,486）** | 59.387% | Dev 探索性；原本 Pairwise margin=1.0 規則；來源 `experiments/joint_clinical_signature_jeff_fixed_2026-11-16.json` |
+| Joint Clinical Signature + Jeff S1 Pairwise Fusion | 85.144%（4,671/5,486） | 60.861% | 同一報告 |
+| **Plain SGD + Jeff S1 Pairwise Fusion** | 85.071%（4,667/5,486） | **60.960%** | Dev 探索性；來源 `experiments/linear_jeff_fusion_paired_diagnostics_2026-11-16.json` |
+| Clinical text + structured evidence（SGD） | 84.451% | 58.195% | 已完成 Dev；來源 `README.md`、`experiments/clinical_signature_frozen_dev_2026-11-16.json` |
+| Class-balanced SGD（固定 Train 訓練） | 84.141% | 58.391% | 事先選定權重，Dev 描述性評測；`experiments/linear_syndrome_balanced_dev_2026-11-16.json` |
+| S3 + Global2 | 83.45% | 51.47% | 現有 Case-RAG 最佳 |
+
+**目前檢查到的完整官方 Dev Top-1 最高為 85.180%，不是 83.45%。** SGD+Jeff S1 的 60.960% 是上述高準確率模型中 Macro-F1 最佳。
+
+兩個融合結果均受先前在 Dev 上探索門檻與方法的影響；因此屬探索性結果，應用獨立正式評估確認。部分歷史報告的尾類定義是 **Train 最低頻 11 類**，目前 Case-RAG 用的是最低頻 **37 類**，兩者 Tail-F1 不應直接橫向比較。正式論文需重算統一 37 類尾類指標，保留同一 K、資料切分、標籤與公開可重現流程。
 
 ### S2 完整 Dev 的來源歸因消融（已完成）
 

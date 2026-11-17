@@ -3,7 +3,7 @@
 **目前優先順序：P0 已執行部分 CPU 分析 → P1 取得 H200 現有 Global2 logits 再做 CPU 配對分析 → P2 決定技術方法與最小必要 GPU 消融 → P3 寫論文／獨立驗證。**
 
 主研究紀錄：`docs/case_rag_research_record_2026-11-17.md`
-CPU 第一輪結果：`docs/case_rag_cpu_first_2026-11-17.md`
+CPU 第一輪結果：`docs/case_rag_cpu_first_2026-11-17.md`；CPU 分組路由與最高歷史成績核對：`docs/case_rag_cpu_router_2026-11-17.md`
 最初事先鎖定實驗：`docs/case_rag_jbhi_experiment_lock_2026-11-17.md`（原文保留以追蹤決策歷程）
 GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**目前暫緩**）
 
@@ -16,6 +16,8 @@ GPU 跨模型補強腳本：`run_case_rag_followup_h200.sh`（**目前暫緩**�
 - 將 gold 依 Train 類別頻率固定分桶，證實低頻 1–199 筆/類的 S3 原始模型明顯弱於 BM25；高頻 200+ 的 Jeff 較佳。
 - 分析 S3 Jeff 與 BM25 各自獨對：485／457 筆；兩者挑對的一方 Oracle 上限 88.4251%，僅為互補診斷。
 - 結果：`experiments/case_rag_cpu_first_2026-11-17.json`；可重現程式：`scripts/analyze_case_rag_cpu_first.py`。
+- 新增 5 折分組 Logistic 路由（Dev 開發性分析）：S3 原模型 + BM25 在 threshold 0.5 得 **84.543% Top-1 / 58.376% Macro-F1 / 44.659% Tail-F1（37 類）**，紀錄在 `experiments/case_rag_cpu_router_2026-11-17.json`。
+- **全面重估強基準：先前 2026-11-16 完整 Dev 的 Joint+Jeff S2 達 85.180% Top-1；SGD+Jeff S1 達 60.960% Macro-F1（該組 Top-1 85.071%）。** 下一方法要和這兩項正式比較。
 
 ## P1 — H200 現有 Global2 logits 的 CPU 分析（現在要做）
 
@@ -29,6 +31,7 @@ H200 上已有 S1/S2/S3 的 Global2 完整 5,486 筆 logits，及 S2 的 Random2
 cd /home/quanta/TCMDiscern-git
 git pull --ff-only origin main
 .venv/bin/python -m scripts.analyze_case_rag_cpu_first --strict-global2
+.venv/bin/python -m scripts.analyze_case_rag_cpu_router --strict-global2
 ```
 
 報告輸出 `experiments/case_rag_cpu_first_2026-11-17.json`。分析下列固定問題：
@@ -47,7 +50,7 @@ P1 完成標準：取得上述包含 Global2 的聚合 JSON、確認 S3+Global2 
 
 - 比較 Jeff 決策 logits/margin、BM25 排名與候選差距、來源病例證型一致度、Train 類別頻率與臨床描述的證據衝突。
 - 先評估固定規則或簡單、可重現的路由器，在 Train OOF 或分組 fit/cal 上訓練與調參。Dev 已反覆用於方法研究，只能作探索性結果。
-- 對照 BM25、source-label CPU、S3+Global2、S2+Global2；追求維持整體 Top-1 優勢，同時縮小低頻 Macro-F1 落差。
+- 對照 BM25、source-label CPU、S3+Global2、S2+Global2，並納入 **既存 Joint+Jeff S2 85.180% Top-1 與 SGD+Jeff S1 60.960% Macro-F1** 作更強的完整 Dev 比較；追求維持整體 Top-1 優勢，同時縮小低頻 Macro-F1 落差。
 - 若 P1 顯示需要跨模型證據歸因，才執行已寫好的 `run_case_rag_followup_h200.sh`：S3/S1 各三個消融，共最多 **32,916** 新 forward，**單次** Jeff 31B 權重載入；歷史量測估計約 3～3.5 小時。
 - 若無額外科研價值，取消這六組 GPU 重複驗證，把算力留給真正新方法。**Seed 2／Seed 3 的訓練繼續延後**。
 
